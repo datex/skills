@@ -1,0 +1,83 @@
+{
+    "dataSets": {
+        "ds_inventory": {
+            "data": [
+                {
+                    "Material_LookupCode": "MAT-001",
+                    "Material_Name": "Steel Bracket",
+                    "Material_Description": "Heavy duty steel mounting bracket",
+                    "Material_Barcode": "012345678901",
+                    "Lot_LookupCode": "LOT-2024-001",
+                    "VendorLot_LookupCode": "VL-88901",
+                    "TotalAmount": 500,
+                    "AvailableAmount": 425,
+                    "ActiveAmount": 480,
+                    "Packaging_ShortName": "EA",
+                    "MaterialStatus_Name": "Active",
+                    "LotStatus_Name": "Released",
+                    "LocationStatus_Name": "Available"
+                },
+                {
+                    "Material_LookupCode": "MAT-002",
+                    "Material_Name": "Copper Wire 12AWG",
+                    "Material_Description": "12 gauge copper wire spool",
+                    "Material_Barcode": "098765432109",
+                    "Lot_LookupCode": "LOT-2024-002",
+                    "VendorLot_LookupCode": null,
+                    "TotalAmount": 1200,
+                    "AvailableAmount": 1100,
+                    "ActiveAmount": 1200,
+                    "Packaging_ShortName": "FT",
+                    "MaterialStatus_Name": "Active",
+                    "LotStatus_Name": "Released",
+                    "LocationStatus_Name": "Available"
+                },
+                {
+                    "Material_LookupCode": "MAT-003",
+                    "Material_Name": "Rubber Gasket",
+                    "Material_Description": "Silicone rubber gasket 4in",
+                    "Material_Barcode": "056789012345",
+                    "Lot_LookupCode": "LOT-2024-003",
+                    "VendorLot_LookupCode": "VL-55210",
+                    "TotalAmount": 250,
+                    "AvailableAmount": 200,
+                    "ActiveAmount": 230,
+                    "Packaging_ShortName": "PK",
+                    "MaterialStatus_Name": "Active",
+                    "LotStatus_Name": "Quarantine",
+                    "LocationStatus_Name": "Available"
+                },
+                {
+                    "Material_LookupCode": "MAT-004",
+                    "Material_Name": "Aluminum Plate",
+                    "Material_Description": "6061-T6 aluminum plate 12x12",
+                    "Material_Barcode": "034567890123",
+                    "Lot_LookupCode": "LOT-2024-004",
+                    "VendorLot_LookupCode": "VL-77340",
+                    "TotalAmount": 75,
+                    "AvailableAmount": 50,
+                    "ActiveAmount": 70,
+                    "Packaging_ShortName": "EA",
+                    "MaterialStatus_Name": "Inactive",
+                    "LotStatus_Name": "Released",
+                    "LocationStatus_Name": "Hold"
+                }
+            ]
+        },
+        "ds_warehouse": {
+            "data": [
+                {
+                    "Name": "Main Warehouse"
+                }
+            ]
+        },
+        "ds_project": {
+            "data": [
+                {
+                    "LookupCode": "PRJ-100",
+                    "Name": "Project Alpha"
+                }
+            ]
+        }
+    }
+}

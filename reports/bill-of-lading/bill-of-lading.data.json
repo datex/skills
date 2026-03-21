@@ -1,0 +1,105 @@
+{
+    "dataSets": {
+        "ds_shipment": {
+            "data": [
+                {
+                    "BillOfLading": "BOL-2026-00451",
+                    "LookupCode": "SHP-78234",
+                    "ReferenceNumber": "REF-90123",
+                    "BrokerReference": "PRO-445567",
+                    "TrackingIdentifier": "1Z999AA10123456784",
+                    "TrailerId": "TRL-4821",
+                    "SealId": "SEAL-99012",
+                    "ShippedDate": "2026-03-18T08:00:00.0000000",
+                    "DeliveredDate": "2026-03-20T14:00:00.0000000",
+                    "GrossWeight": 12450.50,
+                    "NetWeight": 11200.00,
+                    "PalletCount": 8,
+                    "FobLocation": "Origin",
+                    "Notes": "Dock door 12. Call 30 min before arrival. No weekend deliveries.",
+                    "Carrier_Name": "XPO Logistics",
+                    "Carrier_ScacCode": "XPOL",
+                    "CarrierServiceType_Name": "LTL Standard",
+                    "FreightTerm_Name": "Prepaid",
+                    "Account_Name": "Acme Distribution Inc.",
+                    "Contact_Address_Line1": "1200 Industrial Blvd",
+                    "Contact_Address_Line2": "Suite 400",
+                    "Contact_Address_City": "Dallas",
+                    "Contact_Address_State": "TX",
+                    "Contact_Address_PostalCode": "75201",
+                    "ShipToAccount_Name": "National Retail Corp.",
+                    "ShipToContact_Address_Line1": "8900 Commerce Way",
+                    "ShipToContact_Address_Line2": "",
+                    "ShipToContact_Address_City": "Atlanta",
+                    "ShipToContact_Address_State": "GA",
+                    "ShipToContact_Address_PostalCode": "30301",
+                    "ExpectedWarehouse_Name": "Dallas DC"
+                }
+            ]
+        },
+        "ds_shipment_lines": {
+            "data": [
+                {
+                    "LineNumber": 1,
+                    "ExpectedAmount": 100,
+                    "ActualAmount": 100,
+                    "GrossWeight": 2500.00,
+                    "NetWeight": 2300.00,
+                    "WeightUOM_Short_name": "lbs",
+                    "ExpectedPackaged_Name": "Pallet",
+                    "OrderLine_Material_LookupCode": "SKU-10042",
+                    "OrderLine_Material_Description": "Premium Widget Assembly Kit - Standard",
+                    "OrderLine_Material_NmfcNumber": "86750-3",
+                    "OrderLine_MaterialPackagingLookup_FreightClass_Name": "70",
+                    "OrderLine_Order_LookupCode": "SO-44210",
+                    "OrderLine_PurchaseOrderIdentifier": "PO-78901"
+                },
+                {
+                    "LineNumber": 2,
+                    "ExpectedAmount": 250,
+                    "ActualAmount": 248,
+                    "GrossWeight": 4800.00,
+                    "NetWeight": 4500.00,
+                    "WeightUOM_Short_name": "lbs",
+                    "ExpectedPackaged_Name": "Case",
+                    "OrderLine_Material_LookupCode": "SKU-20085",
+                    "OrderLine_Material_Description": "Industrial Fastener Set - Heavy Duty",
+                    "OrderLine_Material_NmfcNumber": "51200-1",
+                    "OrderLine_MaterialPackagingLookup_FreightClass_Name": "85",
+                    "OrderLine_Order_LookupCode": "SO-44210",
+                    "OrderLine_PurchaseOrderIdentifier": "PO-78901"
+                },
+                {
+                    "LineNumber": 3,
+                    "ExpectedAmount": 50,
+                    "ActualAmount": 50,
+                    "GrossWeight": 3200.00,
+                    "NetWeight": 2900.00,
+                    "WeightUOM_Short_name": "lbs",
+                    "ExpectedPackaged_Name": "Pallet",
+                    "OrderLine_Material_LookupCode": "SKU-30120",
+                    "OrderLine_Material_Description": "Hydraulic Pump Motor - 3HP",
+                    "OrderLine_Material_NmfcNumber": "12340-2",
+                    "OrderLine_MaterialPackagingLookup_FreightClass_Name": "92.5",
+                    "OrderLine_Order_LookupCode": "SO-44215",
+                    "OrderLine_PurchaseOrderIdentifier": "PO-79055"
+                },
+                {
+                    "LineNumber": 4,
+                    "ExpectedAmount": 500,
+                    "ActualAmount": 500,
+                    "GrossWeight": 1950.50,
+                    "NetWeight": 1500.00,
+                    "WeightUOM_Short_name": "lbs",
+                    "ExpectedPackaged_Name": "Box",
+                    "OrderLine_Material_LookupCode": "SKU-40200",
+                    "OrderLine_Material_Description": "Copper Connector Plate - Type B",
+                    "OrderLine_Material_NmfcNumber": "44820-4",
+                    "OrderLine_MaterialPackagingLookup_FreightClass_Name": "65",
+                    "OrderLine_Order_LookupCode": "SO-44215",
+                    "OrderLine_PurchaseOrderIdentifier": ""
+                }
+            ]
+        }
+    }
+}

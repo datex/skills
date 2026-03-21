@@ -1,0 +1,837 @@
+{
+    "Name": "inventory",
+    "Width": "11in",
+    "Page": {
+        "PageWidth": "11in",
+        "PageHeight": "8.5in",
+        "TopMargin": "0.25in",
+        "BottomMargin": "0.25in",
+        "LeftMargin": "0.25in",
+        "RightMargin": "0.25in",
+        "Columns": 1,
+        "ColumnSpacing": "0in",
+        "PaperOrientation": "Landscape"
+    },
+    "ReportSections": [
+        {
+            "Type": "Continuous",
+            "Name": "Section1",
+            "Page": {
+                "PageWidth": "11in",
+                "PageHeight": "8.5in",
+                "TopMargin": "0.5in",
+                "BottomMargin": "0.5in",
+                "LeftMargin": "0.5in",
+                "RightMargin": "0.5in",
+                "Columns": 1,
+                "ColumnSpacing": "0in",
+                "PaperOrientation": "Landscape"
+            },
+            "Body": {
+                "Height": "5in",
+                "ReportItems": [
+                    {
+                        "Type": "textbox",
+                        "Name": "Title",
+                        "Left": "0in",
+                        "Top": "0in",
+                        "Width": "4in",
+                        "Height": "0.35in",
+                        "Value": "Inventory Report",
+                        "Style": {
+                            "FontSize": "16pt",
+                            "FontWeight": "Bold"
+                        }
+                    },
+                    {
+                        "Type": "line",
+                        "Name": "HeaderDivider",
+                        "StartPoint": {
+                            "X": "0in",
+                            "Y": "0.7in"
+                        },
+                        "EndPoint": {
+                            "X": "10in",
+                            "Y": "0.7in"
+                        }
+                    },
+                    {
+                        "Type": "table",
+                        "Name": "InventoryTable",
+                        "Left": "0in",
+                        "Top": "0.8in",
+                        "Width": "10in",
+                        "Height": "5in",
+                        "Style": {
+                            "FontSize": "8pt",
+                            "Border": {
+                                "Style": "Solid",
+                                "Width": "0.5pt",
+                                "Color": "#CCCCCC"
+                            },
+                            "PaddingLeft": "2pt",
+                            "PaddingRight": "2pt",
+                            "PaddingTop": "2pt",
+                            "PaddingBottom": "2pt"
+                        },
+                        "DataSetName": "ds_inventory",
+                        "TableColumns": [
+                            {
+                                "Width": "0.95in"
+                            },
+                            {
+                                "Width": "1.8in"
+                            },
+                            {
+                                "Width": "1in"
+                            },
+                            {
+                                "Width": "0.85in"
+                            },
+                            {
+                                "Width": "0.8in"
+                            },
+                            {
+                                "Width": "0.55in"
+                            },
+                            {
+                                "Width": "0.6in"
+                            },
+                            {
+                                "Width": "0.55in"
+                            },
+                            {
+                                "Width": "0.7in"
+                            },
+                            {
+                                "Width": "0.75in"
+                            },
+                            {
+                                "Width": "0.7in"
+                            },
+                            {
+                                "Width": "0.75in"
+                            }
+                        ],
+                        "Header": {
+                            "TableRows": [
+                                {
+                                    "Height": "0.25in",
+                                    "TableCells": [
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_Material",
+                                                "Value": "Material",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_Name",
+                                                "Value": "Name / Description",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_UPC",
+                                                "Value": "UPC",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_Lot",
+                                                "Value": "Lot",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_VendorLot",
+                                                "Value": "V Lot",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_TotalQty",
+                                                "Value": "Total",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "TextAlign": "Right",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_AvailQty",
+                                                "Value": "Avail",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "TextAlign": "Right",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_ActiveQty",
+                                                "Value": "Active",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "TextAlign": "Right",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_Packaging",
+                                                "Value": "Packaging",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_MatStatus",
+                                                "Value": "Mat Status",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_LotStatus",
+                                                "Value": "Lot Status",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "hdr_LocStatus",
+                                                "Value": "Loc Status",
+                                                "Style": {
+                                                    "FontWeight": "Bold",
+                                                    "FontSize": "7pt",
+                                                    "BackgroundColor": "#E8E8E8",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "Details": {
+                            "TableRows": [
+                                {
+                                    "Height": "0.35in",
+                                    "TableCells": [
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_Material",
+                                                "Value": "=Fields!Material_LookupCode.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_NameDesc",
+                                                "Value": "=Fields!Material_Name.Value & Chr(10) & Fields!Material_Description.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "barcode",
+                                                "Name": "det_UPC",
+                                                "Value": "=Fields!Material_Barcode.Value",
+                                                "Symbology": "UPCA",
+                                                "Width": "0.95in",
+                                                "Height": "0.3in",
+                                                "Style": {
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_Lot",
+                                                "Value": "=Fields!Lot_LookupCode.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_VendorLot",
+                                                "Value": "=Fields!VendorLot_LookupCode.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_TotalQty",
+                                                "Value": "=Fields!TotalAmount.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "TextAlign": "Right",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_AvailQty",
+                                                "Value": "=Fields!AvailableAmount.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "TextAlign": "Right",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_ActiveQty",
+                                                "Value": "=Fields!ActiveAmount.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "TextAlign": "Right",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_Packaging",
+                                                "Value": "=Fields!Packaging_ShortName.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_MatStatus",
+                                                "Value": "=Fields!MaterialStatus_Name.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_LotStatus",
+                                                "Value": "=Fields!LotStatus_Name.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Item": {
+                                                "Type": "textbox",
+                                                "Name": "det_LocStatus",
+                                                "Value": "=Fields!LocationStatus_Name.Value",
+                                                "Style": {
+                                                    "FontSize": "7pt",
+                                                    "VerticalAlign": "Top",
+                                                    "PaddingLeft": "2pt",
+                                                    "PaddingRight": "2pt",
+                                                    "PaddingTop": "2pt",
+                                                    "PaddingBottom": "2pt",
+                                                    "Border": {
+                                                        "Style": "Solid",
+                                                        "Width": "0.5pt",
+                                                        "Color": "#CCCCCC"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": "textbox",
+                        "Name": "ReportCreated",
+                        "Left": "7in",
+                        "Top": "0in",
+                        "Width": "3in",
+                        "Height": "0.25in",
+                        "Value": "=\"Report Created: \" & Format(Globals!ExecutionTime, \"MM/dd/yyyy hh:mm tt\")",
+                        "Style": {
+                            "FontSize": "8pt",
+                            "TextAlign": "Right",
+                            "Color": "#555555",
+                            "FontWeight": "Bold"
+                        }
+                    },
+                    {
+                        "Type": "textbox",
+                        "Name": "LblWarehouse",
+                        "Left": "0in",
+                        "Top": "0.35in",
+                        "Width": "0.75in",
+                        "Height": "0.25in",
+                        "Value": "Warehouse:",
+                        "Style": {
+                            "FontSize": "9pt",
+                            "FontWeight": "Bold",
+                            "Color": "#555555"
+                        }
+                    },
+                    {
+                        "Type": "textbox",
+                        "Name": "ValWarehouse",
+                        "Left": "0.75in",
+                        "Top": "0.35in",
+                        "Width": "2.5in",
+                        "Height": "0.25in",
+                        "Value": "=First(Fields!Name.Value, \"ds_warehouse\")",
+                        "Style": {
+                            "FontSize": "9pt",
+                            "Color": "#555555"
+                        }
+                    },
+                    {
+                        "Type": "textbox",
+                        "Name": "LblProject",
+                        "Left": "3.3in",
+                        "Top": "0.35in",
+                        "Width": "0.55in",
+                        "Height": "0.25in",
+                        "Value": "Project:",
+                        "Style": {
+                            "FontSize": "9pt",
+                            "FontWeight": "Bold",
+                            "Color": "#555555"
+                        }
+                    },
+                    {
+                        "Type": "textbox",
+                        "Name": "ValProject",
+                        "Left": "3.85in",
+                        "Top": "0.35in",
+                        "Width": "2.5in",
+                        "Height": "0.25in",
+                        "Value": "=First(Fields!LookupCode.Value, \"ds_project\") & \" - \" & First(Fields!Name.Value, \"ds_project\")",
+                        "Style": {
+                            "FontSize": "9pt",
+                            "Color": "#555555"
+                        }
+                    },
+                    {
+                        "Type": "barcode",
+                        "Name": "WarehouseBarcode",
+                        "Left": "8.5in",
+                        "Top": "7in",
+                        "Width": "1.5in",
+                        "Height": "0.5in",
+                        "Value": "=First(Fields!Name.Value, \"ds_warehouse\")",
+                        "Symbology": "Code128",
+                        "Caption": true
+                    }
+                ]
+            }
+        }
+    ],
+    "DataSources": [
+        {
+            "Name": "Datasource",
+            "ConnectionProperties": {
+                "DataProvider": "JSONEMBED",
+                "ConnectString": "jsondata={}"
+            }
+        }
+    ],
+    "DataSets": [
+        {
+            "Name": "ds_inventory",
+            "Fields": [
+                {
+                    "Name": "Material_LookupCode",
+                    "DataField": "Material_LookupCode"
+                },
+                {
+                    "Name": "Material_Name",
+                    "DataField": "Material_Name"
+                },
+                {
+                    "Name": "Material_Description",
+                    "DataField": "Material_Description"
+                },
+                {
+                    "Name": "Material_Barcode",
+                    "DataField": "Material_Barcode"
+                },
+                {
+                    "Name": "Lot_LookupCode",
+                    "DataField": "Lot_LookupCode"
+                },
+                {
+                    "Name": "VendorLot_LookupCode",
+                    "DataField": "VendorLot_LookupCode"
+                },
+                {
+                    "Name": "TotalAmount",
+                    "DataField": "TotalAmount"
+                },
+                {
+                    "Name": "AvailableAmount",
+                    "DataField": "AvailableAmount"
+                },
+                {
+                    "Name": "ActiveAmount",
+                    "DataField": "ActiveAmount"
+                },
+                {
+                    "Name": "Packaging_ShortName",
+                    "DataField": "Packaging_ShortName"
+                },
+                {
+                    "Name": "MaterialStatus_Name",
+                    "DataField": "MaterialStatus_Name"
+                },
+                {
+                    "Name": "LotStatus_Name",
+                    "DataField": "LotStatus_Name"
+                },
+                {
+                    "Name": "LocationStatus_Name",
+                    "DataField": "LocationStatus_Name"
+                }
+            ],
+            "Query": {
+                "DataSourceName": "Datasource",
+                "CommandText": "$.*"
+            }
+        },
+        {
+            "Name": "ds_warehouse",
+            "Fields": [
+                {
+                    "Name": "Name",
+                    "DataField": "Name"
+                }
+            ],
+            "Query": {
+                "DataSourceName": "Datasource",
+                "CommandText": "$.*"
+            }
+        },
+        {
+            "Name": "ds_project",
+            "Fields": [
+                {
+                    "Name": "LookupCode",
+                    "DataField": "LookupCode"
+                },
+                {
+                    "Name": "Name",
+                    "DataField": "Name"
+                }
+            ],
+            "Query": {
+                "DataSourceName": "Datasource",
+                "CommandText": "$.*"
+            }
+        }
+    ],
+    "ReportParameters": [],
+    "CustomProperties": [
+        {
+            "Name": "DisplayType",
+            "Value": "Page"
+        },
+        {
+            "Name": "SizeType",
+            "Value": "Default"
+        }
+    ],
+    "Layers": [
+        {
+            "Name": "default"
+        }
+    ],
+    "Version": "10.0.1"
+}
