@@ -268,3 +268,24 @@ List repeats its `ReportItems` once per data row — useful for card layouts, re
 - **Expressions** are clean JSON strings — no shell escaping needed
 - Offset text 0.05in from border lines so content doesn't collide with dividers
 - Use `dxs report validate` after writing to catch errors before upload
+
+## Expression Quick Reference
+
+```
+=Fields!FieldName.Value                                    # Field reference
+="Label: " & Fields!FieldName.Value                        # Concatenation
+=IIf(Fields!X.Value <> "", Fields!X.Value, "N/A")          # Conditional
+=Format(Fields!Date.Value, "MM/dd/yyyy")                   # Date format
+=Format(Fields!Amount.Value, "N2")                         # Number with commas (1,234.50)
+=Format(Fields!Price.Value, "C2")                          # Currency ($1,234.50)
+=Format(Fields!Ratio.Value, "P1")                          # Percent (85.6%)
+=Format(Fields!Seq.Value, "D5")                            # Zero-padded (00042)
+=Sum(Fields!Amount.Value)                                  # Aggregate
+=Now()                                                     # Current date/time
+=Today()                                                   # Current date only
+=Globals!ReportName                                        # Report name
+=Globals!ExecutionTime                                     # Execution timestamp
+=Globals!PageNumber & " of " & Globals!TotalPages          # Page numbers
+```
+
+**Common mistakes:** `Fields.Name.Value` (wrong — use `Fields!`), unbalanced parens in `IIf()`.

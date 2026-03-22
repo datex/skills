@@ -198,6 +198,31 @@ Column width planning — total must equal content width (10in for landscape let
 | Short code (UOM, status) | 0.4–0.5in |
 | Name (person, location) | 1.0–1.2in |
 
+## Table & Tablix Styling
+
+### Cell padding
+
+Always add left padding to cells so content doesn't press against the left border. A minimum of `PaddingLeft: 2pt` keeps text readable. Right-aligned cells need the same treatment with `PaddingRight: 2pt`. Use `--header-style` and `--detail-style` at creation time to apply padding uniformly rather than styling cells individually.
+
+### Vertical alignment
+
+Default cell content to `VerticalAlign: Middle` — top-aligned text in short rows looks unanchored, especially when adjacent cells have different content heights. Set this in the row-level style (e.g., `--detail-style "vertical-align:Middle;padding-left:2pt"`).
+
+### Column alignment by data type
+
+Choose alignment based on what the column contains — the goal is scannability:
+
+| Data type | Alignment | Why |
+|-----------|-----------|-----|
+| Currency / money | Right | Decimal points line up for quick comparison |
+| Quantities (integer counts) | Center | No decimal alignment needed; centering looks balanced |
+| Percentages, weights, dimensions | Right | Decimal alignment aids comparison |
+| Text (names, descriptions, codes) | Left | Natural reading direction |
+| Dates / timestamps | Left or Center | Either works; center for short formats, left for long |
+| Status / short codes (UOM, etc.) | Center | Short values look best centered in narrow columns |
+
+Header cells should match the alignment of their detail cells so the label visually anchors to the data below it.
+
 ## Layout Techniques
 
 ### Side-by-Side (Two-Column) Sections

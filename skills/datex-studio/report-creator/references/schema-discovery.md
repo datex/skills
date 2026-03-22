@@ -51,19 +51,19 @@ Common mistakes:
 
 ```bash
 # Batch 1: Search + describe main entity in one call
-uv run dxs schema batch -c <id> \
+dxs schema batch -c <id> \
   --request 'search keyword' \
   --request 'describe-entity MainEntity'
 
 # Batch 2: Describe child entity + scan related entity properties
-uv run dxs schema batch -c <id> \
+dxs schema batch -c <id> \
   --request 'describe-entity ChildEntity' \
   --request 'properties --entity-type Namespace.RelatedType1' \
   --request 'properties --entity-type Namespace.RelatedType2' \
   --request 'properties --entity-type Namespace.RelatedType3'
 
 # Batch 3: Remaining related entities (if any)
-uv run dxs schema batch -c <id> \
+dxs schema batch -c <id> \
   --request 'properties --entity-type Namespace.Type4' \
   --request 'properties --entity-type Namespace.Type5' \
   --request 'properties --entity-type Namespace.Type6'
@@ -75,22 +75,22 @@ Use when batch isn't practical:
 
 ```bash
 # Find entities by keyword
-uv run dxs schema search "keyword" -c <connection_id>
+dxs schema search "keyword" -c <connection_id>
 
 # Describe main entity (full structure — properties + nav props)
-uv run dxs schema describe-entity <EntityName> -c <connection_id>
+dxs schema describe-entity <EntityName> -c <connection_id>
 
 # Quick-scan related entity field names (lightweight — just names + types)
-uv run dxs schema properties -c <id> --entity-type <Namespace.EntityType>
+dxs schema properties -c <id> --entity-type <Namespace.EntityType>
 
 # List navigation properties for $expand paths (filter by entity type)
-uv run dxs schema navigation-properties -c <id> --entity-type <Namespace.EntityType>
+dxs schema navigation-properties -c <id> --entity-type <Namespace.EntityType>
 
 # Explore all relationships for an entity set
-uv run dxs schema describe-relationships <EntityName> -c <connection_id>
+dxs schema describe-relationships <EntityName> -c <connection_id>
 
 # Describe a single navigation property (two positional args required)
-uv run dxs schema describe-navigation-properties <Namespace.EntityType> <NavPropertyName> -c <id>
+dxs schema describe-navigation-properties <Namespace.EntityType> <NavPropertyName> -c <id>
 ```
 
 ## Key Rules
