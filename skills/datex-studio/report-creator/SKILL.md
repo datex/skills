@@ -1,9 +1,9 @@
 ---
 name: report-creator
 description: |
-  End-to-end workflow for building Datex Studio reports and labels: OData schema discovery, datasource creation, RDLX-JSON report authoring, and deployment. Use when asked to build/create/design/modify reports or labels, create or manage datasources, explore OData schema for report purposes, write or troubleshoot RDLX-JSON, or interact with `dxs report`/`dxs datasource`/`dxs schema` commands.
+  End-to-end workflow for building Datex Studio reports and labels: OData schema discovery, datasource creation, RDLX-JSON report authoring, and deployment. Use when asked to build/create/design/modify reports or labels, create or manage datasources, explore OData schema for report purposes, write or troubleshoot RDLX-JSON, or interact with `dxs report`/`dxs datasource`/`dxs schema` commands. Also use when building reports from Azure DevOps work items, migrating SSRS reports to NextGen, or extracting report requirements from DevOps tickets.
 
-  Keywords: report, label, datasource, schema, OData, RDLX-JSON, barcode, shipping label, BOL, bill of lading, commercial invoice, dxs, ActiveReportsJS, preview, bounding box
+  Keywords: report, label, datasource, schema, OData, RDLX-JSON, barcode, shipping label, BOL, bill of lading, commercial invoice, dxs, ActiveReportsJS, preview, bounding box, devops, work item, requirement, SSRS, migration, ticket
 ---
 
 # Report Creator
@@ -26,6 +26,7 @@ End-to-end workflow for building datasources and reports using the `dxs` CLI. Re
 - [references/sample-data.md](references/sample-data.md) — Companion `.data.json` files for live preview
 - [references/datasource-commands.md](references/datasource-commands.md) — Parameter strategies, linked datasources, quoting, post-upsert verification
 - [references/common-mistakes.md](references/common-mistakes.md) — Frequent pitfalls and fixes
+- [references/devops-requirements.md](references/devops-requirements.md) — Extracting report requirements from Azure DevOps work items
 
 ## Workflow
 
@@ -105,8 +106,21 @@ mkdir -p <artifact_dir>
 | 3 - Layout Prototype | `<report-name>.data.json` | Sample data for live Studio preview |
 | 4 - Query Building | `04-query-building.md` | Incremental query steps and final verified query |
 | 7 - Deploy & Verify | `<report-name>-preview.svg` | Preview image from `dxs report preview` |
+| 1 - Requirements | `requirements/` | Downloaded attachments and requirements brief (when sourced from DevOps) |
 
 If the user declines, proceed normally — artifacts are optional and the workflow is unchanged.
+
+### Requirements from DevOps work item (optional)
+
+If the user references a DevOps work item (by ID, URL, or mention of "work item"/"requirement"/"ticket"), extract requirements before schema discovery. This step produces context that feeds into Phase 2's subagent prompt and Phase 3's layout design.
+
+**Quick workflow:**
+1. Fetch with `dxs devops workitem <ID> --full --expand All`
+2. Review relations — present parent/children/attachments, ask which to explore
+3. Download relevant attachments (`.rdlx-json`, `.rdl`, `.pdf`) to `<artifact_dir>/requirements/`
+4. Compile a requirements brief: report purpose, field/data requirements, layout expectations, entity keywords
+
+See [references/devops-requirements.md](references/devops-requirements.md) for the full extraction workflow, attachment decision table, and requirements brief template.
 
 ## Phase 2: Schema Discovery + Field Mapping (Subagent)
 
@@ -119,7 +133,8 @@ Explore OData schema and build a field mapping table for a report.
 
 **Connection ID:** <connection_id>
 **Report purpose:** <user's description of what the report shows>
-**Key entities to explore:** <entity keywords from user, e.g., "shipments", "inventory tasks">
+**Requirements brief (from DevOps):** <paste requirements brief if available, otherwise omit>
+**Key entities to explore:** <entity keywords from user or requirements brief, e.g., "shipments", "inventory tasks">
 
 **Steps:**
 1. Search for relevant entities using `dxs schema batch -c <id> --request 'search <keyword>'`
