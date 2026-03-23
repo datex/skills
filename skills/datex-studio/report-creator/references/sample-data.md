@@ -74,6 +74,24 @@ The data file uses the `Name`:
 - Field names are case-sensitive and must match the report's DataSet field definitions exactly
 - To preview the report with this data from the CLI: `dxs report preview <report>.rdlx-json --data <report>.data.json`
 
+## Images in Sample Data
+
+For database-bound images (e.g., product photos, dynamic logos), encode image files into the data file using `dxs report data add-image`:
+
+```bash
+# Add logo to first row of ds_header
+dxs report data add-image <report>.data.json \
+  --dataset ds_header --field LogoImage --file logo.png
+
+# Add product photo to a specific row (0-indexed)
+dxs report data add-image <report>.data.json \
+  --dataset ds_products --field ProductImage --file widget.jpg --row 2
+```
+
+The image is stored as a data URI (`data:image/png;base64,...`) in the specified field. The preview renderer resolves these automatically when the report has a database-bound image with `=Fields!LogoImage.Value`.
+
+**Note:** This is only needed for **database-bound** images (`Source: "Database"`). Embedded images (`Source: "Embedded"`, added via `dxs report add image --file`) are stored in the report itself and don't need sample data entries.
+
 ## Example: Pick Slip with Master + Detail
 
 ```json

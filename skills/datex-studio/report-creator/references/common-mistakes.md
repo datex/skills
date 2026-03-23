@@ -42,6 +42,7 @@ Quick reference for frequent pitfalls. Check this when debugging unexpected beha
 | Embedding sample data in `ConnectString` | Use a companion `<report>.data.json` file — Studio auto-discovers it |
 | Data file as flat array `[{...}]` | Must use wrapper structure `{ "dataSets": { "ds_name": { "data": [...] } } }` |
 | Skipping DataSets during Phase 3 prototyping | Studio shows "no matching DataSet in report" and expressions render as raw text |
+| Using `=Fields!X.Value` on a textbox for a non-default dataset | Standalone textboxes resolve against the first DataSet by default. For fields from other datasets, use `=First(Fields!X.Value, "ds_other")` |
 
 ## Layout & CLI Issues
 
@@ -58,3 +59,6 @@ Quick reference for frequent pitfalls. Check this when debugging unexpected beha
 | Manually editing JSON to add a table column | Use `dxs report table add-column` |
 | Manually editing JSON to add a dataset field | Use `dxs report dataset add-field --dataset NAME --field FIELD` |
 | Using `dxs report set` without `--width`/`--height` for resizing | `report set` supports `--width` and `--height` directly |
+| Using `--value` with a URL for embedded images | Use `--file logo.png` to embed — `--value` is for expressions or external URLs |
+| Database-bound image field missing from sample data | Use `dxs report data add-image` to encode image files as data URIs in `.data.json` |
+| Setting number format via `set`/`batch` | `format` is not yet a recognized key in `set`/`batch` — edit `"Format": "N2"` in JSON `Style` directly |

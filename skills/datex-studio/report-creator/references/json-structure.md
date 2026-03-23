@@ -124,10 +124,23 @@ Rectangles can contain child elements via `ReportItems`. Children use **relative
 
 > **NOTE:** Use `--parent` to nest elements inside rectangles: `dxs report add textbox ... --parent BoxName`. In batch ops, use `"parent": "BoxName"` key. Moving the parent rectangle moves all children automatically.
 
-**Image:**
+**Image (embedded from file):**
 ```json
-{ "Type": "image", "Name": "UniqueId", "Left": "0in", "Top": "0in", "Width": "2in", "Height": "1in", "Source": "External", "Value": "https://example.com/logo.png", "MIMEType": "image/png", "Sizing": "FitProportional" }
+{ "Type": "image", "Name": "Logo", "Left": "0in", "Top": "0in", "Width": "2in", "Height": "0.5in", "Source": "Embedded", "Value": "Logo", "MIMEType": "image/png", "Sizing": "FitProportional" }
 ```
+Use `dxs report add image <file> --name Logo --file logo.png` to embed — the CLI handles base64 encoding and `EmbeddedImages` array.
+
+**Image (database-bound):**
+```json
+{ "Type": "image", "Name": "ProductPhoto", "Left": "0in", "Top": "0in", "Width": "2in", "Height": "2in", "Source": "Database", "Value": "=Fields!ProductImage.Value", "MIMEType": "image/png", "Sizing": "FitProportional" }
+```
+
+**Image (external URL):**
+```json
+{ "Type": "image", "Name": "ExternalImg", "Left": "0in", "Top": "0in", "Width": "2in", "Height": "1in", "Source": "External", "Value": "https://example.com/logo.png", "MIMEType": "image/png", "Sizing": "FitProportional" }
+```
+
+> Sizing options: `FitProportional` (default, aspect-preserving), `Fit` (stretch), `AutoSize` (original size), `Clip` (crop).
 
 **Shape:**
 ```json
