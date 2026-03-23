@@ -45,11 +45,31 @@ End-to-end workflow for building datasources and reports using the `dxs` CLI. Re
 
 ### Select branch
 
+**Step 1: Identify the active organization.**
+
 ```bash
-dxs source branch list --all-repos --status feature -n 20
+dxs auth status
 ```
 
-Present results using **AskUserQuestion** with options built from the output:
+Note the `organization` and `organization_id` from the active identity.
+
+**Step 2: List repositories for that organization.**
+
+```bash
+dxs source repo list --org <organization_id>
+```
+
+This returns only the org's repos (typically 3–10), not the full platform (hundreds).
+
+**Step 3: List feature branches for each repo.**
+
+```bash
+dxs source branch list --repo <repo_id> --status feature -n 10
+```
+
+Repeat for each repo, or focus on the most relevant one (e.g., a "Reports" repo for report work).
+
+**Step 4: Present results** using **AskUserQuestion** with options built from the output:
 ```
 AskUserQuestion:
   question: "Which feature branch should we work with?"
@@ -58,7 +78,15 @@ AskUserQuestion:
       description: "{commitTitle} by {authorDisplayName}"
 ```
 
+Include a "New branch" option if none of the existing branches are relevant. To create one:
+
+```bash
+dxs source branch create --repo <repo_id> --title "<title>" --description "<description>"
+```
+
 **Branch ID policy:** Never assume or reuse a branch ID from memory. Always ask.
+
+> **Anti-pattern:** Do NOT use `dxs source branch list --all-repos` — it queries every repo across all organizations and returns thousands of results. Always scope to the active org's repos first.
 
 ### Select connection
 
@@ -76,6 +104,14 @@ AskUserQuestion:
 ```
 
 Store both: the `apiConnectionId` (for `-c` flag) and the `name` (for `--api-setting-name`).
+
+**Finding a customer's connection:** If you need to find the API connection for a specific customer environment (e.g., to query their real data), use:
+
+```bash
+dxs organization connection list --search <term>
+```
+
+This searches connection names and URLs (case-insensitive). Customer URLs typically contain abbreviated names (e.g., `--search vcs` finds `https://vcsapi.footprintwms.com/`).
 
 ### Artifact collection (optional)
 
@@ -117,8 +153,9 @@ If the user references a DevOps work item (by ID, URL, or mention of "work item"
 **Quick workflow:**
 1. Fetch with `dxs devops workitem <ID> --full --expand All`
 2. Review relations — present parent/children/attachments, ask which to explore
-3. Download relevant attachments (`.rdlx-json`, `.rdl`, `.pdf`) to `<artifact_dir>/requirements/`
-4. Compile a requirements brief: report purpose, field/data requirements, layout expectations, entity keywords
+3. **Validate scope with user** — confirm which attachments and design notes are relevant before using them
+4. Download user-confirmed attachments (`.rdlx-json`, `.rdl`, `.pdf`) to `<artifact_dir>/requirements/`
+5. Compile a requirements brief: report purpose, field/data requirements, layout expectations, entity keywords
 
 See [references/devops-requirements.md](references/devops-requirements.md) for the full extraction workflow, attachment decision table, and requirements brief template.
 
@@ -176,7 +213,7 @@ Review the field mapping table with the user. Confirm the fields cover the repor
 dxs report create <artifact_dir>/<report-name>.rdlx-json --page letter --margins 0.5in
 ```
 
-Use `--page` for standard sizes (`letter`, `legal`, `a4`, `4x6`, `4x8`) or custom (`WxH`). Add `--landscape` for landscape orientation.
+Use `--page` for standard sizes (`letter`, `legal`, `a4`, `4x6`, `4x8`) or custom (`WxH`). Add `--landscape` for landscape orientation. `--margins` supports CSS-style shorthand: `0.5in` (all sides), `0.5in 0.25in` (top/bottom, left/right), or `0.5in 0.25in 0.75in 0.25in` (top, right, bottom, left).
 
 ### Step 2: Open in Studio
 
@@ -193,7 +230,7 @@ This opens the report in the Studio design canvas at `http://127.0.0.1:5051/desi
 
 Use `dxs report batch` to add elements in groups. Each operation is written individually so Studio shows updates in real time.
 
-**Batch supports:** `add` (textbox, line, barcode, rectangle), `set`, `move`, and `remove`. Maximum 25 operations per batch.
+**Batch supports:** `add` (textbox, line, barcode, rectangle, image), `set`, `move`, and `remove`. Maximum 25 operations per batch.
 
 **Batch does NOT support:** `move` on lines — lines use `StartPoint`/`EndPoint`, edit JSON directly.
 
@@ -264,6 +301,18 @@ dxs report add tablix <file> --name Grid --left 0in --top 2.5in --width 7.5in --
 
 `--header-cell` and `--detail-cell` are repeated options — one per cell. `--header-style`/`--detail-style` set row-level defaults. Update individual cells with `dxs report table set-cell`. Add columns with `dxs report table add-column --shrink`.
 
+**Footer rows** for totals are supported with `--footer-cell` and `--footer-style`:
+
+```bash
+dxs report add tablix <file> --name Orders --dataset ds_orders --columns '2in,1.5in,1.5in' \
+  --header-cell Product --header-cell Qty --header-cell Total \
+  --detail-cell '=Fields!Product.Value' --detail-cell '=Fields!Qty.Value' --detail-cell '=Fields!Total.Value' \
+  --footer-cell 'Grand Total' --footer-cell '' --footer-cell '=Sum(Fields!Total.Value)' \
+  --footer-style 'background-color:#f1f5f9;font-weight:Bold'
+```
+
+This generates the correct RowHierarchy: header (`KeepWithGroup: "After"`), detail (Group), footer (`KeepWithGroup: "Before"`). **Prefer footer rows over standalone textboxes for totals** — they stay anchored to the table and move correctly as the table grows with data.
+
 See [references/json-structure.md](references/json-structure.md) for full Table, Tablix, and List element formats.
 
 #### Lines in batch
@@ -275,6 +324,29 @@ Lines require `start-x`, `start-y`, `end-x`, `end-y` — NOT `left`/`top`/`width
  "start-x": "0in", "start-y": "2in", "end-x": "7in", "end-y": "2in",
  "line-width": "1pt"}
 ```
+
+#### Images
+
+**Embedded images** (logos, static graphics) — embed the file directly in the report:
+
+```bash
+dxs report add image <file> --name CompanyLogo --file logo.png \
+  --left 0in --top 0in --width 2in --height 0.5in
+```
+
+The CLI reads the file, base64-encodes it, and stores it in the report's `EmbeddedImages` array. `--file` auto-detects MIME type from extension (`.png`, `.jpg`, `.gif`, `.svg`, `.webp`). Max 5 MB.
+
+**Database-bound images** (product photos, dynamic content from a dataset):
+
+```bash
+dxs report add image <file> --name ProductPhoto --source Database \
+  --value '=Fields!ProductImage.Value' --mime-type image/png \
+  --left 0in --top 0in --width 2in --height 2in
+```
+
+**Sizing options:** `FitProportional` (default, preserves aspect ratio), `Fit` (stretch to fill), `AutoSize` (original size), `Clip` (crop to bounds). Set with `--sizing`.
+
+Both embedded and database-bound images render in `dxs report preview`. Database-bound images require the field value to be a data URI in the sample data file — use `dxs report data add-image` to encode image files into `.data.json` (see [references/sample-data.md](references/sample-data.md)).
 
 ### Step 4: Create sample data file
 

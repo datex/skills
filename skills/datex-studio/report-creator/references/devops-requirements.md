@@ -55,7 +55,26 @@ dxs devops workitems <ID1>,<ID2> --description --discussions
 
 Don't auto-traverse all children — ask the user which are relevant. Child items of type "Wavelength Component" often contain implementation details, while "Bug" or "Task" children may not be relevant to report design.
 
-## Step 3: Download Attachments
+## Step 3: Validate Scope with the User
+
+**Before downloading attachments or building a requirements brief, confirm with the user what to pay attention to.** Work items often accumulate attachments, comments, and design notes over time — some may be outdated, misattached, or for a different report entirely.
+
+Present a summary and ask:
+
+```
+This work item has:
+- Description: [1-sentence summary]
+- Design field: [1-sentence summary — e.g., "SQL views for 3 datasets"]
+- Attachments: [list filenames]
+- Children: [list if any]
+
+Which of these should I focus on for the report requirements?
+Are any of the attachments not relevant to this report?
+```
+
+**Why this matters:** Work items may contain attachments from related but different reports, sample PDFs that don't match the current requirement, or design notes that were superseded. Using the wrong attachment as a layout reference can send the entire design down the wrong path. Always let the user confirm before treating any attachment as authoritative.
+
+## Step 4: Download Attachments
 
 List attachments:
 
@@ -70,25 +89,27 @@ dxs devops attachments <ID> --download 1 --out <artifact_dir>/requirements/repor
 dxs devops attachments <ID> --download "Valley Cold HC BRD.pdf" --out <artifact_dir>/requirements/brd.pdf
 ```
 
-**Which attachments to download:**
+**Which attachments to download** (after user confirms relevance):
 
 | Extension | Action | Why |
 |-----------|--------|-----|
 | `.rdlx-json` | Download + read | Existing report — extract layout, DataSets, field mappings |
 | `.rdl` | Download + read | SSRS source — extract SQL queries and field mappings for migration |
-| `.pdf` | Download + read | Visual reference for expected output layout |
+| `.pdf` | Download only | May or may not match the current report — ask user before using as layout reference |
 | `.docx`, `.xlsx` | Download if BRD/spec | May contain detailed field lists or business rules |
 | `.png`, `.jpg` | Skip | Usually embedded screenshots already visible in description |
 
-For downloaded `.rdlx-json` files, use `dxs report info` to quickly understand the structure:
+For downloaded `.rdlx-json` files, use `dxs report inspect` to quickly understand the structure:
 
 ```bash
-dxs report info <artifact_dir>/requirements/report.rdlx-json
+dxs report inspect <artifact_dir>/requirements/report.rdlx-json
 ```
 
 For `.rdl` files (SSRS XML), scan for `<CommandText>` elements containing SQL — the `SELECT` columns and `FROM`/`JOIN` tables map to OData entities and fields.
 
-## Step 4: Compile Requirements Brief
+**If PDF reading fails** (e.g., missing `poppler`): Note the files as "downloaded but unreadable" in the requirements brief and proceed with the work item's `description` and `design` fields, which usually contain the most actionable information. For `.pdf` sample output, ask the user to describe the expected layout verbally as a fallback. Always download PDFs to the artifact directory regardless — the user can review them manually.
+
+## Step 5: Compile Requirements Brief
 
 After gathering work item data and attachments, compile a requirements brief. This feeds into the Phase 2 schema discovery subagent and guides layout design in Phase 3.
 
