@@ -261,6 +261,67 @@ List repeats its `ReportItems` once per data row — useful for card layouts, re
 
 > **Multi-column labels:** Set `RowsOrColumnsCount` to arrange items in multiple columns (e.g., 2-up or 3-up label sheets).
 
+## PageHeader and PageFooter
+
+Page headers and footers repeat on every page. They live at the **top-level** of the document JSON (siblings of `Page`, `ReportSections`, etc.) — NOT inside `Body.ReportItems`. There is no CLI command for these — add them via direct JSON editing.
+
+**PageFooter with page numbers:**
+```json
+{
+    "PageFooter": {
+        "Name": "PageFooter",
+        "Height": "0.3in",
+        "ReportItems": [
+            {
+                "Type": "textbox",
+                "Name": "PageNumber",
+                "CanGrow": true,
+                "KeepTogether": true,
+                "Value": "=\"Page \" & Globals!PageNumber & \" of \" & Globals!TotalPages",
+                "Style": {
+                    "FontSize": "9pt",
+                    "PaddingLeft": "2pt",
+                    "PaddingRight": "2pt",
+                    "PaddingTop": "2pt",
+                    "PaddingBottom": "2pt",
+                    "TextAlign": "Right"
+                },
+                "Left": "6.25in",
+                "Top": "0.05in",
+                "Width": "1.75in",
+                "Height": "0.25in"
+            }
+        ]
+    }
+}
+```
+
+**PageHeader (repeating header):**
+```json
+{
+    "PageHeader": {
+        "Name": "PageHeader",
+        "Height": "0.5in",
+        "PrintOnFirstPage": true,
+        "PrintOnLastPage": true,
+        "ReportItems": [
+            {
+                "Type": "textbox",
+                "Name": "HeaderTitle",
+                "Value": "REPORT TITLE",
+                "Style": { "FontSize": "10pt", "FontWeight": "Bold" },
+                "Left": "0in",
+                "Top": "0.1in",
+                "Width": "4in",
+                "Height": "0.3in"
+            }
+        ]
+    }
+}
+```
+
+> **Placement:** These go at the same level as `"Page": {...}` and `"ReportSections": [...]` in the document root. Elements inside use absolute coordinates relative to the header/footer area (0,0 = top-left of the header/footer). The `Height` property controls how much vertical space the header/footer reserves on each page.
+
 ## Authoring Tips
 
 - **Width** at root and section level = content width (PageWidth - LeftMargin - RightMargin)

@@ -128,6 +128,13 @@ After gathering work item data and attachments, compile a requirements brief. Th
 - **Filters/parameters:** [from SQL WHERE or description]
 - **Related entities:** [from SQL JOINs or $expand needs]
 
+### Filtering & Exclusion Rules
+- [Extract EVERY filtering rule from the design notes, SQL WHERE clauses, and business requirements]
+- [For each rule, note the original SQL/description AND the proposed OData equivalent]
+- [Flag rules involving collection checks (subqueries) — these likely need lambda operators: `any()`/`all()`]
+- [Flag rules involving string patterns (LIKE) — these likely need `startswith`/`endswith`/`contains`]
+- [Example: "Exclude -10 locations in zones 04-06" → `not (endswith(Name,'-10') and (startswith(Name,'04') or ...))` ]
+
 ### Layout Expectations
 - **Page size:** [from existing report or description]
 - **Orientation:** [portrait/landscape]

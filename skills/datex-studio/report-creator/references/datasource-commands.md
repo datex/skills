@@ -85,6 +85,41 @@ dxs datasource delete --id 42 --branch <branch_id>
 
 Use `--id` when reference-name lookup returns 404 (can happen on branches with component modules). Get the ID from `dxs datasource list`.
 
+## Cascading Datasource Parameters
+
+When a report has multiple datasources and one datasource's parameter depends on data from another, you need a cascading parameter strategy. This is common in document-style reports where a header entity (e.g., Invoice) links to detail entities (e.g., Tasks) through intermediate keys (e.g., ShipmentId).
+
+**The problem:** `--datasource-param` only maps report-level params to datasource params. It cannot wire one datasource's output field as another datasource's input parameter.
+
+**Pattern: Cross-dataset expressions instead of cascading params**
+
+When possible, avoid cascading datasources entirely. Instead, expand enough data in one datasource and use cross-dataset `First()` expressions to pull values into the report:
+
+```
+=First(Fields!BillingRecords_BillingTask_Shipment_TrailerId.Value, "ds_lines")
+```
+
+This approach works well when the "cascading" data is available through OData `$expand` on an existing datasource. The ds_lines query expands through BillingRecords → BillingTask → Shipment, making shipment fields available without a separate datasource.
+
+**When true cascading is unavoidable:** If a datasource needs a parameter that can only be obtained at runtime from another datasource (e.g., ds_receipt_details needs `ShipmentId` that comes from the first datasource's data), consider:
+
+1. **Expand the scope of an existing datasource** to include the bridging field, then use cross-dataset expressions in the report
+2. **Use report-level parameters** and have the calling context (e.g., Invoice Editor) pass all needed IDs
+3. **Use the `--linked` flag** on `dxs datasource upsert` to formally declare inter-datasource dependencies (format: `name:type:target` — see Linked Datasources section above)
+
+**Example architecture — Invoice with Receipt Details:**
+```
+Report param: invoiceId
+├── ds_header:  Invoices(0)                     ← param-keys (invoiceId)
+├── ds_lines:   InvoiceLines?$filter=InvoiceId eq ${..invoiceId}
+│               └── $expand=BillingRecords(...Shipment...Warehouse...)
+│                   (provides ShipmentId, WarehouseId via cross-dataset First())
+├── ds_receipt: Tasks?$filter=ShipmentId eq ${..shipmentId}
+│               (needs cascading ShipmentId — linked to ds_lines)
+└── ds_owner:   OwnersContactsLookup?$filter=OwnerId eq ${..ownerId}
+                (needs cascading OwnerId — linked to ds_header)
+```
+
 ## Discover Test Data
 
 After confirming the datasource is correctly configured, find real data the user can test with. Query the entity **without** template literal params, using the base filter + `$top=5` + `$orderby` to find recent records:

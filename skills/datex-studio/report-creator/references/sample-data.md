@@ -11,6 +11,18 @@ my-report.rdlx-json       ← report definition
 my-report.data.json        ← sample data (auto-discovered by Studio)
 ```
 
+## Quick Start: Scaffold from DataSets
+
+After adding DataSets to the report, generate a template data file automatically:
+
+```bash
+dxs report data generate my-report.rdlx-json -o my-report.data.json
+```
+
+This reads DataSet definitions and creates a `.data.json` with one row per dataset using placeholder values (0 for numbers, `""` for strings, ISO dates for DateTimeOffset fields). Replace the placeholders with realistic values — 3–5 rows per dataset for a good preview.
+
+Use `--force` to overwrite an existing data file.
+
 ## Format
 
 ```json
