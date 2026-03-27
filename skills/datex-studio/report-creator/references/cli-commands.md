@@ -6,11 +6,14 @@ Detailed syntax for `dxs report` commands used during report authoring. SKILL.md
 
 - [Batch Operations](#batch-operations)
 - [Tablix Creation](#tablix-creation)
+- [Tablix Row Grouping](#tablix-row-grouping)
+- [Tablix Add Row](#tablix-add-row)
 - [Image Handling](#image-handling)
 - [Table Cell & Column Management](#table-cell--column-management)
 - [DataSet Field Management](#dataset-field-management)
 - [Element Editing (set/move/remove)](#element-editing)
 - [PageHeader & PageFooter](#pageheader--pagefooter)
+- [Validation](#validation)
 
 ## Batch Operations
 
@@ -87,6 +90,20 @@ Nest child elements inside rectangles using the `"parent"` key:
 
 Child coordinates are **relative to the rectangle's top-left corner** (0,0). Moving the rectangle moves everything inside it.
 
+### PageHeader/PageFooter children in batch
+
+Add items to an existing page header or footer using `"parent": "PageHeader"` or `"parent": "PageFooter"`. The page section must be created first via `dxs report add page-header`/`page-footer`.
+
+```json
+[
+  {"action": "add", "type": "textbox", "name": "PageNum",
+   "parent": "PageFooter", "left": "5in", "top": "0in",
+   "width": "2.5in", "height": "0.25in",
+   "value": "=\"Page \" & Globals!PageNumber & \" of \" & Globals!TotalPages",
+   "text-align": "Right", "font-size": "8pt"}
+]
+```
+
 ### Lines in batch
 
 Lines require `start-x`, `start-y`, `end-x`, `end-y` — NOT `left`/`top`/`width`/`height`:
@@ -136,6 +153,223 @@ dxs report table set-cell <file> --table Grid --row header --col 0 --font-weight
 dxs report table add-column <file> --table Grid --shrink \
   --header-cell "New Col" --detail-cell '=Fields!NewField.Value'
 ```
+
+## Tablix Row Grouping
+
+### Grouping on creation (`--group-by`)
+
+Add row grouping to a tablix at creation time. Groups are named with `NAME:EXPRESSION` format. Multiple `--group-by` flags create nested groups (outermost first).
+
+```bash
+dxs report add tablix <file> --name Grid --dataset ds_orders --columns '2in,3in,1in' \
+  --header-cell Warehouse --header-cell Item --header-cell Qty \
+  --detail-cell '=Fields!WarehouseName.Value' --detail-cell '=Fields!ItemName.Value' \
+  --detail-cell '=Fields!Qty.Value' \
+  --group-by 'wh:=Fields!WarehouseId.Value' \
+  --group-header-cell 'wh:=Fields!WarehouseName.Value' \
+  --group-header-cell 'wh:' --group-header-cell 'wh:' \
+  --group-footer-cell 'wh:Subtotal' --group-footer-cell 'wh:' \
+  --group-footer-cell 'wh:=Sum(Fields!Qty.Value)' \
+  --footer-cell 'Grand Total' --footer-cell '' --footer-cell '=Sum(Fields!Qty.Value)' \
+  --left 0in --top 0in --width 6in --height 3in
+```
+
+**Key flags:**
+
+| Flag | Format | Purpose |
+|------|--------|---------|
+| `--group-by` | `NAME:EXPRESSION` | Define a named group (repeatable, outermost first) |
+| `--group-header-cell` | `NAME:VALUE` | Group header cell value (repeat per column per group) |
+| `--group-footer-cell` | `NAME:VALUE` | Group footer cell value (repeat per column per group) |
+| `--group-header-style` | `NAME:STYLE` | CSS-like style string for group header cells |
+| `--group-footer-style` | `NAME:STYLE` | CSS-like style string for group footer cells |
+| `--group-header-colspan` | `NAME` | First group header cell spans all columns |
+| `--group-footer-colspan` | `NAME` | First group footer cell spans all columns |
+
+### ColSpan on group headers
+
+Group headers commonly display a single banner spanning all columns. Use `--group-header-colspan` with a single `--group-header-cell`:
+
+```bash
+dxs report add tablix <file> --name Grid --dataset ds --columns '2in,3in,1in' \
+  --header-cell Col1 --header-cell Col2 --header-cell Col3 \
+  --detail-cell '=Fields!A.Value' --detail-cell '=Fields!B.Value' --detail-cell '=Fields!C.Value' \
+  --group-by 'wh:=Fields!WarehouseId.Value' \
+  --group-header-cell 'wh:=Fields!WarehouseName.Value' \
+  --group-header-colspan wh \
+  --left 0in --top 0in --width 6in --height 2in
+```
+
+### Nested multi-level groups
+
+Repeat `--group-by` for nested hierarchy (outermost first):
+
+```bash
+dxs report add tablix <file> --name Grid --dataset ds --columns '2in,3in,1in' \
+  --header-cell Region --header-cell Item --header-cell Qty \
+  --detail-cell '=Fields!ItemName.Value' --detail-cell '=Fields!Desc.Value' \
+  --detail-cell '=Fields!Qty.Value' \
+  --group-by 'region:=Fields!Region.Value' \
+  --group-by 'wh:=Fields!WarehouseId.Value' \
+  --group-header-cell 'region:=Fields!RegionName.Value' \
+  --group-header-cell 'region:' --group-header-cell 'region:' \
+  --group-header-cell 'wh:=Fields!WarehouseName.Value' \
+  --group-header-cell 'wh:' --group-header-cell 'wh:' \
+  --left 0in --top 0in --width 6in --height 3in
+```
+
+This produces nested RowHierarchy: Region group → Warehouse group → Detail group. Body.Rows are ordered depth-first: table header, region header, warehouse header, detail, (footers in reverse).
+
+### Sort expressions (`--sort`)
+
+Sort detail rows within each group. Repeatable for multi-column sort:
+
+```bash
+dxs report add tablix <file> --name Grid --dataset ds --columns '2in,3in,1in' \
+  --header-cell Name --header-cell Date --header-cell Total \
+  --detail-cell '=Fields!Name.Value' --detail-cell '=Fields!Date.Value' \
+  --detail-cell '=Fields!Total.Value' \
+  --sort '=Fields!Name.Value:asc' \
+  --sort '=Fields!Date.Value:desc' \
+  --left 0in --top 0in --width 6in --height 2in
+```
+
+Format: `EXPRESSION:DIRECTION` where direction is `asc` or `desc` (case-insensitive). Sort expressions attach to the detail group and work with or without `--group-by`.
+
+### Post-creation grouping (`tablix add-group`)
+
+Add a group to an existing flat tablix:
+
+```bash
+dxs report tablix add-group <file> --tablix Grid \
+  --name wh --expression '=Fields!WarehouseId.Value' \
+  --header-cell '=Fields!WarehouseName.Value' \
+  --header-cell '' --header-cell '' \
+  --footer-cell Subtotal --footer-cell '' --footer-cell '=Sum(Fields!Qty.Value)' \
+  --header-style 'background-color:#e0e0e0;font-weight:Bold'
+```
+
+This wraps the detail group in a new parent group and inserts header/footer rows at the correct positions. Flags:
+
+| Flag | Purpose |
+|------|---------|
+| `--tablix` | Target tablix element name |
+| `--name` | Group alias name |
+| `--expression` | Group expression |
+| `--header-cell` | Group header cell (repeat per column) |
+| `--footer-cell` | Group footer cell (repeat per column) |
+| `--header-style` | Header cell styles |
+| `--footer-style` | Footer cell styles |
+| `--header-colspan` | Header spans all columns |
+| `--footer-colspan` | Footer spans all columns |
+
+### Generated RowHierarchy structure
+
+Without grouping (flat):
+```json
+"RowHierarchy": {
+  "Members": [
+    { "KeepWithGroup": "After", "IsStatic": true, "BodyIndex": 0 },
+    { "Group": { "Name": "Grid_DetailGroup", "GroupExpressions": [] }, "BodyIndex": 1 },
+    { "KeepWithGroup": "Before", "IsStatic": true, "BodyIndex": 2 }
+  ]
+}
+```
+
+With `--group-by 'wh:=Fields!WarehouseId.Value'` and group header/footer:
+```json
+"RowHierarchy": {
+  "Members": [
+    { "KeepWithGroup": "After", "IsStatic": true, "BodyIndex": 0 },
+    {
+      "Group": { "Name": "Grid_WhGroup", "GroupExpressions": ["=Fields!WarehouseId.Value"] },
+      "BodyCount": 3,
+      "Children": [
+        { "KeepWithGroup": "After", "IsStatic": true, "BodyIndex": 1 },
+        { "Group": { "Name": "Grid_DetailGroup", "GroupExpressions": [] }, "BodyIndex": 2 },
+        { "KeepWithGroup": "Before", "IsStatic": true, "BodyIndex": 3 }
+      ]
+    },
+    { "KeepWithGroup": "Before", "IsStatic": true, "BodyIndex": 4 }
+  ]
+}
+```
+
+## Tablix Add Row
+
+Add rows to an existing tablix — either inside a group (header/footer) or at the table level. This keeps `Body.Rows` and `RowHierarchy` in sync automatically.
+
+### Group header/footer rows
+
+Add a row inside an existing group. `--group` takes the alias used when the group was created (e.g., `wh`). `--cell` is repeated once per column (positional, left-to-right). Cell count must match the number of tablix columns.
+
+```bash
+dxs report tablix add-row <file> --tablix Grid \
+  --group wh --position header \
+  --cell '=CountRows("Grid_WhGroup")' \
+  --cell '' \
+  --cell '=Format(Sum(Fields!Pct.Value), "0.00%")' \
+  --cell-style 'font-size:9pt;font-weight:Bold;padding:4pt' \
+  --height 0.28in
+```
+
+```bash
+dxs report tablix add-row <file> --tablix Grid \
+  --group wh --position footer \
+  --cell 'Group Total' --cell '' \
+  --cell '=Sum(Fields!Qty.Value)' \
+  --height 0.25in
+```
+
+### Table-level rows
+
+Add rows at the outermost level (outside all groups). No `--group` needed.
+
+```bash
+# Extra table header row
+dxs report tablix add-row <file> --tablix Grid \
+  --position table-header \
+  --cell 'Supplemental Header' --cell '' --cell '' \
+  --height 0.3in
+
+# Grand total footer row
+dxs report tablix add-row <file> --tablix Grid \
+  --position table-footer \
+  --cell 'Grand Total' --cell '' \
+  --cell '=Sum(Fields!Qty.Value)' \
+  --cell-style 'font-weight:Bold;background-color:#f1f5f9' \
+  --height 0.25in
+```
+
+### Flags
+
+| Flag | Purpose |
+|------|---------|
+| `--tablix` | Target tablix element name |
+| `--position` | `header`, `footer` (group-level), `table-header`, `table-footer` (table-level) |
+| `--group` | Group alias (required for `header`/`footer`, forbidden for `table-*`) |
+| `--cell` | Cell value (repeat once per column, positional left-to-right) |
+| `--cell-style` | CSS-like style string applied to all cells in the row |
+| `--height` | Row height (default: `0.25in`) |
+
+### Multiple rows
+
+Call `add-row` multiple times to add multiple rows at the same position. New header rows are inserted after existing headers; new footer rows after existing footers:
+
+```bash
+# First group header row (original from --group-header-cell at creation)
+# Second group header row (added via add-row)
+dxs report tablix add-row <file> --tablix Grid --group wh --position header \
+  --cell 'Row 1' --cell '' --cell ''
+
+# Third group header row
+dxs report tablix add-row <file> --tablix Grid --group wh --position header \
+  --cell 'Row 2' --cell '' --cell ''
+```
+
+### Per-cell style refinement
+
+`--cell-style` applies to all cells in the row. To style individual cells differently, use `batch set` afterward with the auto-generated cell names (pattern: `{Tablix}_{Group}_GHdr{N}_{Col}` for group headers, `{Tablix}_THdr{N}_{Col}` for table headers).
 
 ## Image Handling
 
@@ -210,24 +444,126 @@ dxs report remove <file> ElementName
 
 ## PageHeader & PageFooter
 
-Page headers/footers are not body elements — they live at the document root level and require direct JSON editing. See [json-structure.md](json-structure.md) for the full structure.
+Page headers/footers live at the section level (not in the body). Use dedicated CLI commands to create them, then batch to add child elements.
 
-Common pattern — page numbers in footer:
+### Create the container
 
-```json
-"PageFooter": {
-    "Name": "PageFooter",
-    "Height": "0.3in",
-    "ReportItems": [{
-        "Type": "textbox", "Name": "PageNumber",
-        "Value": "=\"Page \" & Globals!PageNumber & \" of \" & Globals!TotalPages",
-        "Style": { "FontSize": "9pt", "TextAlign": "Right" },
-        "Left": "6.25in", "Top": "0.05in", "Width": "1.75in", "Height": "0.25in"
-    }]
-}
+```bash
+dxs report add page-header <file> --height 0.5in
+dxs report add page-footer <file> --height 0.3in
 ```
 
-Place `PageFooter` and/or `PageHeader` as siblings of `Page` and `ReportSections` in the document JSON.
+| Flag | Purpose |
+|------|---------|
+| `--height` | Section height (required) |
+| `--no-first-page` | Don't print on the first page |
+| `--no-last-page` | Don't print on the last page |
+
+### Add items via batch
+
+Once the container exists, add child elements using `"parent": "PageHeader"` or `"parent": "PageFooter"` in batch:
+
+```bash
+dxs report add page-footer <file> --height 0.3in
+
+dxs report batch <file> --ops-file /tmp/footer-ops.json
+```
+
+```json
+[
+  {"action": "add", "type": "textbox", "name": "FooterLeft",
+   "parent": "PageFooter", "left": "0in", "top": "0in",
+   "width": "3in", "height": "0.25in",
+   "value": "Confidential", "font-size": "8pt"},
+  {"action": "add", "type": "textbox", "name": "PageNum",
+   "parent": "PageFooter", "left": "5in", "top": "0in",
+   "width": "2.5in", "height": "0.25in",
+   "value": "=\"Page \" & Globals!PageNumber & \" of \" & Globals!TotalPages",
+   "text-align": "Right", "font-size": "8pt"}
+]
+```
+
+### Common patterns
+
+**Page numbers (right-aligned footer):**
+
+```bash
+dxs report add page-footer <file> --height 0.3in
+
+dxs report batch <file> --ops '[
+  {"action": "add", "type": "textbox", "name": "PageNum",
+   "parent": "PageFooter", "left": "5in", "top": "0.025in",
+   "width": "2.5in", "height": "0.25in",
+   "value": "=\"Page \" & Globals!PageNumber & \" of \" & Globals!TotalPages",
+   "text-align": "Right", "font-size": "9pt"}
+]'
+```
+
+**Report title header (skip first page):**
+
+```bash
+dxs report add page-header <file> --height 0.5in --no-first-page
+
+dxs report batch <file> --ops '[
+  {"action": "add", "type": "textbox", "name": "HeaderTitle",
+   "parent": "PageHeader", "left": "0in", "top": "0.1in",
+   "width": "4in", "height": "0.3in",
+   "value": "Monthly Inventory Report",
+   "font-size": "12pt", "font-weight": "Bold"}
+]'
+```
+
+## Validation
+
+### Static validation
+
+Checks report structure, layout, and expressions without rendering:
+
+```bash
+dxs report validate bol.rdlx-json
+```
+
+Catches: duplicate element names, missing required properties (e.g., barcode Symbology, image Source), elements outside the page content area, invalid barcode symbologies, and malformed expressions.
+
+### ARJS runtime validation
+
+Loads the report through the ActiveReportsJS rendering engine to capture runtime errors and warnings that static validation cannot detect:
+
+```bash
+dxs report validate-arjs bol.rdlx-json
+dxs report validate-arjs bol.rdlx-json --data sample.json
+dxs report validate-arjs bol.rdlx-json --timeout 60
+```
+
+| Flag | Purpose |
+|------|---------|
+| `--data / -d` | Sample data JSON file; auto-discovers `<file>.data.json` if omitted |
+| `--timeout` | Seconds to wait for ARJS rendering (default: 30) |
+
+**Requires:**
+- `agent-browser`: `npm install -g @anthropic-ai/agent-browser && agent-browser install`
+- `@mescius/activereportsjs`: `npm install` (in `src/dxs/web/frontend/`)
+
+**Catches:** expression evaluation errors (`=Fields!BadField.Value`), datasource binding failures, layout rendering errors, font loading failures, and ARJS internal warnings about unsupported features.
+
+**Output includes:**
+- `valid` — `true` if no errors (warnings don't affect validity)
+- `page_count` — number of pages rendered
+- `errors` — items with severity `error` (from ARJS errorHandler or browser console)
+- `warnings` — items with severity `warn`
+- `info` — items with severity `info` or `debug`
+
+Each diagnostic item has `severity`, `message`, `details`, and `source` (`arjs` for ARJS errorHandler, `console` for browser console intercepts).
+
+### When to use which
+
+| Scenario | Command |
+|----------|---------|
+| Quick structural check (no browser needed) | `dxs report validate` |
+| Verify expressions resolve correctly with sample data | `dxs report validate-arjs --data sample.json` |
+| Debug rendering issues or missing fonts | `dxs report validate-arjs` |
+| CI pipeline (fast, no external deps) | `dxs report validate` |
+| Pre-upload sanity check (thorough) | Both — `validate` first, then `validate-arjs` |
 
 ## Report Schema Commands
 

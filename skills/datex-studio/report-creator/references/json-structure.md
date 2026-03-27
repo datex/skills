@@ -197,47 +197,43 @@ Tablix is the most-used data element in production reports. It replaces Table fo
     "Top": "3.5in",
     "DataSetName": "ds_items",
     "Body": {
-        "TablixColumns": [
-            { "Width": "1in" },
-            { "Width": "4in" },
-            { "Width": "1.5in" }
-        ],
-        "TablixRows": [
+        "Columns": ["1in", "4in", "1.5in"],
+        "Rows": [
             {
                 "Height": "0.25in",
-                "TablixCells": [
-                    { "CellContents": { "Item": { "Type": "textbox", "Name": "HdrItem", "Value": "Item #", "Style": { "FontWeight": "Bold", "FontSize": "8pt", "BackgroundColor": "LightGray" } } } },
-                    { "CellContents": { "Item": { "Type": "textbox", "Name": "HdrDesc", "Value": "Description", "Style": { "FontWeight": "Bold", "FontSize": "8pt", "BackgroundColor": "LightGray" } } } },
-                    { "CellContents": { "Item": { "Type": "textbox", "Name": "HdrQty", "Value": "Qty", "Style": { "FontWeight": "Bold", "FontSize": "8pt", "BackgroundColor": "LightGray", "TextAlign": "Right" } } } }
+                "Cells": [
+                    { "Item": { "Type": "textbox", "Name": "HdrItem", "Value": "Item #", "Style": { "FontWeight": "Bold", "FontSize": "8pt", "BackgroundColor": "LightGray" } } },
+                    { "Item": { "Type": "textbox", "Name": "HdrDesc", "Value": "Description", "Style": { "FontWeight": "Bold", "FontSize": "8pt", "BackgroundColor": "LightGray" } } },
+                    { "Item": { "Type": "textbox", "Name": "HdrQty", "Value": "Qty", "Style": { "FontWeight": "Bold", "FontSize": "8pt", "BackgroundColor": "LightGray", "TextAlign": "Right" } } }
                 ]
             },
             {
                 "Height": "0.25in",
-                "TablixCells": [
-                    { "CellContents": { "Item": { "Type": "textbox", "Name": "ColItem", "Value": "=Fields!ItemNumber.Value", "Style": { "FontSize": "8pt" } } } },
-                    { "CellContents": { "Item": { "Type": "textbox", "Name": "ColDesc", "Value": "=Fields!Description.Value", "Style": { "FontSize": "8pt" } } } },
-                    { "CellContents": { "Item": { "Type": "textbox", "Name": "ColQty", "Value": "=Fields!Quantity.Value", "Style": { "FontSize": "8pt", "TextAlign": "Right" } } } }
+                "Cells": [
+                    { "Item": { "Type": "textbox", "Name": "ColItem", "Value": "=Fields!ItemNumber.Value", "Style": { "FontSize": "8pt" } } },
+                    { "Item": { "Type": "textbox", "Name": "ColDesc", "Value": "=Fields!Description.Value", "Style": { "FontSize": "8pt" } } },
+                    { "Item": { "Type": "textbox", "Name": "ColQty", "Value": "=Fields!Quantity.Value", "Style": { "FontSize": "8pt", "TextAlign": "Right" } } }
                 ]
             }
         ]
     },
     "ColumnHierarchy": {
-        "TablixMembers": [
-            {},
-            {},
-            {}
+        "Members": [
+            { "BodyIndex": 0, "Group": null },
+            { "BodyIndex": 1, "Group": null },
+            { "BodyIndex": 2, "Group": null }
         ]
     },
     "RowHierarchy": {
-        "TablixMembers": [
-            { "KeepWithGroup": "After", "IsStatic": true },
-            { "Group": { "Name": "DetailGroup", "GroupExpressions": ["=Fields!ItemNumber.Value"] } }
+        "Members": [
+            { "KeepWithGroup": "After", "IsStatic": true, "BodyIndex": 0 },
+            { "Group": { "Name": "DetailGroup", "GroupExpressions": ["=Fields!ItemNumber.Value"] }, "BodyIndex": 1 }
         ]
     }
 }
 ```
 
-> **Tablix vs Table:** Use Tablix for new reports. Table is a legacy element that still works but lacks grouping flexibility. The `RowHierarchy` controls which rows are static headers vs repeating detail rows — the first TablixMember with `IsStatic: true` is the header, and the one with a `Group` repeats per data row.
+> **Tablix vs Table:** Use Tablix for new reports. Table is a legacy element that still works but lacks grouping flexibility. The `RowHierarchy` controls which rows are static headers vs repeating detail rows — the first Member with `IsStatic: true` is the header, and the one with a `Group` repeats per data row. Each leaf member needs a `BodyIndex` (0-based row index). Group members with children use `Children` (not nested `Members`) and `BodyCount`.
 
 ## List Element (simple repeating container)
 

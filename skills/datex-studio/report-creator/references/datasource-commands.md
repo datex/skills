@@ -56,6 +56,48 @@ Target datasource **must exist** in the branch before referencing. Format:
 - `--custom-column '...$entity...'`
 - `--datasource-param '...$report...'`
 
+### OData string literals in filters (`%27` encoding)
+
+OData string literals use single quotes (e.g., `endswith(Name,'-10')`). However, the generated TypeScript datasource service wraps filter expressions in single-quoted strings, so literal single quotes inside the filter **break the TypeScript compilation**.
+
+The idiomatic Datex Studio convention is to wrap filter expressions in backtick template literals so inner single quotes are safe. Since the CLI doesn't yet generate backtick template literals, **use `%27` (URL-encoded single quote) in place of `'` for OData string values**:
+
+```
+endswith(Name,%27-10%27)              ← works (TypeScript-safe)
+startswith(Zone,%2704%27)             ← works
+endswith(Name,'-10')                  ← BREAKS generated TypeScript
+```
+
+The OData server decodes `%27` to `'` at query time, so the filter is functionally identical.
+
+### Query file for complex queries (`-Q` / `--query-file`)
+
+When the query contains `$`, `'`, or `%27` sequences, use `-Q` / `--query-file` instead of inline `-q` to avoid shell escaping issues:
+
+```bash
+# Write query to file — quoted heredoc delimiter preserves ALL characters literally
+cat > /tmp/ds-query.txt << 'QUERYEOF'
+Entity?$select=Id,Name&$filter=TypeId eq 3 and endswith(Name,%27-10%27)&$orderby=Name
+QUERYEOF
+
+# Pass via --query-file
+dxs datasource upsert -Q /tmp/ds-query.txt -r ds_name -t "ds_name" ...
+```
+
+**Why this works:** A heredoc with a quoted delimiter (`'QUERYEOF'`) treats ALL content literally — no expansion of `$`, backticks, or single quotes. The `-Q` flag reads the file content as-is.
+
+For `dxs odata execute` (which has no `-Q` flag), use the heredoc + `"$(cat ...)"` pattern:
+
+```bash
+cat > /tmp/test-query.txt << 'QUERYEOF'
+Entity?$top=1&$select=Id&$filter=TypeId eq 3 and endswith(Name,%27-10%27)
+QUERYEOF
+
+dxs odata execute -c <id> -q "$(cat /tmp/test-query.txt)"
+```
+
+For simple queries without OData string literals, plain `-q '...'` single quotes are still fine.
+
 ## Reference Naming
 
 Must be valid JS identifiers. Convention: `ds_` prefix. No hyphens, no leading digits.

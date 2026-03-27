@@ -26,6 +26,7 @@ Quick reference for frequent pitfalls. Check this when debugging unexpected beha
 | Linked target doesn't exist | Create targets first, verify with `datasource-fields` |
 | `mergeByValue` on `oneToOne` | Only `oneToOneWithMerge` gets 4th component |
 | Hardcoded dates in filter | Use `${new Date(...).toISOString()}` for dynamic |
+| Single quotes in OData filter string literals (e.g., `endswith(Name,'-10')`) | Use `%27` URL encoding: `endswith(Name,%27-10%27)` — literal `'` breaks the generated TypeScript service file. See [datasource-commands.md](datasource-commands.md) Quoting Rules. |
 
 ## RDLX-JSON & Expression Issues
 

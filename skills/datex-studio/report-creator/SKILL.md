@@ -298,6 +298,8 @@ When converting legacy SSRS reports, don't translate SQL→OData line-by-line. S
 
 - **`$top=1` always** during testing to avoid timeouts
 - **Single quotes** for `-q` (prevents `$` shell expansion)
+- **`%27`** for OData string literals in filters — literal single quotes break the generated TypeScript. Use `endswith(Name,%27-10%27)` not `endswith(Name,'-10')`. See [references/datasource-commands.md](references/datasource-commands.md) Quoting Rules.
+- **`-Q` / `--query-file`** for complex queries — write query to a file via quoted heredoc, pass with `-Q`. See [references/datasource-commands.md](references/datasource-commands.md) for the pattern.
 - **`$select` in `$expand`** is required on every expand clause — also enforced by `dxs datasource upsert`
 - **Semicolons** (`;`) inside parentheses for nested options, not `&`
 - **400 on `$select`** means wrong field name — check `schema properties`, don't drop `$select`
@@ -310,7 +312,7 @@ When converting legacy SSRS reports, don't translate SQL→OData line-by-line. S
 ```bash
 dxs datasource upsert \
   -c <connection_id> \
-  -q '<verified_odata_query>' \
+  -Q <query_file> \
   -r <reference_name> \
   -t "<reference_name>" \
   -d "<description>" \
