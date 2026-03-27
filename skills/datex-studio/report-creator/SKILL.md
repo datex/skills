@@ -129,13 +129,20 @@ If the user references a DevOps work item, **REQUIRED BACKGROUND:** use the
 
 ## Phase 2: Schema Discovery + Datasource Creation
 
-**REQUIRED BACKGROUND:** Use the `datasource-creator` skill for this phase.
-It will invoke `schema-explorer` and `odata-execution` as needed.
+<HARD-GATE>
+You MUST invoke the `datasource-creator` skill for EVERY datasource in this phase. Do NOT skip this step, even if:
+- You found existing examples or templates that show the exact data model
+- The user asked for a flow datasource (flow datasources aggregate data from OData queries — the underlying entities still need schema validation)
+- You think you already know the entity structure from prior exploration
+
+Examples and templates are hypotheses. Schema exploration against the CURRENT connection is the validation. Entity availability, property names, types, and relationships vary between connections.
+</HARD-GATE>
 
 For each datasource the report needs:
-1. Invoke datasource-creator with mode = `owned` (preferred) or `standalone`
-2. Datasource-creator handles schema discovery, query building, generation, and validation
-3. Collect the JSON config file path and reference name
+1. Invoke `datasource-creator` skill with mode = `owned` (preferred) or `standalone`
+2. Datasource-creator invokes `schema-explorer` and `odata-execution` to validate entities and properties against the live connection
+3. For flow datasources: schema exploration identifies the OData entities and fields the flow code will query, then the type definition is built from validated schema — not from examples
+4. Collect the JSON config file path and reference name
 
 Repeat for each datasource needed by the report.
 

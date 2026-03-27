@@ -1,0 +1,13 @@
+{
+  "name": "datex-skills",
+  "private": true,
+  "description": "Datex Studio skills development repository",
+  "scripts": {
+    "deploy": "rimraf ../datex-studio-cli/.claude/skills && copyfiles -u 2 \"skills/datex-studio/**/*\" ../datex-studio-cli/.claude/skills",
+    "collect": "rimraf skills/datex-studio && copyfiles -u 4 \"../datex-studio-cli/.claude/skills/**/*\" skills/datex-studio"
+  },
+  "devDependencies": {
+    "copyfiles": "^2.4.1",
+    "rimraf": "^6.1.3"
+  }
+}

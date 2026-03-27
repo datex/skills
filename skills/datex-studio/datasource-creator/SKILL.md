@@ -19,6 +19,9 @@ Create OData or flow-based datasource configurations for Datex Studio.
 **REQUIRED BACKGROUND:** Read the `schema-explorer` skill for OData entity discovery
 and the `odata-execution` skill for query building and verification.
 
+**Schema exploration is mandatory for ODATA datasources** — 
+The type definition must be built from validated schema, not from examples or templates alone. Flow datasources might aggregate data from OData queries under the hood but if it works with already existing datasources, we assume they are already verified.
+
 ## Input/Output Contract
 
 | Direction | Item | Details |
@@ -51,9 +54,11 @@ and the `odata-execution` skill for query building and verification.
   |            |
  OData       Flow
   |            |
- schema ->   write type-def YAML
- query ->    write flow TS code
- generate    generate-flow
+ schema ->   schema -> (REQUIRED: validate entities/properties
+ query ->     the flow code will query against the connection)
+ generate    write type-def YAML (from validated schema, NOT from examples)
+  |          write flow TS code
+  |          generate-flow
   |            |
   +-----+------+
         |
@@ -69,6 +74,8 @@ Standalone   Owned
  test data
  return ref
 ```
+
+> **Flow datasources and schema exploration:** Flow datasources are NOT a shortcut around schema exploration. A flow datasource's JavaScript code typically queries one or more OData entities and reshapes the data. Before writing the type definition or flow code, you MUST use `schema-explorer` to validate that the target connection has the expected entities and properties. Existing report examples and templates show what *has worked* on some connection — they are starting hypotheses, not validated designs for the current connection.
 
 ## OData Datasource Generation
 
