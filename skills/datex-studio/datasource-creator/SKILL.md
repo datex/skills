@@ -75,8 +75,9 @@ Do NOT skip this check. Building a datasource without understanding what fields 
   |            |
  schema ->   schema -> (REQUIRED: validate entities/properties
  query ->     the flow code will query against the connection)
- generate    write type-def YAML (from validated schema, NOT from examples)
-  |          write flow TS code
+ generate    create standalone OData datasources (generate + upsert each)
+  |          write type-def YAML (from validated schema, NOT from examples)
+  |          write flow TS code (referencing $datasources.<ref_name>)
   |          generate-flow
   |            |
   +-----+------+
@@ -195,6 +196,39 @@ dxs datasource generate \
 | Conditional filters with guards | `--param-filter PROPERTY:OPERATOR:PARAM_NAME:TYPE` | Auto-generates `$utils.isDefined()` guard |
 
 ## Flow Datasource Generation
+
+### Flow Runtime Model (CRITICAL)
+
+Flow datasource code does **NOT** execute raw OData queries. Instead, flows reference **standalone OData datasources** that already exist on the branch, using the `$datasources` object:
+
+```typescript
+// CORRECT: Reference a standalone OData datasource by its reference name
+const shipment = await $datasources.ds_shipment.get({ shipmentId: inParams.shipmentId });
+const contacts = await $datasources.ds_warehouse_contacts.getList({ warehouseId: shipment.ActualWarehouseId });
+```
+
+```typescript
+// WRONG: Raw OData queries in flow code — this is NOT how flows work
+const result = await $datasource.getList({ query: 'Shipments(123)?$expand=Carrier' });
+```
+
+**The workflow for building a flow datasource:**
+
+1. **Create standalone OData datasources** for each query the flow needs — use `dxs datasource generate` + `dxs datasource upsert` for each
+2. **Write the flow code** referencing those datasources via `$datasources.<ref_name>.get()` or `$datasources.<ref_name>.getList()`
+3. **Generate the flow config** with `dxs datasource generate-flow`, which embeds the flow code and type definition
+4. The flow datasource itself can be **owned** (embedded in the report), but its OData dependencies must be **standalone** on the branch
+
+**`$datasources` API:**
+
+| Method | Use when | Returns |
+|--------|----------|---------|
+| `$datasources.ds_name.get({ paramName: value })` | The OData datasource uses `--param-keys` (single entity) | Single object |
+| `$datasources.ds_name.getList({ paramName: value })` | The OData datasource returns a collection | Array of objects |
+
+Pass input parameters as an object — the keys must match the OData datasource's `inParams` exactly.
+
+### Generation Command
 
 Generate a flow datasource config with `dxs datasource generate-flow`:
 
@@ -346,3 +380,5 @@ DataSet.Name = "ds_my_report"                  # RDLX-JSON
 | Linked target doesn't exist | Create targets first, verify with `datasource-fields` |
 | `mergeByValue` on `oneToOne` | Only `oneToOneWithMerge` gets 4th component |
 | Hardcoded dates in filter | Use `${new Date(...).toISOString()}` for dynamic |
+| Raw OData queries in flow code | Flow code must reference standalone datasources via `$datasources.ds_name.get()` / `.getList()` — never embed OData query strings |
+| Flow datasource without standalone OData dependencies on the branch | Create and upsert the OData datasources first, then write the flow that references them |
