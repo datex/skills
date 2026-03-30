@@ -332,7 +332,11 @@ Page headers and footers repeat on every page. They live at the **top-level** of
   ```
 - **Section Page** repeats the top-level Page settings
 - **DataSet Name** must match the datasource reference name (e.g., `ds_my_report`)
-- **CommandText** must be `$.{ds_name}.result.*` — NOT `jpath=$.*`
+- **CommandText** patterns:
+  - Single result, scalar fields: `$.{ds_name}.result` (no `.*`)
+  - Collection result (table/tablix): `$.{ds_name}.result.*`
+  - Collection within single result: `$.{ds_name}.result.CollectionPath.*` (child dataset for collection nav properties)
+  - NOT `jpath=$.*` (legacy syntax, doesn't bind)
 - **DataSets.Fields**: list ALL fields from `datasource-fields` output (not just used ones); use underscore for dots (`Account.Name` → Name: `Account_Name`)
 - **Date fields**: append `[Date|YYYY-MM-DDTHH:mm:ss.fffffff]` to the DataField value
 - **Expressions** are clean JSON strings — no shell escaping needed
@@ -351,6 +355,7 @@ Page headers and footers repeat on every page. They live at the **top-level** of
 =Format(Fields!Ratio.Value, "P1")                          # Percent (85.6%)
 =Format(Fields!Seq.Value, "D5")                            # Zero-padded (00042)
 =Sum(Fields!Amount.Value)                                  # Aggregate
+=First(Fields!Name.Value, "other_dataset")                   # Cross-dataset lookup (first row)
 =Now()                                                     # Current date/time
 =Today()                                                   # Current date only
 =Globals!ReportName                                        # Report name
