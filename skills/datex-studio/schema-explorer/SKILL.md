@@ -44,8 +44,12 @@ OData schema discovery using `dxs schema` commands.
 |-------------|-------------|-------------|------------|
 
 ### Expanded Fields (via $expand)
-| Path | Type | Source Entity |
-|------|------|---------------|
+| Path | Type | Source Entity | Binding |
+|------|------|---------------|---------|
+
+Mark the **Binding** column:
+- `flat` — field is reachable through single navigation properties; safe for flat DataSet fields
+- `⚠ collection` — path crosses a collection navigation property (1:N cardinality); requires flow datasource flattening or child dataset with `CommandText` deep path. Will silently render blank if added as a flat DataSet field.
 
 ## Composite Keys / Special Notes
 ```
