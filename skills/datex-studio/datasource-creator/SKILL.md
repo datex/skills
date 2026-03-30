@@ -77,6 +77,37 @@ Standalone   Owned
 
 > **Flow datasources and schema exploration:** Flow datasources are NOT a shortcut around schema exploration. A flow datasource's JavaScript code typically queries one or more OData entities and reshapes the data. Before writing the type definition or flow code, you MUST use `schema-explorer` to validate that the target connection has the expected entities and properties. Existing report examples and templates show what *has worked* on some connection — they are starting hypotheses, not validated designs for the current connection.
 
+## Return to Caller
+
+After completing the workflow (either standalone or owned), return this structured summary to the calling skill or user:
+
+1. **Reference name** — the `-r` value (e.g., `ds_shipment_bol`)
+2. **File path** — the `-o` output path (e.g., `reports/bol/ds_shipment_bol.json`)
+3. **Mode** — `standalone` (upserted) or `owned` (local file for `--owned`)
+4. **Result type** — `single` or `collection` (from the generated config's `resultIsCollection`)
+5. **in_params** — list of input parameter names and types (from the config's `inParams`), or empty if none
+6. **Field summary** — read the generated JSON config and extract the field tree from `queryOptionsObjectTypeDef`. List fields as `name: type` with dot-notation for nested objects. Mark collections. This gives the caller a machine-derived field list without re-reading the field-mapping artifact.
+
+Example return:
+```
+Datasource: ds_shipment_bol
+File: reports/bol/ds_shipment_bol.json
+Mode: owned
+Result type: single
+in_params: shipmentId (number)
+Fields:
+  Id: number (key)
+  BillOfLading: string
+  LookupCode: string
+  Carrier.Name: string
+  Carrier.ScacCode: string
+  Status.Name: string
+  ShipmentLines [collection]:
+    LineNumber: number
+    OrderLine.Material.LookupCode: string
+    OrderLine.Material.Description: string
+```
+
 ## OData Datasource Generation
 
 Generate an OData datasource config with `dxs datasource generate`:
