@@ -82,6 +82,8 @@ Consider filtering by name instead of ID for portability (e.g., `OperationCode/N
 
 ## Layout Translation
 
+**Adopt the Datex design language** when migrating — don't replicate SSRS styling. The original SSRS report may use different fonts, colors, row heights, and table borders. Apply the standards from [design-standards.md](design-standards.md): Arial font family, Datex color palette (Black, DimGray, LightGray, Gray, Purple #5B08B2), purple header borders instead of gray backgrounds, 0.375in row heights, and the field label-value pattern. The migrated report should look like a native Datex report, not a pixel-perfect copy of the SSRS original.
+
 | SSRS concept | NextGen equivalent | Notes |
 |-------------|-------------------|-------|
 | Tablix | Tablix | Almost 1:1 — column widths, grouping, headers/footers all translate |

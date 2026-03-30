@@ -22,6 +22,7 @@ Workflow for building and deploying RDLX-JSON reports using the `dxs` CLI. Repor
 - **Direct JSON** only for advanced structures not yet in the CLI (e.g., complex BandedList grouping, custom Tablix column/row hierarchies beyond simple header/detail)
 
 **References:**
+- [references/design-standards.md](references/design-standards.md) — **Datex design language:** color palette, typography, table styling, field label-value pattern, grid alignment, report categories
 - [references/json-structure.md](references/json-structure.md) — Document template, element JSON formats, expression quick reference
 - [references/design-patterns.md](references/design-patterns.md) — Coordinate system, layout patterns, element sizing
 - [references/cli-commands.md](references/cli-commands.md) — Detailed CLI syntax: batch ops, tablix, images, datasets, set/move/remove
@@ -241,6 +242,8 @@ This opens the report in the Studio design canvas at `http://127.0.0.1:5051/desi
 ### Step 3: Build layout incrementally with `dxs report batch`
 
 Use `dxs report batch` to add elements in groups. Write ops to a file and use `--ops-file` to avoid shell escaping issues. Maximum 25 operations per batch.
+
+**Apply the Datex design language** from [references/design-standards.md](references/design-standards.md): set `FontFamily: Arial` on all text elements (use `Courier New` for numeric values and barcode captions), use the official color palette (Black, DimGray, LightGray, Gray, Datex Purple #5B08B2), style tables with purple header borders and LightGray row separators (no background colors), follow the field label-value pattern (8pt DimGray labels above 10pt Black values), and snap positions to the 0.25in grid.
 
 **Build in logical sections using rectangle containers.** Every major section (header, info fields, address blocks, footer) should be wrapped in a rectangle. Add the rectangle first, then add child elements with `"parent": "RectangleName"`. Child coordinates are relative to the rectangle's top-left corner (0,0), so moving the rectangle repositions everything inside it. This is important for layout iteration — without rectangles, repositioning a section means moving every element individually. See [references/cli-commands.md](references/cli-commands.md) for the batch pattern. Tables are self-contained and don't need a rectangle wrapper.
 

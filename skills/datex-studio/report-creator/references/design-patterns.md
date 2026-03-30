@@ -1,6 +1,6 @@
 # Design Patterns & Layout Techniques
 
-Reference for report/label layout patterns, sizing, and coordinate system.
+Reference for report/label layout patterns, sizing, and coordinate system. For official color palette, typography, and table styling rules, see [design-standards.md](design-standards.md).
 
 ## Coordinate System
 
@@ -24,6 +24,10 @@ Physical page (8.5in x 11in)
 Content area dimensions:
 - `content_width = PageWidth - LeftMargin - RightMargin`
 - `content_height = PageHeight - TopMargin - BottomMargin`
+
+## Grid Alignment
+
+All element positions and sizes should snap to a **0.25-inch grid** (e.g., 0in, 0.25in, 0.5in, 0.75in, 1in). Set intermediate values like 0.375in manually when needed, but prefer 0.25in increments as the default. This ensures professional, consistent alignment across all report elements.
 
 ## Design Patterns
 
@@ -181,11 +185,11 @@ Layout zones:
 | Footer | 7.2in | Page number + generation timestamp (7pt, centered) |
 
 Key sizing:
-- Table header row: 0.25in height, 8pt bold, gray background (`#f0f0f0`), left-aligned with `PaddingLeft: 2pt`
-- Detail rows: 0.2in height, 7pt normal
-- Qty/numeric columns: right-aligned with `PaddingRight: 2pt`
+- Table header row: 0.375in height (0.25in compact), Bold, no background, 1.5pt bottom border in Datex Purple (`#5B08B2`), left-aligned with `PaddingLeft: 2pt`
+- Detail rows: 0.375in height (0.25in compact), 0.25pt bottom border in `LightGray`
+- Qty/numeric columns: right-aligned with `PaddingRight: 2pt`, use `FontFamily: Courier New` for decimal alignment
 - Description column: `CanGrow: true` for long text
-- Footer: 7pt, gray text (`#666666`), centered
+- Footer: 8pt, `Gray` (`#808080`), centered. Format: `Page X of Y` + `MM/dd/yyyy HH:mm` (no seconds)
 
 Column width planning — total must equal content width (10in for landscape letter):
 
@@ -200,26 +204,56 @@ Column width planning — total must equal content width (10in for landscape let
 
 ## Table & Tablix Styling
 
+See [design-standards.md](design-standards.md) for the full table standards including color palette and CLI style strings.
+
+### Row sizing
+
+| Row type | Height | Notes |
+|----------|--------|-------|
+| Header | 0.375in (0.25in compact) | Bold, bottom vertical-align |
+| Detail | 0.375in (0.25in compact) | Center vertical-align |
+| Footer/totals | 0.375in | Bold label with colon, normal value |
+
+### Header styling
+
+Table headers use a **1.5pt bottom border in Datex Purple (#5B08B2)** with **no background color**. Do not use gray backgrounds or zebra striping.
+
+```
+--header-style "font-weight:Bold;border-bottom-width:1.5pt;border-bottom-style:Solid;border-bottom-color:#5B08B2;padding:2pt;vertical-align:Bottom"
+```
+
+### Detail row styling
+
+Detail rows use a **0.25pt bottom border in LightGray** for row separation. No vertical column borders.
+
+```
+--detail-style "padding:2pt;vertical-align:Middle;border-bottom-width:0.25pt;border-bottom-style:Solid;border-bottom-color:LightGray"
+```
+
+### Max columns
+
+Limit tables to **7 columns** maximum. If more columns are needed, consider splitting into multiple tables or removing less-important columns.
+
 ### Cell padding
 
-Always add left padding to cells so content doesn't press against the left border. A minimum of `PaddingLeft: 2pt` keeps text readable. Right-aligned cells need the same treatment with `PaddingRight: 2pt`. Use `--header-style` and `--detail-style` at creation time to apply padding uniformly rather than styling cells individually.
+Always add padding to cells so content doesn't press against borders. Standard padding is `2pt` on all sides. Use `--header-style` and `--detail-style` at creation time to apply padding uniformly rather than styling cells individually.
 
 ### Vertical alignment
 
-Default cell content to `VerticalAlign: Middle` — top-aligned text in short rows looks unanchored, especially when adjacent cells have different content heights. Set this in the row-level style (e.g., `--detail-style "vertical-align:Middle;padding-left:2pt"`).
+Header cells: `VerticalAlign: Bottom`. Detail cells: `VerticalAlign: Middle`. Set this in the row-level style.
 
 ### Column alignment by data type
 
 Choose alignment based on what the column contains — the goal is scannability:
 
-| Data type | Alignment | Why |
-|-----------|-----------|-----|
-| Currency / money | Right | Decimal points line up for quick comparison |
-| Quantities (integer counts) | Center | No decimal alignment needed; centering looks balanced |
-| Percentages, weights, dimensions | Right | Decimal alignment aids comparison |
-| Text (names, descriptions, codes) | Left | Natural reading direction |
-| Dates / timestamps | Left or Center | Either works; center for short formats, left for long |
-| Status / short codes (UOM, etc.) | Center | Short values look best centered in narrow columns |
+| Data type | Alignment | Font | Why |
+|-----------|-----------|------|-----|
+| Currency / money | Right | Courier New Bold | Decimal points line up for quick comparison |
+| Quantities (integer counts) | Right | Courier New Bold | Numeric alignment aids scanning |
+| Percentages, weights, dimensions | Right | Courier New Bold | Decimal alignment aids comparison |
+| Text (names, descriptions, codes) | Left | Arial | Natural reading direction |
+| Dates / timestamps | Left or Center | Arial | Center for short formats, left for long |
+| Status / short codes (UOM, etc.) | Center | Arial | Short values look best centered in narrow columns |
 
 Header cells should match the alignment of their detail cells so the label visually anchors to the data below it.
 
@@ -326,16 +360,19 @@ Changing page margins affects multiple interdependent properties. Use this check
 
 ### Text
 
-| Role | Font Size | Weight | Height |
-|------|-----------|--------|--------|
-| Document title | 18pt | Bold | 0.4in |
-| Section labels | 9pt | Bold | 0.25in |
-| Field labels (small) | 7-8pt | Bold | 0.2in |
-| Data values | 9-10pt | Normal | 0.25in |
-| Destination name | 12pt | Bold | 0.3in |
-| Address blocks | 8-10pt | Normal | 0.4-0.5in |
-| Column headers | 8pt | Bold | 0.25in |
-| Fine print | 7pt | Normal | 0.2in |
+| Role | Font | Size | Weight | Color | Height |
+|------|------|------|--------|-------|--------|
+| Heading 1 (document title) | Arial | 18pt | Bold | Black | 0.4in |
+| Heading 2 (section title) | Arial | 14pt | Normal | DimGray | 0.3in |
+| Field labels | Arial | 8pt | Normal | DimGray | 0.2in |
+| Field values | Arial | 10pt | Normal | Black | 0.25in |
+| Field values (identifying) | Arial | 10pt | Bold | Black | 0.25in |
+| Destination name (labels) | Arial | 12pt | Bold | Black | 0.3in |
+| Address blocks | Arial | 10pt | Normal | Black | 0.4-0.5in |
+| Table header cells | Arial | 10pt | Bold | Black | 0.375in |
+| Table detail cells | Arial | 10pt | Normal | Black | 0.375in |
+| Numeric values (tables) | Courier New | 10pt | Bold | Black | 0.375in |
+| Footer text | Arial | 8pt | Normal | Gray | 0.25in |
 
 ### Lines
 

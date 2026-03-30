@@ -46,6 +46,11 @@ For each field, identify WHAT it is and WHERE it belongs:
 [List of OData entity search terms derived from requirements]
 
 ### Layout Expectations
+- **Report category:** [Label / Official Documentation / Work Detail / Inventory-Operations]
+  - Labels: high visibility, scannable barcodes, tight margins
+  - Official Documentation: branded, legally compliant, standard margins
+  - Work Detail: key info only, minimal distractions
+  - Inventory/Operations: data comparison tables (consider if an app component would serve better)
 - **Page size:** [letter/legal/A4/custom]
 - **Orientation:** [portrait/landscape]
 - **Key sections:** [header, detail grid, footer, etc.]

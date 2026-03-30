@@ -124,8 +124,8 @@ dxs report add tablix <file> --name Grid --left 0in --top 2.5in --width 7.5in --
   --header-cell Item --header-cell Description --header-cell Qty --header-cell Weight \
   --detail-cell '=Fields!Item.Value' --detail-cell '=Fields!Desc.Value' \
   --detail-cell '=Fields!Qty.Value' --detail-cell '=Fields!Weight.Value' \
-  --header-style "background-color:#f0f0f0;padding:2pt;vertical-align:Middle" \
-  --detail-style "padding:2pt;vertical-align:Middle"
+  --header-style "font-weight:Bold;border-bottom-width:1.5pt;border-bottom-style:Solid;border-bottom-color:#5B08B2;padding:2pt;vertical-align:Bottom" \
+  --detail-style "padding:2pt;vertical-align:Middle;border-bottom-width:0.25pt;border-bottom-style:Solid;border-bottom-color:LightGray"
 ```
 
 `--header-cell` and `--detail-cell` are repeated options — one per cell. `--header-style`/`--detail-style` set row-level defaults.
@@ -136,8 +136,8 @@ dxs report add tablix <file> --name Grid --left 0in --top 2.5in --width 7.5in --
 dxs report add tablix <file> --name Orders --dataset ds_orders --columns '2in,1.5in,1.5in' \
   --header-cell Product --header-cell Qty --header-cell Total \
   --detail-cell '=Fields!Product.Value' --detail-cell '=Fields!Qty.Value' --detail-cell '=Fields!Total.Value' \
-  --footer-cell 'Grand Total' --footer-cell '' --footer-cell '=Sum(Fields!Total.Value)' \
-  --footer-style 'background-color:#f1f5f9;font-weight:Bold'
+  --footer-cell 'Grand Total:' --footer-cell '' --footer-cell '=Sum(Fields!Total.Value)' \
+  --footer-style 'font-weight:Bold;padding:2pt;border-bottom-width:0.25pt;border-bottom-style:Solid;border-bottom-color:LightGray'
 ```
 
 This generates the correct RowHierarchy: header (`KeepWithGroup: "After"`), detail (Group), footer (`KeepWithGroup: "Before"`). Prefer footer rows over standalone textboxes for totals — they stay anchored to the table.
@@ -147,7 +147,7 @@ This generates the correct RowHierarchy: header (`KeepWithGroup: "After"`), deta
 ```bash
 # Update a specific cell's value or style
 dxs report table set-cell <file> --table Grid --row detail --col 2 --value '=Fields!NewDesc.Value'
-dxs report table set-cell <file> --table Grid --row header --col 0 --font-weight Bold --background-color "#e0e0e0"
+dxs report table set-cell <file> --table Grid --row header --col 0 --font-weight Bold --border-bottom-color "#5B08B2"
 
 # Add a column (shrinks existing columns proportionally)
 dxs report table add-column <file> --table Grid --shrink \
@@ -246,7 +246,7 @@ dxs report tablix add-group <file> --tablix Grid \
   --header-cell '=Fields!WarehouseName.Value' \
   --header-cell '' --header-cell '' \
   --footer-cell Subtotal --footer-cell '' --footer-cell '=Sum(Fields!Qty.Value)' \
-  --header-style 'background-color:#e0e0e0;font-weight:Bold'
+  --header-style 'font-weight:Bold;border-bottom-width:1.5pt;border-bottom-style:Solid;border-bottom-color:#5B08B2;padding:2pt'
 ```
 
 This wraps the detail group in a new parent group and inserts header/footer rows at the correct positions. Flags:
@@ -337,7 +337,7 @@ dxs report tablix add-row <file> --tablix Grid \
   --position table-footer \
   --cell 'Grand Total' --cell '' \
   --cell '=Sum(Fields!Qty.Value)' \
-  --cell-style 'font-weight:Bold;background-color:#f1f5f9' \
+  --cell-style 'font-weight:Bold;padding:2pt' \
   --height 0.25in
 ```
 
@@ -491,11 +491,16 @@ dxs report batch <file> --ops-file /tmp/footer-ops.json
 dxs report add page-footer <file> --height 0.3in
 
 dxs report batch <file> --ops '[
+  {"action": "add", "type": "textbox", "name": "FooterTime",
+   "parent": "PageFooter", "left": "0in", "top": "0.025in",
+   "width": "2.5in", "height": "0.25in",
+   "value": "=Format(Globals!ExecutionTime, \"MM/dd/yyyy HH:mm\")",
+   "font-size": "8pt", "color": "Gray", "font-family": "Arial"},
   {"action": "add", "type": "textbox", "name": "PageNum",
    "parent": "PageFooter", "left": "5in", "top": "0.025in",
    "width": "2.5in", "height": "0.25in",
    "value": "=\"Page \" & Globals!PageNumber & \" of \" & Globals!TotalPages",
-   "text-align": "Right", "font-size": "9pt"}
+   "text-align": "Right", "font-size": "8pt", "color": "Gray", "font-family": "Arial"}
 ]'
 ```
 

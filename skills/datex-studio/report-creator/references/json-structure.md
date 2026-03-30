@@ -74,7 +74,7 @@ Full template and element formats for direct JSON authoring. Run `dxs report sch
 
 **Textbox:**
 ```json
-{ "Type": "textbox", "Name": "UniqueId", "Left": "0in", "Top": "0in", "Width": "2in", "Height": "0.25in", "Value": "=Fields!Name.Value", "CanGrow": true, "Style": { "FontSize": "10pt", "FontWeight": "Bold", "TextAlign": "Center", "VerticalAlign": "Middle" } }
+{ "Type": "textbox", "Name": "UniqueId", "Left": "0in", "Top": "0in", "Width": "2in", "Height": "0.25in", "Value": "=Fields!Name.Value", "CanGrow": true, "Style": { "FontFamily": "Arial", "FontSize": "10pt", "FontWeight": "Bold", "TextAlign": "Center", "VerticalAlign": "Middle" } }
 ```
 
 **Barcode:**
@@ -96,7 +96,7 @@ Full template and element formats for direct JSON authoring. Run `dxs report sch
 
 **Rectangle:**
 ```json
-{ "Type": "rectangle", "Name": "UniqueId", "Left": "0in", "Top": "0in", "Width": "3.75in", "Height": "0.5in", "Style": { "BackgroundColor": "White", "Border": { "Style": "Solid", "Width": "2pt", "Color": "Black" } } }
+{ "Type": "rectangle", "Name": "UniqueId", "Left": "0in", "Top": "0in", "Width": "3.75in", "Height": "0.5in", "Style": { "Border": { "Style": "Solid", "Width": "0.25pt", "Color": "LightGray" } } }
 ```
 
 > **IMPORTANT — Border format:** Rectangles and textboxes use nested `Style.Border` objects — NOT flat `BorderStyle`/`BorderWidth` keys. The flat format is silently ignored.
@@ -113,11 +113,11 @@ Rectangles can contain child elements via `ReportItems`. Children use **relative
     "Top": "0.8in",
     "Width": "5in",
     "Height": "1in",
-    "Style": { "Border": { "Style": "Solid", "Width": "1pt", "Color": "Black" } },
+    "Style": { "Border": { "Style": "Solid", "Width": "0.25pt", "Color": "LightGray" } },
     "ReportItems": [
-        { "Type": "textbox", "Name": "ShipFromLabel", "Left": "0.05in", "Top": "0.05in", "Width": "1in", "Height": "0.2in", "Value": "SHIPPER (FROM):", "Style": { "FontSize": "8pt", "FontWeight": "Bold" } },
-        { "Type": "textbox", "Name": "ShipFromName", "Left": "0.05in", "Top": "0.25in", "Width": "4.9in", "Height": "0.2in", "Value": "=Fields!ShipperName.Value", "Style": { "FontSize": "9pt" } },
-        { "Type": "textbox", "Name": "ShipFromAddr", "Left": "0.05in", "Top": "0.45in", "Width": "4.9in", "Height": "0.5in", "Value": "=Fields!ShipperAddress.Value", "CanGrow": true, "Style": { "FontSize": "9pt" } }
+        { "Type": "textbox", "Name": "ShipFromLabel", "Left": "0.05in", "Top": "0.05in", "Width": "1in", "Height": "0.2in", "Value": "Ship From", "Style": { "FontFamily": "Arial", "FontSize": "8pt", "Color": "DimGray", "VerticalAlign": "Bottom", "PaddingLeft": "2pt" } },
+        { "Type": "textbox", "Name": "ShipFromName", "Left": "0.05in", "Top": "0.25in", "Width": "4.9in", "Height": "0.25in", "Value": "=Fields!ShipperName.Value", "Style": { "FontFamily": "Arial", "FontSize": "10pt", "FontWeight": "Bold", "VerticalAlign": "Top", "PaddingLeft": "2pt", "PaddingRight": "2pt", "PaddingTop": "2pt", "PaddingBottom": "2pt" } },
+        { "Type": "textbox", "Name": "ShipFromAddr", "Left": "0.05in", "Top": "0.5in", "Width": "4.9in", "Height": "0.5in", "Value": "=Fields!ShipperAddress.Value", "CanGrow": true, "Style": { "FontFamily": "Arial", "FontSize": "10pt", "VerticalAlign": "Top", "PaddingLeft": "2pt", "PaddingRight": "2pt", "PaddingTop": "2pt", "PaddingBottom": "2pt" } }
     ]
 }
 ```
@@ -200,19 +200,19 @@ Tablix is the most-used data element in production reports. It replaces Table fo
         "Columns": ["1in", "4in", "1.5in"],
         "Rows": [
             {
-                "Height": "0.25in",
+                "Height": "0.375in",
                 "Cells": [
-                    { "Item": { "Type": "textbox", "Name": "HdrItem", "Value": "Item #", "Style": { "FontWeight": "Bold", "FontSize": "8pt", "BackgroundColor": "LightGray" } } },
-                    { "Item": { "Type": "textbox", "Name": "HdrDesc", "Value": "Description", "Style": { "FontWeight": "Bold", "FontSize": "8pt", "BackgroundColor": "LightGray" } } },
-                    { "Item": { "Type": "textbox", "Name": "HdrQty", "Value": "Qty", "Style": { "FontWeight": "Bold", "FontSize": "8pt", "BackgroundColor": "LightGray", "TextAlign": "Right" } } }
+                    { "Item": { "Type": "textbox", "Name": "HdrItem", "Value": "Item #", "Style": { "FontFamily": "Arial", "FontWeight": "Bold", "FontSize": "10pt", "VerticalAlign": "Bottom", "PaddingLeft": "2pt", "BorderBottom": { "Style": "Solid", "Width": "1.5pt", "Color": "#5B08B2" } } } },
+                    { "Item": { "Type": "textbox", "Name": "HdrDesc", "Value": "Description", "Style": { "FontFamily": "Arial", "FontWeight": "Bold", "FontSize": "10pt", "VerticalAlign": "Bottom", "PaddingLeft": "2pt", "BorderBottom": { "Style": "Solid", "Width": "1.5pt", "Color": "#5B08B2" } } } },
+                    { "Item": { "Type": "textbox", "Name": "HdrQty", "Value": "Qty", "Style": { "FontFamily": "Arial", "FontWeight": "Bold", "FontSize": "10pt", "TextAlign": "Right", "VerticalAlign": "Bottom", "PaddingRight": "2pt", "BorderBottom": { "Style": "Solid", "Width": "1.5pt", "Color": "#5B08B2" } } } }
                 ]
             },
             {
-                "Height": "0.25in",
+                "Height": "0.375in",
                 "Cells": [
-                    { "Item": { "Type": "textbox", "Name": "ColItem", "Value": "=Fields!ItemNumber.Value", "Style": { "FontSize": "8pt" } } },
-                    { "Item": { "Type": "textbox", "Name": "ColDesc", "Value": "=Fields!Description.Value", "Style": { "FontSize": "8pt" } } },
-                    { "Item": { "Type": "textbox", "Name": "ColQty", "Value": "=Fields!Quantity.Value", "Style": { "FontSize": "8pt", "TextAlign": "Right" } } }
+                    { "Item": { "Type": "textbox", "Name": "ColItem", "Value": "=Fields!ItemNumber.Value", "Style": { "FontFamily": "Arial", "FontSize": "10pt", "VerticalAlign": "Middle", "PaddingLeft": "2pt", "BorderBottom": { "Style": "Solid", "Width": "0.25pt", "Color": "LightGray" } } } },
+                    { "Item": { "Type": "textbox", "Name": "ColDesc", "Value": "=Fields!Description.Value", "Style": { "FontFamily": "Arial", "FontSize": "10pt", "VerticalAlign": "Middle", "PaddingLeft": "2pt", "BorderBottom": { "Style": "Solid", "Width": "0.25pt", "Color": "LightGray" } } } },
+                    { "Item": { "Type": "textbox", "Name": "ColQty", "Value": "=Fields!Quantity.Value", "Style": { "FontFamily": "Courier New", "FontSize": "10pt", "FontWeight": "Bold", "TextAlign": "Right", "VerticalAlign": "Middle", "PaddingRight": "2pt", "BorderBottom": { "Style": "Solid", "Width": "0.25pt", "Color": "LightGray" } } } }
                 ]
             }
         ]
@@ -270,21 +270,35 @@ Page headers and footers repeat on every page. They live at the **top-level** of
         "ReportItems": [
             {
                 "Type": "textbox",
+                "Name": "FooterTimestamp",
+                "Value": "=Format(Globals!ExecutionTime, \"MM/dd/yyyy HH:mm\")",
+                "Style": {
+                    "FontFamily": "Arial",
+                    "FontSize": "8pt",
+                    "Color": "Gray",
+                    "PaddingLeft": "2pt",
+                    "PaddingTop": "2pt"
+                },
+                "Left": "0in",
+                "Top": "0.05in",
+                "Width": "2in",
+                "Height": "0.25in"
+            },
+            {
+                "Type": "textbox",
                 "Name": "PageNumber",
-                "CanGrow": true,
-                "KeepTogether": true,
                 "Value": "=\"Page \" & Globals!PageNumber & \" of \" & Globals!TotalPages",
                 "Style": {
-                    "FontSize": "9pt",
-                    "PaddingLeft": "2pt",
+                    "FontFamily": "Arial",
+                    "FontSize": "8pt",
+                    "Color": "Gray",
                     "PaddingRight": "2pt",
                     "PaddingTop": "2pt",
-                    "PaddingBottom": "2pt",
                     "TextAlign": "Right"
                 },
-                "Left": "6.25in",
+                "Left": "5.5in",
                 "Top": "0.05in",
-                "Width": "1.75in",
+                "Width": "2in",
                 "Height": "0.25in"
             }
         ]
