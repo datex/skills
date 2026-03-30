@@ -202,15 +202,30 @@ dxs datasource generate \
 Flow datasource code does **NOT** execute raw OData queries. Instead, flows reference **standalone OData datasources** that already exist on the branch, using the `$datasources` object:
 
 ```typescript
-// CORRECT: Reference a standalone OData datasource by its reference name
-const shipment = await $datasources.ds_shipment.get({ shipmentId: inParams.shipmentId });
-const contacts = await $datasources.ds_warehouse_contacts.getList({ warehouseId: shipment.ActualWarehouseId });
+// CORRECT: Reference standalone OData datasources, unwrap .result
+const shipmentResp = await $datasources.ds_shipment.get({ shipmentId: $flow.inParams.shipmentId });
+const shipment = shipmentResp.result;
+// For collection datasources, .result is an array:
+const contactsResp = await $datasources.ds_wh_contacts.get({ warehouseId: shipment.ActualWarehouse.Id });
+const firstContact = contactsResp.result?.[0]?.Contact;
+// Set output via $flow.outParams.result
+$flow.outParams.result = { Name: shipment.Name, Phone: firstContact?.PrimaryTelephone };
 ```
 
 ```typescript
 // WRONG: Raw OData queries in flow code — this is NOT how flows work
 const result = await $datasource.getList({ query: 'Shipments(123)?$expand=Carrier' });
 ```
+
+**Flow code runtime variables:**
+
+| Variable | Purpose |
+|----------|---------|
+| `$flow.inParams` | Access the flow datasource's input parameters |
+| `$flow.outParams.result` | Set the flow's output (assign, don't return) |
+| `$datasources.<ref_name>` | Access standalone datasources on the branch |
+
+**Unwrapping responses:** All `$datasources` calls return `{ result?: ... }`. For `--param-keys` datasources, `result` is a single object. For collection datasources, `result` is an array. Always access `.result` before navigating into fields.
 
 **The workflow for building a flow datasource:**
 
