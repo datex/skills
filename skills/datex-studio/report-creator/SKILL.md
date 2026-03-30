@@ -283,6 +283,35 @@ Use the **field summary** from the datasource-creator's return as the primary so
 
 Phase 4 will verify against the actual datasource (standalone) or the config JSON (owned).
 
+**Handling collection fields in DataSets:**
+
+Check the datasource-creator return for fields marked `[collection]`. These **cannot** be added as flat DataSet fields on a single-result DataSet — they will silently render blank.
+
+**Preferred approach: flow datasource.** If the datasource-creator return contains collections with fields needed in standalone textboxes, go back to Phase 2 and rebuild that datasource as a flow. The flow code fetches the OData data and flattens collections into scalar fields. This is the production pattern used by all existing Datex Studio reports with complex navigation.
+
+**Alternative: child datasets with CommandText deep paths.** If a flow rewrite is not feasible, create a separate DataSet that navigates into the collection:
+
+```json
+{
+    "Name": "ds_shipment_OrderLookups",
+    "Fields": [
+        {"Name": "Order_OwnerReference", "DataField": "Order.OwnerReference"},
+        {"Name": "Order_Account_Name", "DataField": "Order.Account.Name"}
+    ],
+    "Query": {
+        "DataSourceName": "Datasource",
+        "CommandText": "$.ds_shipment.result.OrderLookups.*"
+    }
+}
+```
+
+Then reference fields with `=First(Fields!Order_OwnerReference.Value, "ds_shipment_OrderLookups")` in standalone textboxes. For nested collections (collection within collection), chain the path: `$.ds_shipment.result.OrderLookups.*.Order.Addresses.*`.
+
+**CommandText `.*` suffix rule:**
+- Single result, scalar fields: `$.ds_name.result` (no `.*`)
+- Collection result (table/tablix): `$.ds_name.result.*`
+- Collection within single result: `$.ds_name.result.CollectionPath.*`
+
 ### Step 6: Verify with preview
 
 ```bash

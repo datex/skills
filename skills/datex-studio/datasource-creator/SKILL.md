@@ -94,6 +94,18 @@ Standalone   Owned
  return ref
 ```
 
+### When to use OData vs Flow
+
+| Use OData when | Use Flow when |
+|----------------|---------------|
+| All needed fields are scalar or reachable through single navigation properties (no collections in the path) | The result needs data from collection navigation properties flattened into scalar fields (e.g., a single-entity shipment where `OrderLookups` or `WarehousesContactsLookup` must appear as flat fields) |
+| The result IS a collection that maps directly to a table/tablix (e.g., ShipmentLines) | Multiple OData queries need to be combined or joined into a single result |
+| Simple parameter-based filtering is sufficient | Calculated fields require data from multiple entities or custom aggregation |
+
+**How to tell:** Run `dxs report datasource-fields <ref> --branch <id>` (or `--report <ref>` for owned). If the output has a `collections:` section with fields you need in **standalone textboxes** (not tables), use a flow datasource. Collections in OData datasources cannot be bound as flat DataSet fields — they silently resolve to blank.
+
+**The production pattern:** All existing Datex Studio reports with complex navigation (packing slips, BOLs, master BOLs) use flow datasources for their header/detail data. The flow code fetches the OData entities and flattens collections into scalar fields. OData datasources are used for simple list queries (line items, lookup tables).
+
 > **Flow datasources and schema exploration:** Flow datasources are NOT a shortcut around schema exploration. A flow datasource's JavaScript code typically queries one or more OData entities and reshapes the data. Before writing the type definition or flow code, you MUST use `schema-explorer` to validate that the target connection has the expected entities and properties. Existing report examples and templates show what *has worked* on some connection — they are starting hypotheses, not validated designs for the current connection.
 
 ## Return to Caller
@@ -126,6 +138,14 @@ Fields:
     OrderLine.Material.LookupCode: string
     OrderLine.Material.Description: string
 ```
+
+**Collection fields in the return require caller action.** When the field summary contains `[collection]` markers, the caller must choose:
+
+1. **Flow datasource (preferred):** Rewrite the datasource as a flow that flattens collections into scalar fields. The caller gets a flat field list with no collections.
+2. **Child datasets (alternative):** Create a separate DataSet in the report with `CommandText: "$.ds_name.result.CollectionPath.*"` and use `=First(Fields!Field.Value, "child_dataset")` in standalone textboxes. This works but adds complexity.
+3. **Separate OData datasource:** Query the collection entity directly (e.g., `ShipmentOrderLookups?$filter=ShipmentId eq {id}`) as its own datasource. Only viable when the entity supports direct filtering.
+
+**Never** pass collection-path fields (e.g., `OrderLookups.Order.OwnerReference`) to `dxs report dataset add --field` as flat fields on a single-result DataSet. They will silently render blank.
 
 ## OData Datasource Generation
 
