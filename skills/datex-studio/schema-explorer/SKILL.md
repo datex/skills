@@ -50,34 +50,57 @@ OData schema discovery using `dxs schema` commands.
 ## Composite Keys / Special Notes
 ```
 
+## Command Selection Rule
+
+**Single request → use the direct command. Multiple independent requests → combine into ONE batch.**
+
+- If you only need one operation (e.g., one search, one describe), use the direct command — don't wrap it in `dxs schema batch` with a single `--request`.
+- If you need 2+ independent operations, combine ALL of them into a single `dxs schema batch` call. Don't split independent requests across multiple batch calls — each call is a separate HTTP roundtrip.
+- Only split into a second call when results from the first call determine what to query next.
+
 ## Workflow
 
-1. **Search for entities** — Use `dxs schema batch -c <id> --request 'search <keyword>'` to find entity sets matching your keywords. If you can guess the entity set name from the keyword, combine the search with a describe in the same batch.
-
-   Search results include the full qualified `entity_type` for each match (e.g., `Datex.FootPrint.Api.Warehouse`). Save these — you'll need them for `--entity-type` flags in later steps.
-
-2. **Describe main entity and relationships** — Use `--compact --no-udf` to keep output manageable (reduces a 50,000-token entity to ~2,000 tokens). Add `--depth 2` on relationships to explore one level deeper (e.g., `Shipment → ShipmentLine → Item`) in a single call:
+1. **Search for entities** — Combine ALL keyword searches into one batch:
    ```bash
    dxs schema batch -c <id> \
-     --request 'describe-entity <EntityName> --compact --no-udf' \
-     --request 'describe-relationships <EntityName> --depth 2'
+     --request 'search shipment' \
+     --request 'search order' \
+     --request 'search warehouse' \
+     --request 'search carrier'
+   ```
+   If you can guess entity set names, combine searches with describes in the same batch. Search results include the full qualified `entity_type` (e.g., `Datex.FootPrint.Api.Warehouse`) — save these for `--entity-type` flags in later steps.
+
+   For a single keyword, use the direct command: `dxs schema search "keyword" -c <id>`.
+
+2. **Describe entities and relationships** — Combine ALL entity descriptions and relationship exploration into one batch. Use `--compact --no-udf` on describe-entity and `--depth 2` on relationships:
+   ```bash
+   dxs schema batch -c <id> \
+     --request 'describe-entity Shipments --compact --no-udf' \
+     --request 'describe-relationships Shipments --depth 2' \
+     --request 'describe-entity Orders --compact --no-udf' \
+     --request 'describe-relationships Orders --depth 2' \
+     --request 'describe-entity ShipmentLines --compact --no-udf' \
+     --request 'describe-relationships ShipmentLines --depth 2'
    ```
    Use `--compact` for initial exploration. If you need full details on specific fields later, use `--select Field1,Field2` to describe only those properties.
 
-3. **Scan related entity fields** — For each navigation property target you plan to `$expand`, use `describe-entity --compact --no-udf` to get field names and types in minimal form (~2 tokens per field vs ~8 with `properties`). Combine multiple related entities into a single batch:
+3. **Scan related entity fields** — Combine ALL related entity scans into one batch. For each navigation property target you plan to `$expand`, use `describe-entity --compact --no-udf`:
    ```bash
    dxs schema batch -c <id> \
-     --request 'describe-entity RelatedEntitySet1 --compact --no-udf' \
-     --request 'describe-entity RelatedEntitySet2 --compact --no-udf' \
-     --request 'describe-entity RelatedEntitySet3 --compact --no-udf'
+     --request 'describe-entity Materials --compact --no-udf' \
+     --request 'describe-entity Lots --compact --no-udf' \
+     --request 'describe-entity Addresses --compact --no-udf' \
+     --request 'describe-entity Contacts --compact --no-udf' \
+     --request 'describe-entity Warehouses --compact --no-udf' \
+     --request 'describe-relationships Warehouses --depth 2'
    ```
-   Skip this step for related entities already covered by `describe-relationships --depth 2` in step 2 — depth-2 output includes nested nav property names and target types. Only scan entities where you need the **scalar field list** for `$select` clauses.
+   Skip entities already covered by `describe-relationships --depth 2` in step 2 — depth-2 output includes nested nav property names and target types. Only scan entities where you need the **scalar field list** for `$select` clauses.
 
    **When you only have the type ID** (e.g., `Datex.FootPrint.Api.Warehouse` from relationship output) and don't know the entity set name, use `properties --entity-type Namespace.Type` instead — it accepts the full qualified type directly. Use `navigation-properties --entity-type` alongside it if you also need `$expand` paths.
 
    **Note:** If you need `$expand` paths for a related entity (what can be expanded *from* it), those are in its `navigation_properties` output — `describe-entity --compact` includes both scalar properties and nav properties.
 
-4. **Resolve enum values** — When a property's type doesn't start with `Edm.`, it's an enum or complex type. For enum-typed properties (e.g., `type: Datex.FootPrint.Api.Statuses`), use `describe-enum` with that type value to get the member names and numeric values:
+4. **Resolve enum values** — When a property's type doesn't start with `Edm.`, it's an enum or complex type. Combine all enum lookups into one batch (or use a single direct command if only one):
    ```bash
    dxs schema batch -c <id> \
      --request 'describe-enum Datex.FootPrint.Api.Statuses' \

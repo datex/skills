@@ -19,8 +19,17 @@ Create OData or flow-based datasource configurations for Datex Studio.
 **REQUIRED BACKGROUND:** Read the `schema-explorer` skill for OData entity discovery
 and the `odata-execution` skill for query building and verification.
 
-**Schema exploration is mandatory for ODATA datasources** — 
+**Schema exploration is mandatory for ODATA datasources** —
 The type definition must be built from validated schema, not from examples or templates alone. Flow datasources might aggregate data from OData queries under the hood but if it works with already existing datasources, we assume they are already verified.
+
+### Prerequisites check
+
+Before starting schema exploration or datasource generation, check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or `report-creator`).
+
+- **Requirements brief exists** → use it. The brief provides the field list, semantic roles, and business rules that drive which entities to explore and which fields to include. Verify datasource output against the brief.
+- **No requirements brief exists** → invoke the `requirements-gathering` skill first. This happens when datasource-creator is invoked standalone (not from report-creator). The brief ensures you don't miss fields, map entities incorrectly, or skip calculated fields.
+
+Do NOT skip this check. Building a datasource without understanding what fields are needed and what they mean leads to incomplete configs and rework.
 
 ## Input/Output Contract
 
@@ -48,6 +57,16 @@ The type definition must be built from validated schema, not from examples or te
 ## Workflow
 
 ```
+[requirements brief in context?]
+        |
+  +-----+-----+
+  |            |
+ YES          NO
+  |            |
+ use it    invoke `requirements-gathering` skill
+  |            |
+  +-----+------+
+        |
 [determine type: OData or Flow]
         |
   +-----+-----+

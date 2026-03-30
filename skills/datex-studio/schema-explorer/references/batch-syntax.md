@@ -46,18 +46,29 @@ Common mistakes:
 - `describe-navigation-properties EntityName` — WRONG, needs TWO positional args: `describe-navigation-properties Namespace.Type PropertyName`
 - `properties --entity-type Warehouses` — WRONG. Needs full qualified type ID: `properties --entity-type Datex.FootPrint.Api.Warehouse`
 
+## Command Selection Rule
+
+**Single request → use the direct command. Multiple independent requests → combine into ONE batch.**
+
+- `dxs schema search "keyword" -c <id>` — use when you only need one search
+- `dxs schema describe-entity Orders -c <id> --compact --no-udf` — use for a single entity
+- `dxs schema batch -c <id> --request '...' --request '...'` — use when you have 2+ independent operations
+
+**Anti-pattern:** `dxs schema batch -c 1 --request 'search keyword'` — wrapping a single request in batch adds overhead for no benefit.
+
 ## What to Batch Together
 
 | Good combinations | Why |
 |-------------------|-----|
+| ALL keyword searches | `search shipment` + `search order` + `search warehouse` — all independent, one HTTP call |
+| ALL entity describes + relationships | `describe-entity Shipments` + `describe-relationships Shipments` + `describe-entity Orders` + ... — all independent |
+| ALL related entity scans | Multiple `describe-entity --compact --no-udf` for every related entity you need |
 | `search` + `describe-entity` | Search confirms the name, describe gets the structure — both needed before moving on |
 | Multiple `properties --entity-type` | Scanning field names on related entities is fully independent |
-| `navigation-properties --entity-type` + `properties --entity-type` | Get both fields and $expand paths for related types in one call |
-| `describe-entity` + `properties` | Describing a child entity while scanning related types |
-| Multiple `describe-entity` calls | Avoids the sequential-only constraint of parallel tool calls |
 
 ## When NOT to Batch
 
+- When you only have **one request** — use the direct command instead
 - When the second request **depends on** the first result (e.g., you need the entity name from search before you can describe it — but if you can guess the entity set name from the search keyword, batch them)
 - When output would be too large to parse effectively — batch results are concatenated
 
@@ -135,6 +146,8 @@ dxs schema describe-navigation-properties <Namespace.EntityType> <NavPropertyNam
 | Anti-pattern | Better approach |
 |--------------|----------------|
 | Running `describe-entity` without `--compact` | Output can be 50,000+ tokens — use `--compact --no-udf` |
+| Splitting independent requests across multiple batch calls | Combine ALL independent requests into ONE batch — each call is a roundtrip |
+| Wrapping a single request in `schema batch` | Use the direct command (`dxs schema search`, `dxs schema describe-entity`, etc.) |
 | 9+ sequential schema calls | Use `schema batch` — combine into 2-3 calls |
 | Running `describe-entity` in parallel tool calls | Parallel tool calls abort siblings on failure — use `schema batch` instead |
 | Using full `describe-entity` for every related entity | Use `describe-entity --compact --no-udf` (or batch them) for quick field name scans |

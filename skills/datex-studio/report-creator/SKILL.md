@@ -1,9 +1,11 @@
 ---
 name: report-creator
 description: |
-  Use when building or modifying Datex Studio reports with dxs report commands:
-  RDLX-JSON authoring, layout prototyping in Studio, report upload,
-  SSRS-to-NextGen migration.
+  Use when building or modifying Datex Studio reports. This is the entry point
+  for all report work — it orchestrates requirements gathering, schema exploration,
+  datasource creation, layout prototyping, and deployment as a single workflow.
+  Trigger for: "create a report", "build a report", "report from work item",
+  "report from requirements", "modify a report", "migrate a report".
 ---
 
 # Report Creator
@@ -26,28 +28,54 @@ Workflow for building and deploying RDLX-JSON reports using the `dxs` CLI. Repor
 - [references/sample-data.md](references/sample-data.md) — Companion `.data.json` files for live preview
 - [references/ssrs-migration.md](references/ssrs-migration.md) — Converting legacy SSRS (.rdl) reports to NextGen RDLX-JSON
 
-## Dependencies
+## Orchestration Model
 
-**REQUIRED BACKGROUND:** Before building a report, you will need:
-- `datasource-creator` — to create datasource config(s) for the report
-- `schema-explorer` — for test data discovery (finding real `in_params` values)
-- `odata-execution` — for querying real data to provide test parameters
-- `devops-requirements` — when building from a DevOps work item (optional)
+**This skill is the top-level orchestrator for all report work.** It invokes dependency skills in sequence with validation gates between phases. Do NOT invoke the dependency skills independently before this skill — this skill triggers them at the right time with the right context.
 
-## Workflow
+```
+report-creator (this skill — orchestrates everything)
+  │
+  ├── Phase 1: Setup + Requirements
+  │     ├── Select branch + connection
+  │     └── Invoke `requirements-gathering` skill (routes to right source)
+  │           ├── DevOps work item → invokes `devops-requirements` skill
+  │           ├── Mockup/screenshot → visual analysis
+  │           ├── User conversation → structured Q&A
+  │           ├── Existing report (.rdl, .rdlx-json) → extract structure
+  │           └── Document/spec → extract fields and layout
+  │     Output: standardized requirements brief
+  │
+  ├── Phase 2: Schema Discovery + Datasource Creation
+  │     ├── Invoke `schema-explorer` (via `datasource-creator`) for EVERY entity
+  │     ├── Invoke `datasource-creator` for EVERY datasource
+  │     ├── Invoke `odata-execution` to verify queries
+  │     │
+  │     ├── ▶ COVERAGE GATE: requirements brief vs datasource fields
+  │     │   For EVERY field in the requirements brief:
+  │     │   - Is it mapped to an OData path? If not, why?
+  │     │   - Is it included in a datasource config? If not, why?
+  │     │   - Does it need a calculated expression? Document it.
+  │     │   Present gap report to user. Do NOT proceed until gaps are
+  │     │   resolved or explicitly accepted.
+  │     │
+  │     └── Output: validated datasource configs + field coverage report
+  │
+  ├── Phase 3: Layout Prototype (live in Studio)
+  │     ├── Create report + open in Studio
+  │     ├── Build sections incrementally with user feedback
+  │     ├── Add DataSets + sample data
+  │     └── Output: working .rdlx-json with sample data preview
+  │
+  ├── Phase 4: Report Finalization
+  │     └── Verify DataSets, refine expressions, validate
+  │
+  └── Phase 5: Deploy & Verify
+        └── Upload, preview with real data, provide test parameters
+```
 
 **Planning boundary:** Phases 1-3 complete during planning (before `ExitPlanMode`). The prototype IS the report file — Phase 4 picks up where Phase 3 left off. Phases 4-5 execute after plan approval.
 
-1. **Setup** — Select branch + connection + artifact directory
-2. **Schema Discovery + Datasource Creation** — *(delegated to datasource-creator)*
-3. **Layout Prototype** — Create actual RDLX-JSON with `dxs report create` + `dxs report batch`, preview live in Studio with `dxs studio open`, iterate with user feedback
-
----
-
-4. **Report Finalization** — Verify DataSets against datasource, refine expressions, validate
-5. **Deploy & Verify** — Upload, preview, confirm
-
-## Phase 1: Setup
+## Phase 1: Setup + Requirements
 
 ### Select branch
 
@@ -120,12 +148,21 @@ If yes, create the artifact directory and use this naming convention:
 | `<report-name>-preview.svg` | Preview image from `dxs report preview` |
 | `requirements/` | Downloaded attachments and requirements brief (DevOps) |
 
-### Requirements from DevOps work item (optional)
+### Requirements gathering
 
-If the user references a DevOps work item, **REQUIRED BACKGROUND:** use the
-`devops-requirements` skill to extract requirements before proceeding.
+<HARD-GATE>
+You MUST gather and document requirements BEFORE schema exploration or datasource creation. Do NOT skip this step, even if the user says "just build it" or provides a vague description. Requirements drive everything downstream — skipping this step causes field mapping errors, missing data, and layout rework.
+</HARD-GATE>
 
-**For SSRS migrations:** If the work item includes `.rdl` files, see [references/ssrs-migration.md](references/ssrs-migration.md) for how to read them and translate SQL→OData.
+**Invoke the `requirements-gathering` skill.** It handles routing to the right source (DevOps work item, mockup, conversation, document, existing report) and produces a standardized requirements brief with:
+- Field list with semantic roles (what each field means, not just its name)
+- Layout expectations
+- Business rules and calculated fields
+- Parameters
+
+The requirements brief is the input to Phase 2 (schema exploration + datasource creation) and the coverage gate that follows it.
+
+**For SSRS migrations:** If the source includes `.rdl` files, also see [references/ssrs-migration.md](references/ssrs-migration.md) for how to read them and translate SQL→OData.
 
 ## Phase 2: Schema Discovery + Datasource Creation
 
@@ -145,6 +182,38 @@ For each datasource the report needs:
 4. Collect the return summary: JSON config file path, reference name, result type, in_params, and **field summary** (used in Phase 3 Step 5 for DataSet creation)
 
 Repeat for each datasource needed by the report.
+
+### Coverage gate: requirements vs datasource fields
+
+<HARD-GATE>
+After ALL datasources are created, verify coverage against the requirements brief. Do NOT proceed to Phase 3 until this gate passes or the user explicitly accepts gaps.
+</HARD-GATE>
+
+For **every field** in the requirements brief:
+
+| Check | Action if failed |
+|-------|------------------|
+| Field has an OData path in the schema mapping | Investigate: is the entity missing? Is the path too deep? Propose a linked or flow datasource. |
+| Field is included in a datasource config | Add it — the datasource may need regeneration with additional `$select`/`$expand` paths. |
+| Field requires a calculation (e.g., `tareWeight = GrossWeight - NetWeight`) | Document the expression for Phase 3. Note fields needed as inputs. |
+| Field has no OData equivalent (e.g., SQL function, custom view) | Propose a flow datasource, or flag as a known gap for user decision. |
+
+Present the coverage report to the user:
+
+```
+### Coverage Report: Requirements → Datasources
+
+✅ Covered (N fields): [list]
+⚠️ Calculated (N fields): [field → expression]
+❌ Not available (N fields): [field → reason + proposed solution]
+
+Proceed to layout? [Y / resolve gaps first]
+```
+
+This gate catches errors like:
+- Shipper mapped to wrong entity (Account instead of Owner)
+- Line-item fields omitted from datasource (tareWeight, packUOM)
+- Deep navigation paths skipped without alternatives (Owner address)
 
 ## Phase 3: Layout Prototype (Live in Studio)
 
