@@ -416,6 +416,9 @@ Always include: parameter names matching `in_params` exactly, human-readable con
 | Data file as flat array `[{...}]` | Must use wrapper structure `{ "dataSets": { "ds_name": { "data": [...] } } }` |
 | Skipping DataSets during Phase 3 prototyping | Studio shows "no matching DataSet in report" and expressions render as raw text |
 | Using `=Fields!X.Value` on a textbox for a non-default dataset | Standalone textboxes resolve against the first DataSet by default. For fields from other datasets, use `=First(Fields!X.Value, "ds_other")` |
+| Adding collection-path fields as flat DataSet fields (e.g., `OrderLookups.Order.OwnerReference`) | Collection navigation properties (`isCollection: true` in the type def) silently resolve to blank in single-result DataSets. Use a flow datasource to flatten, or create child datasets with `CommandText: "$.ds.result.Collection.*"` and `First()` expressions |
+| `CommandText: "$.ds.result"` for a collection datasource | Must be `$.ds.result.*` — without `.*`, table/tablix gets no rows |
+| `$dataset:ParentDs/CollectionField` on an OData datasource | `$dataset:` child datasets only work with flow datasources. For OData, use `CommandText: "$.ds.result.CollectionPath.*"` with `DataSourceName: "Datasource"` instead |
 
 ### Layout & CLI Issues
 
