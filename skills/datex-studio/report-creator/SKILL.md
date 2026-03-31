@@ -1,11 +1,11 @@
 ---
 name: report-creator
 description: |
-  Use when building or modifying Datex Studio reports. This is the entry point
-  for all report work — it orchestrates requirements gathering, schema exploration,
+  Use when building NEW Datex Studio reports from scratch. This is the entry point
+  for all new report work — it orchestrates requirements gathering, schema exploration,
   datasource creation, layout prototyping, and deployment as a single workflow.
   Trigger for: "create a report", "build a report", "report from work item",
-  "report from requirements", "modify a report", "migrate a report".
+  "report from requirements". For modifying EXISTING reports, use `report-editor`.
 ---
 
 # Report Creator
@@ -18,21 +18,27 @@ Workflow for building and deploying RDLX-JSON reports using the `dxs` CLI. Repor
 
 **Authoring approach:**
 - **Live prototyping** for new reports — create a blank `.rdlx-json`, build layout incrementally with `dxs report create` + `dxs report batch`, preview live in Studio
-- **Incremental CLI** (`add`/`set`/`move`/`remove`/`batch`) for targeted edits to existing reports
+- **Incremental CLI** (`add`/`set`/`move`/`remove`/`batch`) for targeted edits during layout iteration
 - **Direct JSON** only for advanced structures not yet in the CLI (e.g., complex BandedList grouping, custom Tablix column/row hierarchies beyond simple header/detail)
 
-**References:**
-- [references/design-standards.md](references/design-standards.md) — **Datex design language:** color palette, typography, table styling, field label-value pattern, grid alignment, report categories
-- [references/json-structure.md](references/json-structure.md) — Document template, element JSON formats, expression quick reference
-- [references/design-patterns.md](references/design-patterns.md) — Coordinate system, layout patterns, element sizing
-- [references/cli-commands.md](references/cli-commands.md) — Detailed CLI syntax: batch ops, tablix, images, datasets, set/move/remove
-- [references/sample-data.md](references/sample-data.md) — Companion `.data.json` files for live preview
+**References (shared):**
+- [../shared/branch-setup.md](../shared/branch-setup.md) — Branch & connection selection
+- [../shared/report-authoring/design-standards.md](../shared/report-authoring/design-standards.md) — **Datex design language:** color palette, typography, table styling, field label-value pattern, grid alignment, report categories
+- [../shared/report-authoring/json-structure.md](../shared/report-authoring/json-structure.md) — Document template, element JSON formats, expression quick reference
+- [../shared/report-authoring/design-patterns.md](../shared/report-authoring/design-patterns.md) — Coordinate system, layout patterns, element sizing
+- [../shared/report-authoring/cli-commands.md](../shared/report-authoring/cli-commands.md) — Detailed CLI syntax: batch ops, tablix, images, datasets, set/move/remove
+- [../shared/report-authoring/sample-data.md](../shared/report-authoring/sample-data.md) — Companion `.data.json` files for live preview
+- [../shared/report-authoring/dataset-rules.md](../shared/report-authoring/dataset-rules.md) — DataSet management: CommandText rules, collection handling, date annotations
+- [../shared/report-authoring/deploy-patterns.md](../shared/report-authoring/deploy-patterns.md) — Upload, preview, and verification patterns
+- [../shared/report-authoring/troubleshooting.md](../shared/report-authoring/troubleshooting.md) — Common RDLX-JSON and CLI mistakes & fixes
+
+**References (creation-specific):**
 - [references/ssrs-migration.md](references/ssrs-migration.md) — Converting legacy SSRS (.rdl) reports to NextGen RDLX-JSON
 - [references/examples/](references/examples/) — **Platonic ideals:** canonical patterns for common report types, distilled from real-world corpus analysis
 
 ## Orchestration Model
 
-**This skill is the top-level orchestrator for all report work.** It invokes dependency skills in sequence with validation gates between phases. Do NOT invoke the dependency skills independently before this skill — this skill triggers them at the right time with the right context.
+**This skill is the top-level orchestrator for new report creation.** It invokes dependency skills in sequence with validation gates between phases. Do NOT invoke the dependency skills independently before this skill — this skill triggers them at the right time with the right context.
 
 ```
 report-creator (this skill — orchestrates everything)
@@ -75,64 +81,19 @@ report-creator (this skill — orchestrates everything)
         └── Upload, preview with real data, provide test parameters
 ```
 
+### Intent routing: create vs modify existing
+
+If the user asks to **modify an existing report** on a branch (e.g., "add a column to the receiving report", "change the label on the BOL", "update the report on branch 64"), invoke the `report-editor` skill instead. Report-creator is for building new reports from scratch.
+
+If the user says "modify" but the report does not exist yet on the branch, confirm with the user: "That report doesn't exist on this branch yet. Should I create it from scratch?" If yes, continue with report-creator.
+
 **Planning boundary:** Phases 1-3 complete during planning (before `ExitPlanMode`). The prototype IS the report file — Phase 4 picks up where Phase 3 left off. Phases 4-5 execute after plan approval.
 
 ## Phase 1: Setup + Requirements
 
 ### Select branch
 
-**Step 1: Identify the active organization.**
-
-```bash
-dxs auth status
-```
-
-Note the `organization` and `organization_id` from the active identity.
-
-**Step 2: List repositories for that organization.**
-
-```bash
-dxs source repo list --org <organization_id>
-```
-
-This returns only the org's repos (typically 3-10), not the full platform (hundreds).
-
-**Step 3: List feature branches for each repo.**
-
-```bash
-dxs source branch list --repo <repo_id> --status feature -n 10
-```
-
-Repeat for each repo, or focus on the most relevant one (e.g., a "Reports" repo for report work).
-
-**Step 4: Present results** using **AskUserQuestion** with options built from the output:
-```
-AskUserQuestion:
-  question: "Which feature branch should we work with?"
-  options:
-    - label: "{id} - {repositoryName}"
-      description: "{commitTitle} by {authorDisplayName}"
-```
-
-Include a "New branch" option if none of the existing branches are relevant. To create one:
-
-```bash
-dxs source branch create --repo <repo_id> --title "<title>" --description "<description>"
-```
-
-**Branch ID policy:** Never assume or reuse a branch ID from memory. Always ask.
-
-> **Anti-pattern:** Do NOT use `dxs source branch list --all-repos` — it queries every repo across all organizations and returns thousands of results. Always scope to the active org's repos first.
-
-### Select connection
-
-```bash
-dxs source branch settings <branch_id>
-```
-
-Present API connections using **AskUserQuestion** (skip if only one — just inform the user). Store both: the `apiConnectionId` (for `-c` flag) and the `name` (for `--api-setting-name`).
-
-**Finding a customer's connection:** Use `dxs organization connection list --search <term>` to search connection names and URLs (case-insensitive).
+Follow [branch-setup.md](../shared/branch-setup.md) to identify the active organization, list repositories, select a feature branch, and discover API connections.
 
 ### Artifact collection (optional)
 
@@ -226,15 +187,25 @@ This gate catches errors like:
 ### Step 1: Create a blank report
 
 ```bash
-dxs report create <artifact_dir>/<report-name>.rdlx-json --page letter --margins 0.5in
+dxs report create <artifact_dir>/<report_name>_report --page letter --margins 0.5in
 ```
 
 Use `--page` for standard sizes (`letter`, `legal`, `a4`, `4x6`, `4x8`) or custom (`WxH`). Add `--landscape` for landscape orientation. `--margins` supports CSS-style shorthand.
 
+**Naming rule:** The folder name becomes the report's `referenceName`, which the Wavelength platform uses to generate TypeScript service classes. It **must be a valid JavaScript identifier** — letters, digits, underscores, `$` only. No hyphens, dots, or spaces. Use the `_report` suffix convention.
+
+| Bad | Good | Why |
+|-----|------|-----|
+| `srs-bol` | `srs_bol_report` | Hyphens break TS class names |
+| `srs-bol.rdlx-json` | `srs_bol_report` | Dots and extensions break TS imports |
+| `my report` | `my_report` | Spaces are not valid in identifiers |
+
+**Alias rule for owned datasources:** When adding owned datasources with `dxs report datasource add --owned FILE:ALIAS`, the **alias must match the datasource's `referenceName`** inside the JSON config file. The platform registers services by referenceName but the report references them by alias — a mismatch causes "property does not exist" TS errors. Example: if the config has `"referenceName": "ds_bol_header"`, use `--owned ds_bol_header.json:ds_bol_header`.
+
 ### Step 2: Open in Studio
 
 ```bash
-dxs studio open <artifact_dir>/<report-name>.rdlx-json
+dxs studio open <artifact_dir>/<report_name>_report/report.rdlx-json
 ```
 
 This opens the report in the Studio design canvas at `http://127.0.0.1:5051/design`. Every file change is reflected live.
@@ -246,19 +217,19 @@ This opens the report in the Studio design canvas at `http://127.0.0.1:5051/desi
 
 Use `dxs report batch` to add elements in groups. Write ops to a file and use `--ops-file` to avoid shell escaping issues. Maximum 25 operations per batch.
 
-**Apply the Datex design language** from [references/design-standards.md](references/design-standards.md): set `FontFamily: Arial` on all text elements (use `Courier New` for numeric values and barcode captions), use the official color palette (Black, DimGray, LightGray, Gray, Datex Purple #5B08B2), style tables with purple header borders and LightGray row separators (no background colors), follow the field label-value pattern (8pt DimGray labels above 10pt Black values), and snap positions to the 0.25in grid.
+**Apply the Datex design language** from [../shared/report-authoring/design-standards.md](../shared/report-authoring/design-standards.md): set `FontFamily: Arial` on all text elements (use `Courier New` for numeric values and barcode captions), use the official color palette (Black, DimGray, LightGray, Gray, Datex Purple #5B08B2), style tables with purple header borders and LightGray row separators (no background colors), follow the field label-value pattern (8pt DimGray labels above 10pt Black values), and snap positions to the 0.25in grid.
 
-**Build in logical sections using rectangle containers.** Every major section (header, info fields, address blocks, footer) should be wrapped in a rectangle. Add the rectangle first, then add child elements with `"parent": "RectangleName"`. Child coordinates are relative to the rectangle's top-left corner (0,0), so moving the rectangle repositions everything inside it. This is important for layout iteration — without rectangles, repositioning a section means moving every element individually. See [references/cli-commands.md](references/cli-commands.md) for the batch pattern. Tables are self-contained and don't need a rectangle wrapper.
+**Build in logical sections using rectangle containers.** Every major section (header, info fields, address blocks, footer) should be wrapped in a rectangle. Add the rectangle first, then add child elements with `"parent": "RectangleName"`. Child coordinates are relative to the rectangle's top-left corner (0,0), so moving the rectangle repositions everything inside it. This is important for layout iteration — without rectangles, repositioning a section means moving every element individually. See [../shared/report-authoring/cli-commands.md](../shared/report-authoring/cli-commands.md) for the batch pattern. Tables are self-contained and don't need a rectangle wrapper.
 
 **Tables:** Use `dxs report add tablix` for line items with `--header-cell`, `--detail-cell`, `--footer-cell` (repeated options, one per cell) and `--header-style`/`--detail-style`/`--footer-style` for row-level defaults. Prefer footer rows over standalone textboxes for totals.
 
 **Lines** use `start-x`/`start-y`/`end-x`/`end-y` in batch (not `left`/`top`/`width`/`height`). `move` does not work on lines — edit JSON directly.
 
-**Images:** Use `dxs report add image --file logo.png` for embedded images, `--source Database --value '=Fields!X.Value'` for data-bound images. Database-bound images need data URIs in the sample data file — see [references/sample-data.md](references/sample-data.md).
+**Images:** Use `dxs report add image --file logo.png` for embedded images, `--source Database --value '=Fields!X.Value'` for data-bound images. Database-bound images need data URIs in the sample data file — see [../shared/report-authoring/sample-data.md](../shared/report-authoring/sample-data.md).
 
-**PageHeader/PageFooter:** These are document-root elements requiring direct JSON editing — see [references/json-structure.md](references/json-structure.md).
+**PageHeader/PageFooter:** These are document-root elements requiring direct JSON editing — see [../shared/report-authoring/json-structure.md](../shared/report-authoring/json-structure.md).
 
-See [references/cli-commands.md](references/cli-commands.md) for detailed syntax and examples of all batch operations, tablix creation, image handling, and element editing.
+See [../shared/report-authoring/cli-commands.md](../shared/report-authoring/cli-commands.md) for detailed syntax and examples of all batch operations, tablix creation, image handling, and element editing.
 
 ### Step 4: Create sample data file
 
@@ -272,51 +243,15 @@ dxs report data generate <report-name>.rdlx-json -o <report-name>.data.json
 
 Then replace placeholders with realistic sample values — 3-5 rows per dataset. Field names must match DataSet field **Names** (underscore notation, e.g., `Lines_Material_LookupCode`), not dot-notation DataField paths.
 
-See [references/sample-data.md](references/sample-data.md) for the full format and examples.
+See [../shared/report-authoring/sample-data.md](../shared/report-authoring/sample-data.md) for the full format and examples.
 
 ### Step 5: Add DataSets to the report
 
 **REQUIRED for Studio preview.** Without DataSet definitions, Studio shows "no matching DataSet in report" errors and field expressions render as raw text.
 
-```bash
-dxs report dataset add <file> --name ds_shipment \
-  --field Id --field LookupCode --field Status \
-  --field "Account.Name" \
-  --field "OrderDate[Date|YYYY-MM-DDTHH:mm:ss.fffffff]"
-```
+Follow [dataset-rules.md](../shared/report-authoring/dataset-rules.md) for DataSet creation, CommandText patterns, collection handling, date annotations, and sensitivity properties.
 
-Use the **field summary** from the datasource-creator's return as the primary source for field names — it is extracted directly from the generated config's type definitions and is authoritative. Include ALL fields, not just the ones used in expressions. The field-mapping artifact provides additional human-readable context for layout decisions but should not be the primary source for DataSet field names.
-
-Phase 4 will verify against the actual datasource (standalone) or the config JSON (owned).
-
-**Handling collection fields in DataSets:**
-
-Check the datasource-creator return for fields marked `[collection]`. These **cannot** be added as flat DataSet fields on a single-result DataSet — they will silently render blank.
-
-**Preferred approach: flow datasource.** If the datasource-creator return contains collections with fields needed in standalone textboxes, go back to Phase 2 and rebuild that datasource as a flow. The flow code fetches the OData data and flattens collections into scalar fields. This is the production pattern used by all existing Datex Studio reports with complex navigation.
-
-**Alternative: child datasets with CommandText deep paths.** If a flow rewrite is not feasible, create a separate DataSet that navigates into the collection:
-
-```json
-{
-    "Name": "ds_shipment_OrderLookups",
-    "Fields": [
-        {"Name": "Order_OwnerReference", "DataField": "Order.OwnerReference"},
-        {"Name": "Order_Account_Name", "DataField": "Order.Account.Name"}
-    ],
-    "Query": {
-        "DataSourceName": "Datasource",
-        "CommandText": "$.ds_shipment.result.OrderLookups.*"
-    }
-}
-```
-
-Then reference fields with `=First(Fields!Order_OwnerReference.Value, "ds_shipment_OrderLookups")` in standalone textboxes. For nested collections (collection within collection), chain the path: `$.ds_shipment.result.OrderLookups.*.Order.Addresses.*`.
-
-**CommandText `.*` suffix rule:**
-- Single result, scalar fields: `$.ds_name.result` (no `.*`)
-- Collection result (table/tablix): `$.ds_name.result.*`
-- Collection within single result: `$.ds_name.result.CollectionPath.*`
+Use the **field summary** from the datasource-creator's return as the primary source for field names. Phase 4 will verify against the actual datasource.
 
 ### Step 6: Verify with preview
 
@@ -333,7 +268,7 @@ After building each section, ask the user how it looks in Studio. Use `dxs repor
 
 ### Layout reference
 
-See [references/design-patterns.md](references/design-patterns.md) for pattern examples (Shipping Label, GS1, BOL, Tabular Report) and element sizing tables.
+See [../shared/report-authoring/design-patterns.md](../shared/report-authoring/design-patterns.md) for pattern examples (Shipping Label, GS1, BOL, Tabular Report) and element sizing tables.
 
 ## Phase 4: Report Finalization
 
@@ -342,127 +277,20 @@ The `.rdlx-json` file already exists from Phase 3 with layout, elements, sample 
 ### Finalization checklist
 
 1. **Verify DataSets** — For **standalone** datasources: compare field Names/DataFields against `dxs report datasource-fields <ref> --branch <id>` output. For **owned** datasources: compare against the field summary from Phase 2 (datasource-fields is only available post-upload). Add missing fields with `dxs report dataset add-field`. Ensure `CommandText = $.{ds_name}.result.*` and all sensitivity properties are present.
-2. **Refine expressions** — Update any placeholder values with final `=Fields!Name.Value` expressions. See [references/json-structure.md](references/json-structure.md) for expression quick reference.
+2. **Refine expressions** — Update any placeholder values with final `=Fields!Name.Value` expressions. See [../shared/report-authoring/json-structure.md](../shared/report-authoring/json-structure.md) for expression quick reference.
 3. **Validate:**
    ```bash
    dxs report validate my-report.rdlx-json
    ```
 
-For incremental edits to existing reports, see [references/cli-commands.md](references/cli-commands.md) for `set`/`move`/`remove`/`dataset add-field` syntax.
+For incremental edits during finalization, see [../shared/report-authoring/cli-commands.md](../shared/report-authoring/cli-commands.md) for `set`/`move`/`remove`/`dataset add-field` syntax.
 
 ## Phase 5: Deploy & Verify
 
-### Upload
-
-```bash
-# Owned datasource (embedded from config file generated by dxs datasource generate)
-dxs report upload my-report.rdlx-json --branch <id> --name "My Report" \
-  --owned ds_my_report.json:ds_my_report \
-  --param id:number \
-  --datasource-param 'shipmentId=$report.inParams.id'
-
-# Standalone datasource (already upserted to the branch)
-dxs report upload my-report.rdlx-json --branch <id> --name "My Report" \
-  --use-datasource ds_my_report:ds_my_report \
-  --param id:number \
-  --datasource-param 'shipmentId=$report.inParams.id'
-
-# Multiple datasources sharing the same param name — one binding applies to all
-dxs report upload my-report.rdlx-json --branch <id> --name "My Report" \
-  --owned ds_header.json:ds_header \
-  --owned ds_lines.json:ds_lines \
-  --param shipmentId:number \
-  --datasource-param 'shipmentId=$report.inParams.shipmentId'
-
-# Target a specific datasource alias with dot notation (ALIAS.KEY=EXPRESSION)
-dxs report upload my-report.rdlx-json --branch <id> --name "My Report" \
-  --owned ds_header.json:ds_header \
-  --owned ds_lines.json:ds_lines \
-  --param shipmentId:number \
-  --datasource-param 'ds_header.shipmentId=$report.inParams.shipmentId' \
-  --datasource-param 'ds_lines.shipmentId=$report.inParams.shipmentId'
-```
-
-Upload is **idempotent by reference name** — re-uploading updates the existing config. To create a separate copy, use a different `--name`.
-
-### Preview
-
-```bash
-dxs report preview my-report.rdlx-json
-dxs report preview my-report.rdlx-json --data my-report.data.json -o preview.svg
-```
-
-SVG is the default and most reliable format.
-
-### Verify
-
-```bash
-dxs report get <rep_reference> --branch <branch_id>
-```
-
-### Provide test parameters
-
-If the datasource has `in_params`, output discovered test values as JSON so the user can test in Studio:
-
-```
-Test parameters for **Warehouse: Tampa, Project: TemplateOwner, March 2026** (203 records):
-
-{
-  "WarehouseId": 1,
-  "ProjectId": 500571,
-  "FromDate": "2026-03-01T00:00:00.000Z",
-  "ToDate": "2026-03-12T00:00:00.000Z"
-}
-```
-
-Always include: parameter names matching `in_params` exactly, human-readable context, and ISO 8601 format for dates.
+Follow [deploy-patterns.md](../shared/report-authoring/deploy-patterns.md) for upload (owned vs standalone), preview, verification, and test parameter discovery.
 
 **Artifact:** Save preview with `dxs report preview <report>.rdlx-json -o <artifact_dir>/<report-name>-preview.svg`.
 
 ## Troubleshooting
 
-### RDLX-JSON & Expression Issues
-
-| Mistake | Fix |
-|---------|-----|
-| `$item` in expressions | Use `$entity` |
-| `Fields.Name.Value` in expressions | Use `Fields!Name.Value` (exclamation mark) |
-| Unbalanced parentheses in `IIf()` | Count your parens — each `IIf(` needs matching `)` |
-| DataSet name differs from datasource reference | DataSet `Name`, datasource `-r`, `-t`, and `--owned-datasource` alias must ALL match |
-| `CommandText: "jpath=$.*"` | Must be `$.{ds_name}.result.*` — `jpath` syntax doesn't bind to datasource |
-| Only listing used fields in DataSet | List ALL fields from `datasource-fields` output, not just fields in expressions |
-| Missing date type annotation | Date DataFields need `[Date\|YYYY-MM-DDTHH:mm:ss.fffffff]` suffix |
-| Missing sensitivity properties on DataSet | Include `CaseSensitivity`, `KanatypeSensitivity`, `AccentSensitivity`, `WidthSensitivity` |
-| Embedding sample data in `ConnectString` | Use a companion `<report>.data.json` file — Studio auto-discovers it |
-| Data file as flat array `[{...}]` | Must use wrapper structure `{ "dataSets": { "ds_name": { "data": [...] } } }` |
-| Skipping DataSets during Phase 3 prototyping | Studio shows "no matching DataSet in report" and expressions render as raw text |
-| Using `=Fields!X.Value` on a textbox for a non-default dataset | Standalone textboxes resolve against the first DataSet by default. For fields from other datasets, use `=First(Fields!X.Value, "ds_other")` |
-| Adding collection-path fields as flat DataSet fields (e.g., `OrderLookups.Order.OwnerReference`) | Collection navigation properties (`isCollection: true` in the type def) silently resolve to blank in single-result DataSets. Use a flow datasource to flatten, or create child datasets with `CommandText: "$.ds.result.Collection.*"` and `First()` expressions |
-| `CommandText: "$.ds.result"` for a collection datasource | Must be `$.ds.result.*` — without `.*`, table/tablix gets no rows |
-| `$dataset:ParentDs/CollectionField` on an OData datasource | `$dataset:` child datasets only work with flow datasources. For OData, use `CommandText: "$.ds.result.CollectionPath.*"` with `DataSourceName: "Datasource"` instead |
-
-### Upload & Deployment Issues
-
-| Mistake | Fix |
-|---------|-----|
-| `--datasource-param 'ds_header:shipmentId=$report.inParams.shipmentId'` (colon separator) | Use **dot notation** for alias-scoped params: `'ds_header.shipmentId=$report.inParams.shipmentId'`. Colon causes the entire `ds_header:shipmentId` to be treated as a single param name, creating type mismatch errors ("Type 'number' is not assignable to type 'string'") |
-| Repeating `--datasource-param` for each datasource when all share the same param name | A single `--datasource-param 'shipmentId=$report.inParams.shipmentId'` (no alias prefix) applies the binding to ALL datasources that have a `shipmentId` param |
-
-### Layout & CLI Issues
-
-| Mistake | Fix |
-|---------|-----|
-| Lines in batch using `left`/`top`/`width`/`height` | Lines need `start-x`/`start-y`/`end-x`/`end-y` |
-| `move`/`set` on lines without endpoint flags | Lines use `StartPoint`/`EndPoint` — use `--start-x`, `--start-y`, `--end-x`, `--end-y` |
-| Passing `--ops` with `!` or `$` directly in shell | Use `--ops-file /tmp/ops.json` or `--ops -` with a heredoc |
-| Using `dxs report scaffold` | Generates incorrect line format and partial layouts — use `dxs report create` + `dxs report batch` |
-| Using textboxes to fake a table | Use `dxs report add table` for collections — real tables repeat rows per data record |
-| Adding section elements directly to body without a rectangle | Wrap each logical section in a rectangle for easy repositioning |
-| Using `--header`/`--detail` on `add tablix` | Deprecated — use `--header-cell`/`--detail-cell` (repeated options, one per cell) |
-| Styling table cells one-by-one after creation | Use `--header-style`/`--detail-style` at creation time |
-| Manually editing JSON to add a table column | Use `dxs report table add-column` |
-| Manually editing JSON to add a dataset field | Use `dxs report dataset add-field --dataset NAME --field FIELD` |
-| Using `dxs report set` without `--width`/`--height` for resizing | `report set` supports `--width` and `--height` directly |
-| Using `--value` with a URL for embedded images | Use `--file logo.png` to embed — `--value` is for expressions or external URLs |
-| Database-bound image field missing from sample data | Use `dxs report data add-image` to encode image files as data URIs in `.data.json` |
-| Setting number format via `set`/`batch` | `format` is not yet a recognized key in `set`/`batch` — edit `"Format": "N2"` in JSON `Style` directly |
+See [troubleshooting.md](../shared/report-authoring/troubleshooting.md) for common RDLX-JSON expression issues and layout/CLI mistakes.
