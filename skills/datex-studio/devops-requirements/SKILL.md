@@ -1,14 +1,29 @@
+---
+name: devops-requirements
+description: |
+  Use when extracting requirements from Azure DevOps work items using dxs devops
+  commands: fetching work items, reviewing relations, downloading attachments,
+  compiling raw requirements. This is a utility skill — it extracts and structures
+  work item content but does not build reports, datasources, or other artifacts.
+---
+
 # DevOps Requirements Extraction
 
-Reference for extracting report requirements from Azure DevOps work items using `dxs devops` commands.
+Extract and compile actionable requirements from Azure DevOps work items into a structured requirements brief.
+
+## Input / Output
+
+- **Input:** Work item ID or Azure DevOps URL
+- **Output:** Requirements brief (markdown — in context or saved to artifact directory)
 
 ## When to Use
 
-This workflow applies when the user:
-- Provides a work item ID or Azure DevOps URL
-- Mentions building a report from a "requirement," "work item," or "ticket"
-- Asks to migrate or recreate an existing report referenced in DevOps
-- References an SSRS report that needs a NextGen equivalent
+This skill applies when you need to extract structured information from a DevOps work item:
+- Fetch a work item's description, design field, and acceptance criteria
+- Review parent/child relations and download attachments
+- Compile a requirements brief from work item content
+
+This skill extracts and structures — it does not create reports, datasources, or other artifacts. If the goal is to create something from a work item, use the appropriate creation skill as the entry point; it will invoke this skill when it needs work item data.
 
 ## Step 1: Fetch the Work Item
 
@@ -111,7 +126,7 @@ For `.rdl` files (SSRS XML), scan for `<CommandText>` elements containing SQL �
 
 ## Step 5: Compile Requirements Brief
 
-After gathering work item data and attachments, compile a requirements brief. This feeds into the Phase 2 schema discovery subagent and guides layout design in Phase 3.
+After gathering work item data and attachments, compile a requirements brief. This feeds into downstream skills (e.g., schema-explorer, datasource-creator, report-creator).
 
 **Template:**
 

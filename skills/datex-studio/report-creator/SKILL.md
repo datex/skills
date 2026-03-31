@@ -1,16 +1,18 @@
 ---
 name: report-creator
 description: |
-  End-to-end workflow for building Datex Studio reports and labels: OData schema discovery, datasource creation, RDLX-JSON report authoring, and deployment. Use when asked to build/create/design/modify/edit/update reports or labels, create or manage datasources, explore OData schema for report purposes, write or troubleshoot RDLX-JSON, or interact with `dxs report`/`dxs datasource`/`dxs schema` commands. Also use when building reports from Azure DevOps work items, migrating SSRS reports to NextGen, or extracting report requirements from DevOps tickets.
-
-  Keywords: report, label, datasource, schema, OData, RDLX-JSON, barcode, shipping label, BOL, bill of lading, commercial invoice, dxs, ActiveReportsJS, preview, bounding box, devops, work item, requirement, SSRS, migration, ticket, pick slip, packing slip, invoice, receiving report, activity report, inventory report, template, layout, column, parameter, filter
+  Use when building or modifying Datex Studio reports. This is the entry point
+  for all report work — it orchestrates requirements gathering, schema exploration,
+  datasource creation, layout prototyping, and deployment as a single workflow.
+  Trigger for: "create a report", "build a report", "report from work item",
+  "report from requirements", "modify a report", "migrate a report".
 ---
 
 # Report Creator
 
-End-to-end workflow for building datasources and reports using the `dxs` CLI. Reports render in ActiveReportsJS within Datex Studio.
+Workflow for building and deploying RDLX-JSON reports using the `dxs` CLI. Reports render in ActiveReportsJS within Datex Studio.
 
-**Key principle:** Plan before code. Build the field mapping table and layout prototype before writing final JSON.
+**Key principle:** Plan before code. Build the layout prototype before writing final JSON.
 
 **Prototyping and design:** This skill has its own visual prototyping workflow — `dxs report create` + `dxs report batch` + `dxs studio open` for live preview in a browser. Do NOT use external brainstorming visual companions, browser-based mockup tools, or other prototyping tools unless the user explicitly requests them. The Studio live preview IS the design tool.
 
@@ -20,33 +22,61 @@ End-to-end workflow for building datasources and reports using the `dxs` CLI. Re
 - **Direct JSON** only for advanced structures not yet in the CLI (e.g., complex BandedList grouping, custom Tablix column/row hierarchies beyond simple header/detail)
 
 **References:**
+- [references/design-standards.md](references/design-standards.md) — **Datex design language:** color palette, typography, table styling, field label-value pattern, grid alignment, report categories
 - [references/json-structure.md](references/json-structure.md) — Document template, element JSON formats, expression quick reference
 - [references/design-patterns.md](references/design-patterns.md) — Coordinate system, layout patterns, element sizing
 - [references/cli-commands.md](references/cli-commands.md) — Detailed CLI syntax: batch ops, tablix, images, datasets, set/move/remove
-- [references/schema-discovery.md](references/schema-discovery.md) — Batch syntax, individual commands, anti-patterns
 - [references/sample-data.md](references/sample-data.md) — Companion `.data.json` files for live preview
-- [references/datasource-commands.md](references/datasource-commands.md) — Parameter strategies, linked datasources, quoting, post-upsert verification
-- [references/odata-patterns.md](references/odata-patterns.md) — Server-side filtering: lambda operators, string functions, SQL→OData mapping
 - [references/ssrs-migration.md](references/ssrs-migration.md) — Converting legacy SSRS (.rdl) reports to NextGen RDLX-JSON
-- [references/common-mistakes.md](references/common-mistakes.md) — Frequent pitfalls and fixes
-- [references/devops-requirements.md](references/devops-requirements.md) — Extracting report requirements from Azure DevOps work items
 
-## Workflow
+## Orchestration Model
 
-**Planning boundary:** Phases 1–3 complete during planning (before `ExitPlanMode`). The prototype IS the report file — Phase 6 picks up where Phase 3 left off. Phases 4–7 execute after plan approval.
+**This skill is the top-level orchestrator for all report work.** It invokes dependency skills in sequence with validation gates between phases. Do NOT invoke the dependency skills independently before this skill — this skill triggers them at the right time with the right context.
 
-1. **Setup** — Select branch + connection + artifact directory
-2. **Schema Discovery + Field Mapping** — *(subagent)* Explore OData entities, build field mapping table
-3. **Layout Prototype** — Create actual RDLX-JSON with `dxs report create` + `dxs report batch`, preview live in Studio with `dxs studio open`, iterate with user feedback
+```
+report-creator (this skill — orchestrates everything)
+  │
+  ├── Phase 1: Setup + Requirements
+  │     ├── Select branch + connection
+  │     └── Invoke `requirements-gathering` skill (routes to right source)
+  │           ├── DevOps work item → invokes `devops-requirements` skill
+  │           ├── Mockup/screenshot → visual analysis
+  │           ├── User conversation → structured Q&A
+  │           ├── Existing report (.rdl, .rdlx-json) → extract structure
+  │           └── Document/spec → extract fields and layout
+  │     Output: standardized requirements brief
+  │
+  ├── Phase 2: Schema Discovery + Datasource Creation
+  │     ├── Invoke `schema-explorer` (via `datasource-creator`) for EVERY entity
+  │     ├── Invoke `datasource-creator` for EVERY datasource
+  │     ├── Invoke `odata-execution` to verify queries
+  │     │
+  │     ├── ▶ COVERAGE GATE: requirements brief vs datasource fields
+  │     │   For EVERY field in the requirements brief:
+  │     │   - Is it mapped to an OData path? If not, why?
+  │     │   - Is it included in a datasource config? If not, why?
+  │     │   - Does it need a calculated expression? Document it.
+  │     │   Present gap report to user. Do NOT proceed until gaps are
+  │     │   resolved or explicitly accepted.
+  │     │
+  │     └── Output: validated datasource configs + field coverage report
+  │
+  ├── Phase 3: Layout Prototype (live in Studio)
+  │     ├── Create report + open in Studio
+  │     ├── Build sections incrementally with user feedback
+  │     ├── Add DataSets + sample data
+  │     └── Output: working .rdlx-json with sample data preview
+  │
+  ├── Phase 4: Report Finalization
+  │     └── Verify DataSets, refine expressions, validate
+  │
+  └── Phase 5: Deploy & Verify
+        └── Upload, preview with real data, provide test parameters
+```
 
----
+**Planning boundary:** Phases 1-3 complete during planning (before `ExitPlanMode`). The prototype IS the report file — Phase 4 picks up where Phase 3 left off. Phases 4-5 execute after plan approval.
 
-4. **Query Building** — Incremental OData query with `$top=1`
-5. **Datasource Upsert** — Create datasource with params and linked refs
-6. **Report Finalization** — Verify DataSets against datasource, refine expressions, validate
-7. **Deploy & Verify** — Upload, preview, confirm
-
-## Phase 1: Setup
+## Phase 1: Setup + Requirements
 
 ### Select branch
 
@@ -64,7 +94,7 @@ Note the `organization` and `organization_id` from the active identity.
 dxs source repo list --org <organization_id>
 ```
 
-This returns only the org's repos (typically 3–10), not the full platform (hundreds).
+This returns only the org's repos (typically 3-10), not the full platform (hundreds).
 
 **Step 3: List feature branches for each repo.**
 
@@ -113,76 +143,82 @@ If yes, create the artifact directory and use this naming convention:
 |----------|---------|
 | `01-schema-exploration.md` | Entity descriptions, field lists, relationships |
 | `02-field-mapping.md` | Field mapping table |
-| `<report-name>.rdlx-json` | The report file (created in Phase 3, refined in Phase 6) |
+| `<report-name>.rdlx-json` | The report file (created in Phase 3, refined in Phase 4) |
 | `<report-name>.data.json` | Sample data for live Studio preview |
 | `04-query-building.md` | Incremental query steps and final verified query |
 | `<report-name>-preview.svg` | Preview image from `dxs report preview` |
 | `requirements/` | Downloaded attachments and requirements brief (DevOps) |
 
-### Requirements from DevOps work item (optional)
+### Requirements gathering
 
-If the user references a DevOps work item (by ID, URL, or mention of "work item"/"requirement"/"ticket"), extract requirements before schema discovery:
+<HARD-GATE>
+You MUST gather and document requirements BEFORE schema exploration or datasource creation. Do NOT skip this step, even if the user says "just build it" or provides a vague description. Requirements drive everything downstream — skipping this step causes field mapping errors, missing data, and layout rework.
+</HARD-GATE>
 
-1. Fetch with `dxs devops workitem <ID> --full --expand All`
-2. Review relations — present parent/children/attachments, ask which to explore
-3. **Validate scope with user** — confirm which attachments and design notes are relevant
-4. Download user-confirmed attachments to `<artifact_dir>/requirements/`
-5. Compile a requirements brief: report purpose, field/data requirements, layout expectations, entity keywords
+**Invoke the `requirements-gathering` skill.** It handles routing to the right source (DevOps work item, mockup, conversation, document, existing report) and produces a standardized requirements brief with:
+- Field list with semantic roles (what each field means, not just its name)
+- Layout expectations
+- Business rules and calculated fields
+- Parameters
 
-See [references/devops-requirements.md](references/devops-requirements.md) for the full extraction workflow, attachment decision table, and requirements brief template.
+The requirements brief is the input to Phase 2 (schema exploration + datasource creation) and the coverage gate that follows it.
 
-**For SSRS migrations:** If the work item includes `.rdl` files, see [references/ssrs-migration.md](references/ssrs-migration.md) for how to read them and translate SQL→OData.
+**For SSRS migrations:** If the source includes `.rdl` files, also see [references/ssrs-migration.md](references/ssrs-migration.md) for how to read them and translate SQL→OData.
 
-## Phase 2: Schema Discovery + Field Mapping (Subagent)
+## Phase 2: Schema Discovery + Datasource Creation
 
-**Delegate to a subagent.** Schema exploration produces verbose output that bloats the main context window. Launch a single `Agent` (general-purpose) to handle both phases and return a concise field mapping table.
+<HARD-GATE>
+You MUST invoke the `datasource-creator` skill for EVERY datasource in this phase. Do NOT skip this step, even if:
+- You found existing examples or templates that show the exact data model
+- The user asked for a flow datasource (flow datasources aggregate data from OData queries — the underlying entities still need schema validation)
+- You think you already know the entity structure from prior exploration
 
-### Subagent prompt template
+Examples and templates are hypotheses. Schema exploration against the CURRENT connection is the validation. Entity availability, property names, types, and relationships vary between connections.
+</HARD-GATE>
+
+For each datasource the report needs:
+1. Invoke `datasource-creator` skill with mode = `owned` (preferred) or `standalone`
+2. Datasource-creator invokes `schema-explorer` and `odata-execution` to validate entities and properties against the live connection
+3. For flow datasources: schema exploration identifies the OData entities and fields the flow code will query, then the type definition is built from validated schema — not from examples
+4. Collect the return summary: JSON config file path, reference name, result type, in_params, and **field summary** (used in Phase 3 Step 5 for DataSet creation)
+
+Repeat for each datasource needed by the report.
+
+### Coverage gate: requirements vs datasource fields
+
+<HARD-GATE>
+After ALL datasources are created, verify coverage against the requirements brief. Do NOT proceed to Phase 3 until this gate passes or the user explicitly accepts gaps.
+</HARD-GATE>
+
+For **every field** in the requirements brief:
+
+| Check | Action if failed |
+|-------|------------------|
+| Field has an OData path in the schema mapping | Investigate: is the entity missing? Is the path too deep? Propose a linked or flow datasource. |
+| Field is included in a datasource config | Add it — the datasource may need regeneration with additional `$select`/`$expand` paths. |
+| Field requires a calculation (e.g., `tareWeight = GrossWeight - NetWeight`) | Document the expression for Phase 3. Note fields needed as inputs. |
+| Field has no OData equivalent (e.g., SQL function, custom view) | Propose a flow datasource, or flag as a known gap for user decision. |
+
+Present the coverage report to the user:
 
 ```
-Explore OData schema and build a field mapping table for a report.
+### Coverage Report: Requirements → Datasources
 
-**Connection ID:** <connection_id>
-**Report purpose:** <user's description of what the report shows>
-**Requirements brief (from DevOps):** <paste requirements brief if available, otherwise omit>
-**Key entities to explore:** <entity keywords from user or requirements brief, e.g., "shipments", "inventory tasks">
+✅ Covered (N fields): [list]
+⚠️ Calculated (N fields): [field → expression]
+❌ Not available (N fields): [field → reason + proposed solution]
 
-**Steps:**
-1. Search for relevant entities using `dxs schema batch -c <id> --request 'search <keyword>'`
-2. Describe the main entity and its relationships using batch commands
-3. Scan related entity properties to find fields needed for the report
-4. Build a field mapping table in this format:
-
-| Report Field | OData Path | Source Entity | Notes |
-|---|---|---|---|
-| Invoice Number | LookupCode | InvoiceHeader | Root field |
-| Customer Name | Account.Name | Account | $expand with $select |
-| Line Number | Lines.LineNumber | InvoiceLine | Collection field |
-
-**Rules:**
-- Separate root fields from collection fields (collections need a separate DataSet)
-- OData Path maps directly to $select and $expand clauses
-- Report Field becomes the DataSet Field Name and DataField
-- Use dot notation for expanded paths (e.g., Account.Name → $expand=Account($select=Name))
-- Use `schema batch` to combine calls (2-3 batches typical, not 9+ sequential calls)
-- **Verify critical nav properties return data** — for key navigation properties (especially Address, Contact, Warehouse), run a `$top=1` OData query with the expand to confirm the nav property is populated, not just that it exists in the schema. Some entities have nav properties with NULL foreign keys (e.g., Warehouse.AddressId may be NULL). If a nav property returns empty, note the gap and suggest an alternate path (e.g., WarehousesContactsLookup → Contact → Address).
-- **Test server-side collection filtering with lambda operators** — when a report needs to filter based on whether a collection is empty or contains matching items (e.g., "locations with no active license plates"), test OData `any()`/`all()` lambda operators before recommending client-side filtering. See references/odata-patterns.md for lambda syntax and examples.
-- **Identify all filtering/exclusion rules** — extract every filtering requirement from the design notes (SQL WHERE clauses, business rules, exclusion criteria) and note which can be expressed as OData `$filter` clauses.
-
-See references/schema-discovery.md for batch syntax and anti-patterns.
-
-**Return:** The field mapping table, a summary of entities explored, any notable relationships or composite keys found, any nav properties that exist in the schema but returned empty data (with alternate paths if discovered), and a proposed `$filter` clause covering all identified filtering/exclusion rules (with test results confirming the filters work).
+Proceed to layout? [Y / resolve gaps first]
 ```
 
-If artifacts are enabled, instruct the subagent to write `01-schema-exploration.md` and `02-field-mapping.md` to the artifact directory.
-
-### After subagent returns
-
-Review the field mapping table with the user. Confirm the fields cover the report's requirements before proceeding. The table drives everything downstream — OData query, DataSet fields, and `=Fields!` expressions.
+This gate catches errors like:
+- Shipper mapped to wrong entity (Account instead of Owner)
+- Line-item fields omitted from datasource (tareWeight, packUOM)
+- Deep navigation paths skipped without alternatives (Owner address)
 
 ## Phase 3: Layout Prototype (Live in Studio)
 
-**Build an actual RDLX-JSON report and preview it live in Datex Studio.** The prototype IS the report file — Phase 6 picks up where this phase leaves off. The user sees every change in real time.
+**Build an actual RDLX-JSON report and preview it live in Datex Studio.** The prototype IS the report file — Phase 4 picks up where this phase leaves off. The user sees every change in real time.
 
 ### Step 1: Create a blank report
 
@@ -207,6 +243,8 @@ This opens the report in the Studio design canvas at `http://127.0.0.1:5051/desi
 
 Use `dxs report batch` to add elements in groups. Write ops to a file and use `--ops-file` to avoid shell escaping issues. Maximum 25 operations per batch.
 
+**Apply the Datex design language** from [references/design-standards.md](references/design-standards.md): set `FontFamily: Arial` on all text elements (use `Courier New` for numeric values and barcode captions), use the official color palette (Black, DimGray, LightGray, Gray, Datex Purple #5B08B2), style tables with purple header borders and LightGray row separators (no background colors), follow the field label-value pattern (8pt DimGray labels above 10pt Black values), and snap positions to the 0.25in grid.
+
 **Build in logical sections using rectangle containers.** Every major section (header, info fields, address blocks, footer) should be wrapped in a rectangle. Add the rectangle first, then add child elements with `"parent": "RectangleName"`. Child coordinates are relative to the rectangle's top-left corner (0,0), so moving the rectangle repositions everything inside it. This is important for layout iteration — without rectangles, repositioning a section means moving every element individually. See [references/cli-commands.md](references/cli-commands.md) for the batch pattern. Tables are self-contained and don't need a rectangle wrapper.
 
 **Tables:** Use `dxs report add tablix` for line items with `--header-cell`, `--detail-cell`, `--footer-cell` (repeated options, one per cell) and `--header-style`/`--detail-style`/`--footer-style` for row-level defaults. Prefer footer rows over standalone textboxes for totals.
@@ -229,7 +267,7 @@ Create a companion `<report-name>.data.json` alongside the report. Studio auto-d
 dxs report data generate <report-name>.rdlx-json -o <report-name>.data.json
 ```
 
-Then replace placeholders with realistic sample values — 3–5 rows per dataset. Field names must match DataSet field **Names** (underscore notation, e.g., `Lines_Material_LookupCode`), not dot-notation DataField paths.
+Then replace placeholders with realistic sample values — 3-5 rows per dataset. Field names must match DataSet field **Names** (underscore notation, e.g., `Lines_Material_LookupCode`), not dot-notation DataField paths.
 
 See [references/sample-data.md](references/sample-data.md) for the full format and examples.
 
@@ -244,7 +282,38 @@ dxs report dataset add <file> --name ds_shipment \
   --field "OrderDate[Date|YYYY-MM-DDTHH:mm:ss.fffffff]"
 ```
 
-Include ALL fields from the field mapping table — not just the ones used in expressions. Phase 6 will verify against the actual datasource.
+Use the **field summary** from the datasource-creator's return as the primary source for field names — it is extracted directly from the generated config's type definitions and is authoritative. Include ALL fields, not just the ones used in expressions. The field-mapping artifact provides additional human-readable context for layout decisions but should not be the primary source for DataSet field names.
+
+Phase 4 will verify against the actual datasource (standalone) or the config JSON (owned).
+
+**Handling collection fields in DataSets:**
+
+Check the datasource-creator return for fields marked `[collection]`. These **cannot** be added as flat DataSet fields on a single-result DataSet — they will silently render blank.
+
+**Preferred approach: flow datasource.** If the datasource-creator return contains collections with fields needed in standalone textboxes, go back to Phase 2 and rebuild that datasource as a flow. The flow code fetches the OData data and flattens collections into scalar fields. This is the production pattern used by all existing Datex Studio reports with complex navigation.
+
+**Alternative: child datasets with CommandText deep paths.** If a flow rewrite is not feasible, create a separate DataSet that navigates into the collection:
+
+```json
+{
+    "Name": "ds_shipment_OrderLookups",
+    "Fields": [
+        {"Name": "Order_OwnerReference", "DataField": "Order.OwnerReference"},
+        {"Name": "Order_Account_Name", "DataField": "Order.Account.Name"}
+    ],
+    "Query": {
+        "DataSourceName": "Datasource",
+        "CommandText": "$.ds_shipment.result.OrderLookups.*"
+    }
+}
+```
+
+Then reference fields with `=First(Fields!Order_OwnerReference.Value, "ds_shipment_OrderLookups")` in standalone textboxes. For nested collections (collection within collection), chain the path: `$.ds_shipment.result.OrderLookups.*.Order.Addresses.*`.
+
+**CommandText `.*` suffix rule:**
+- Single result, scalar fields: `$.ds_name.result` (no `.*`)
+- Collection result (table/tablix): `$.ds_name.result.*`
+- Collection within single result: `$.ds_name.result.CollectionPath.*`
 
 ### Step 6: Verify with preview
 
@@ -263,95 +332,13 @@ After building each section, ask the user how it looks in Studio. Use `dxs repor
 
 See [references/design-patterns.md](references/design-patterns.md) for pattern examples (Shipping Label, GS1, BOL, Tabular Report) and element sizing tables.
 
-## Phase 4: Query Building
-
-Build incrementally — one expand at a time. **Always use `$top=1`** during testing.
-
-```bash
-# Step 1: Base entity with $select
-dxs odata execute -c <id> -q 'Entity?$top=1&$select=Id,Field1,Field2'
-
-# Step 2: Add one-to-one expands
-dxs odata execute -c <id> -q 'Entity?$top=1&$select=Id,Field1&$expand=Account($select=Id,Name)'
-
-# Step 3: Add collection expands
-dxs odata execute -c <id> -q 'Entity?$top=1&$select=Id,Field1&$expand=Lines($select=Id,LineNumber;$expand=OrderLine($select=OrderId))'
-
-# Step 4: Combine everything
-```
-
-### Push filtering server-side
-
-Before accepting any client-side filtering approach, verify whether the logic can be expressed in `$filter`. OData supports lambda operators (`any()`/`all()`) for collection filtering, string functions (`startswith`, `endswith`, `contains`), and nested `$filter` in `$expand` — these often replace complex SQL subqueries and LIKE patterns cleanly.
-
-See [references/odata-patterns.md](references/odata-patterns.md) for the full pattern reference with examples and SQL→OData mappings.
-
-### Parameterized queries (key segment)
-
-For single-entity reports, use `Entity(0)` as placeholder. Validate with `Entity?$top=1` first — `Entity(0)` returns 404 (expected, no entity with ID 0).
-
-### SSRS migrations
-
-When converting legacy SSRS reports, don't translate SQL→OData line-by-line. See [references/ssrs-migration.md](references/ssrs-migration.md) for the full guide covering SQL→OData structural mapping, parameter translation, hard-coded ID verification, and common pitfalls.
-
-### Critical rules
-
-- **`$top=1` always** during testing to avoid timeouts
-- **Single quotes** for `-q` (prevents `$` shell expansion)
-- **`%27`** for OData string literals in filters — literal single quotes break the generated TypeScript. Use `endswith(Name,%27-10%27)` not `endswith(Name,'-10')`. See [references/datasource-commands.md](references/datasource-commands.md) Quoting Rules.
-- **`-Q` / `--query-file`** for complex queries — write query to a file via quoted heredoc, pass with `-Q`. See [references/datasource-commands.md](references/datasource-commands.md) for the pattern.
-- **`$select` in `$expand`** is required on every expand clause — also enforced by `dxs datasource upsert`
-- **Semicolons** (`;`) inside parentheses for nested options, not `&`
-- **400 on `$select`** means wrong field name — check `schema properties`, don't drop `$select`
-- **Composite keys** — check `keys:` section; some entities have no `Id` field
-
-**Artifact:** Save incremental query steps and final verified query to `04-query-building.md`.
-
-## Phase 5: Datasource Upsert
-
-```bash
-dxs datasource upsert \
-  -c <connection_id> \
-  -Q <query_file> \
-  -r <reference_name> \
-  -t "<reference_name>" \
-  -d "<description>" \
-  --api-setting-name <app_level_name> \
-  --branch <branch_id>
-```
-
-### Naming convention (CRITICAL)
-
-The datasource **reference name** (`-r`), **display title** (`-t`), the RDLX-JSON **DataSet name**, and the `--owned-datasource` **alias** must ALL be identical:
-
-```
--r ds_my_report -t "ds_my_report"              # upsert: -t = -r
-DataSet.Name = "ds_my_report"                  # RDLX-JSON
---owned-datasource ds_my_report:ds_my_report   # upload: ref:alias both same
-```
-
-> **Note:** Use `--owned-datasource` (not `--use-datasource`) due to a CLI routing bug with `--use-datasource` on branches. Pair with `--owned-connection`, `--owned-query`, `--owned-title` — all four must have matching counts.
-
-### Parameter strategy
-
-| Need | Flag | Query syntax |
-|------|------|-------------|
-| Scope to one entity (detail/document) | `--param-keys` | `Entity(0)?$select=...` |
-| Required filter params (report passes values) | `--detect-params` | Use `${$datasource.inParams.paramName}` in `$filter` |
-| Optional UI list filtering | `--dynamic-filter PROP:TYPE` + `--dynamic-orderby PROP` | `Entity?$select=...` (no placeholders) |
-| Map report param → datasource param | `--datasource-param 'paramName=$report.inParams.paramName'` | N/A (on `report upload`) |
-
-After upsert, always verify with `datasource-fields` that fields and `in_params` are correct.
-
-See [references/datasource-commands.md](references/datasource-commands.md) for `--detect-params` examples, linked datasources, quoting rules, reference naming, inspection, and test data discovery.
-
-## Phase 6: Report Finalization
+## Phase 4: Report Finalization
 
 The `.rdlx-json` file already exists from Phase 3 with layout, elements, sample data, and DataSet definitions. This phase finalizes it for deployment.
 
 ### Finalization checklist
 
-1. **Verify DataSets** — Compare field Names/DataFields against `datasource-fields` output. Add missing fields with `dxs report dataset add-field`. Ensure `CommandText = $.{ds_name}.result.*` and all sensitivity properties are present.
+1. **Verify DataSets** — For **standalone** datasources: compare field Names/DataFields against `dxs report datasource-fields <ref> --branch <id>` output. For **owned** datasources: compare against the field summary from Phase 2 (datasource-fields is only available post-upload). Add missing fields with `dxs report dataset add-field`. Ensure `CommandText = $.{ds_name}.result.*` and all sensitivity properties are present.
 2. **Refine expressions** — Update any placeholder values with final `=Fields!Name.Value` expressions. See [references/json-structure.md](references/json-structure.md) for expression quick reference.
 3. **Validate:**
    ```bash
@@ -360,16 +347,20 @@ The `.rdlx-json` file already exists from Phase 3 with layout, elements, sample 
 
 For incremental edits to existing reports, see [references/cli-commands.md](references/cli-commands.md) for `set`/`move`/`remove`/`dataset add-field` syntax.
 
-## Phase 7: Deploy & Verify
+## Phase 5: Deploy & Verify
 
 ### Upload
 
 ```bash
+# Owned datasource (embedded from config file generated by dxs datasource generate)
 dxs report upload my-report.rdlx-json --branch <id> --name "My Report" \
-  --owned-datasource ds_my_report:ds_my_report \
-  --owned-connection <connection_id> \
-  --owned-query '<odata_query>' \
-  --owned-title "ds_my_report" \
+  --owned ds_my_report.json:ds_my_report \
+  --param id:number \
+  --datasource-param 'paramName=$report.inParams.id'
+
+# Standalone datasource (already upserted to the branch)
+dxs report upload my-report.rdlx-json --branch <id> --name "My Report" \
+  --use-datasource ds_my_report:ds_my_report \
   --param id:number \
   --datasource-param 'paramName=$report.inParams.id'
 ```
@@ -412,4 +403,41 @@ Always include: parameter names matching `in_params` exactly, human-readable con
 
 ## Troubleshooting
 
-When debugging unexpected behavior, consult [references/common-mistakes.md](references/common-mistakes.md) for frequent pitfalls covering OData queries, datasource configuration, RDLX-JSON authoring, and CLI usage.
+### RDLX-JSON & Expression Issues
+
+| Mistake | Fix |
+|---------|-----|
+| `$item` in expressions | Use `$entity` |
+| `Fields.Name.Value` in expressions | Use `Fields!Name.Value` (exclamation mark) |
+| Unbalanced parentheses in `IIf()` | Count your parens — each `IIf(` needs matching `)` |
+| DataSet name differs from datasource reference | DataSet `Name`, datasource `-r`, `-t`, and `--owned-datasource` alias must ALL match |
+| `CommandText: "jpath=$.*"` | Must be `$.{ds_name}.result.*` — `jpath` syntax doesn't bind to datasource |
+| Only listing used fields in DataSet | List ALL fields from `datasource-fields` output, not just fields in expressions |
+| Missing date type annotation | Date DataFields need `[Date\|YYYY-MM-DDTHH:mm:ss.fffffff]` suffix |
+| Missing sensitivity properties on DataSet | Include `CaseSensitivity`, `KanatypeSensitivity`, `AccentSensitivity`, `WidthSensitivity` |
+| Embedding sample data in `ConnectString` | Use a companion `<report>.data.json` file — Studio auto-discovers it |
+| Data file as flat array `[{...}]` | Must use wrapper structure `{ "dataSets": { "ds_name": { "data": [...] } } }` |
+| Skipping DataSets during Phase 3 prototyping | Studio shows "no matching DataSet in report" and expressions render as raw text |
+| Using `=Fields!X.Value` on a textbox for a non-default dataset | Standalone textboxes resolve against the first DataSet by default. For fields from other datasets, use `=First(Fields!X.Value, "ds_other")` |
+| Adding collection-path fields as flat DataSet fields (e.g., `OrderLookups.Order.OwnerReference`) | Collection navigation properties (`isCollection: true` in the type def) silently resolve to blank in single-result DataSets. Use a flow datasource to flatten, or create child datasets with `CommandText: "$.ds.result.Collection.*"` and `First()` expressions |
+| `CommandText: "$.ds.result"` for a collection datasource | Must be `$.ds.result.*` — without `.*`, table/tablix gets no rows |
+| `$dataset:ParentDs/CollectionField` on an OData datasource | `$dataset:` child datasets only work with flow datasources. For OData, use `CommandText: "$.ds.result.CollectionPath.*"` with `DataSourceName: "Datasource"` instead |
+
+### Layout & CLI Issues
+
+| Mistake | Fix |
+|---------|-----|
+| Lines in batch using `left`/`top`/`width`/`height` | Lines need `start-x`/`start-y`/`end-x`/`end-y` |
+| `move`/`set` on lines without endpoint flags | Lines use `StartPoint`/`EndPoint` — use `--start-x`, `--start-y`, `--end-x`, `--end-y` |
+| Passing `--ops` with `!` or `$` directly in shell | Use `--ops-file /tmp/ops.json` or `--ops -` with a heredoc |
+| Using `dxs report scaffold` | Generates incorrect line format and partial layouts — use `dxs report create` + `dxs report batch` |
+| Using textboxes to fake a table | Use `dxs report add table` for collections — real tables repeat rows per data record |
+| Adding section elements directly to body without a rectangle | Wrap each logical section in a rectangle for easy repositioning |
+| Using `--header`/`--detail` on `add tablix` | Deprecated — use `--header-cell`/`--detail-cell` (repeated options, one per cell) |
+| Styling table cells one-by-one after creation | Use `--header-style`/`--detail-style` at creation time |
+| Manually editing JSON to add a table column | Use `dxs report table add-column` |
+| Manually editing JSON to add a dataset field | Use `dxs report dataset add-field --dataset NAME --field FIELD` |
+| Using `dxs report set` without `--width`/`--height` for resizing | `report set` supports `--width` and `--height` directly |
+| Using `--value` with a URL for embedded images | Use `--file logo.png` to embed — `--value` is for expressions or external URLs |
+| Database-bound image field missing from sample data | Use `dxs report data add-image` to encode image files as data URIs in `.data.json` |
+| Setting number format via `set`/`batch` | `format` is not yet a recognized key in `set`/`batch` — edit `"Format": "N2"` in JSON `Style` directly |
