@@ -356,13 +356,28 @@ For incremental edits to existing reports, see [references/cli-commands.md](refe
 dxs report upload my-report.rdlx-json --branch <id> --name "My Report" \
   --owned ds_my_report.json:ds_my_report \
   --param id:number \
-  --datasource-param 'paramName=$report.inParams.id'
+  --datasource-param 'shipmentId=$report.inParams.id'
 
 # Standalone datasource (already upserted to the branch)
 dxs report upload my-report.rdlx-json --branch <id> --name "My Report" \
   --use-datasource ds_my_report:ds_my_report \
   --param id:number \
-  --datasource-param 'paramName=$report.inParams.id'
+  --datasource-param 'shipmentId=$report.inParams.id'
+
+# Multiple datasources sharing the same param name — one binding applies to all
+dxs report upload my-report.rdlx-json --branch <id> --name "My Report" \
+  --owned ds_header.json:ds_header \
+  --owned ds_lines.json:ds_lines \
+  --param shipmentId:number \
+  --datasource-param 'shipmentId=$report.inParams.shipmentId'
+
+# Target a specific datasource alias with dot notation (ALIAS.KEY=EXPRESSION)
+dxs report upload my-report.rdlx-json --branch <id> --name "My Report" \
+  --owned ds_header.json:ds_header \
+  --owned ds_lines.json:ds_lines \
+  --param shipmentId:number \
+  --datasource-param 'ds_header.shipmentId=$report.inParams.shipmentId' \
+  --datasource-param 'ds_lines.shipmentId=$report.inParams.shipmentId'
 ```
 
 Upload is **idempotent by reference name** — re-uploading updates the existing config. To create a separate copy, use a different `--name`.
@@ -422,6 +437,13 @@ Always include: parameter names matching `in_params` exactly, human-readable con
 | Adding collection-path fields as flat DataSet fields (e.g., `OrderLookups.Order.OwnerReference`) | Collection navigation properties (`isCollection: true` in the type def) silently resolve to blank in single-result DataSets. Use a flow datasource to flatten, or create child datasets with `CommandText: "$.ds.result.Collection.*"` and `First()` expressions |
 | `CommandText: "$.ds.result"` for a collection datasource | Must be `$.ds.result.*` — without `.*`, table/tablix gets no rows |
 | `$dataset:ParentDs/CollectionField` on an OData datasource | `$dataset:` child datasets only work with flow datasources. For OData, use `CommandText: "$.ds.result.CollectionPath.*"` with `DataSourceName: "Datasource"` instead |
+
+### Upload & Deployment Issues
+
+| Mistake | Fix |
+|---------|-----|
+| `--datasource-param 'ds_header:shipmentId=$report.inParams.shipmentId'` (colon separator) | Use **dot notation** for alias-scoped params: `'ds_header.shipmentId=$report.inParams.shipmentId'`. Colon causes the entire `ds_header:shipmentId` to be treated as a single param name, creating type mismatch errors ("Type 'number' is not assignable to type 'string'") |
+| Repeating `--datasource-param` for each datasource when all share the same param name | A single `--datasource-param 'shipmentId=$report.inParams.shipmentId'` (no alias prefix) applies the binding to ALL datasources that have a `shipmentId` param |
 
 ### Layout & CLI Issues
 

@@ -161,7 +161,7 @@ Used for activity logs, receiving reports, inventory movements — any report th
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  REPORT TITLE (16pt bold, centered)                                 │
+│  REPORT TITLE (18pt bold, centered)                                 │
 │  Warehouse: =Value       Project: =Value       Date Range: X - Y    │
 │─────────────────────────────────────────────────────────────────────│
 │  Col1    │ Col2   │ Col3   │ Col4        │ Col5  │ Col6 │ ...       │
@@ -178,14 +178,14 @@ Layout zones:
 
 | Zone | Top range | Content |
 |------|-----------|---------|
-| Header | 0–0.35in | Title (16pt bold, centered, full width) |
+| Header | 0–0.35in | Title (H1: 18pt bold, centered, full width) |
 | Subtitle | 0.4–0.6in | Parameter labels (Warehouse, Project, Date Range) |
 | Divider | 0.7in | Horizontal line |
 | Table | 0.8in–7.0in | Table element with header + detail rows |
 | Footer | 7.2in | Page number + generation timestamp (7pt, centered) |
 
 Key sizing:
-- Table header row: 0.375in height (0.25in compact), Bold, no background, 1.5pt bottom border in Datex Purple (`#5B08B2`), left-aligned with `PaddingLeft: 2pt`
+- Table header row: 0.375in height (0.25in compact), Bold, no background, 1.5pt bottom border in Datex Purple (`#5B08B2`), alignment matches detail cells (left for text, right for numeric), `PaddingLeft: 2pt`
 - Detail rows: 0.375in height (0.25in compact), 0.25pt bottom border in `LightGray`
 - Qty/numeric columns: right-aligned with `PaddingRight: 2pt`, use `FontFamily: Courier New` for decimal alignment
 - Description column: `CanGrow: true` for long text

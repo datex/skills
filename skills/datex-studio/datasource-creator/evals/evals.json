@@ -1,0 +1,140 @@
+{
+  "skill_name": "datasource-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"datasource-creator-eval-{timestamp}\" --description \"Temporary branch for datasource-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "simple-odata-collection",
+      "prompt": "I need a standalone datasource on connection 9 (branch {branch_id}) that lists all shipments with their carrier name, status name, and shipped date. I want to be able to filter the list by status in the UI. Reference name: ds_eval_shipments.",
+      "expected_output": "A validated and upserted OData datasource config with $select/$expand for Carrier, Status, ShippedDate, --dynamic-filter for status, correct naming convention, and verified with datasource-fields.",
+      "files": [],
+      "expectations": [
+        "The transcript contains a 'dxs datasource generate' command (not generate-flow)",
+        "The generate command includes -r ds_eval_shipments and -t \"ds_eval_shipments\" (reference name equals display title)",
+        "The generate command query includes $select with at least ShippedDate (or similar date field)",
+        "The generate command query includes $expand referencing Carrier and Status (or their entity set equivalents, e.g. Carrier($select=Name) and Status($select=Name))",
+        "The generate command includes --dynamic-filter with a status-related property (e.g., StatusId:number or Status/Name:string)",
+        "The generate command includes --api-setting-name with a value obtained from 'dxs source branch settings' (not a guessed value like 'FootPrintAPI')",
+        "The transcript contains a 'dxs datasource validate' command run before upsert",
+        "The transcript contains a 'dxs datasource upsert' command",
+        "The transcript contains a 'dxs report datasource-fields ds_eval_shipments' command after upsert",
+        "The transcript contains at least one 'dxs odata execute' command for test data discovery (with $top to limit results)",
+        "The transcript shows schema exploration (dxs schema search or describe-entity) before building the query — the agent did not guess the entity structure"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "single-entity-param-keys",
+      "prompt": "I'm building a shipment detail report on connection 9. I need an owned datasource that fetches a single shipment by ID with the carrier info (name and SCAC code), status name, and ship-to contact name and address fields. Reference name: ds_eval_shipment_detail. Use branch {branch_id} for validation.",
+      "expected_output": "An owned OData datasource config using --param-keys for single-entity retrieval, with nested $expand/$select, validated but not upserted.",
+      "files": [],
+      "expectations": [
+        "The generate command includes --param-keys (indicating single-entity retrieval with Entity(0) pattern)",
+        "The generate command query uses the Shipments(0) pattern (or equivalent key-based entity access)",
+        "The generate command query $expand includes Carrier with $select containing Name and ScacCode",
+        "The generate command query $expand includes Status with $select containing Name",
+        "The generate command query $expand includes ShipToContact (or equivalent) with nested address fields",
+        "The generate command includes -r ds_eval_shipment_detail and -t \"ds_eval_shipment_detail\"",
+        "The transcript contains a 'dxs datasource validate' command",
+        "The transcript does NOT contain a 'dxs datasource upsert' command (owned mode — no upsert)",
+        "The transcript shows schema exploration to discover the ShipToContact path and verify Carrier has ScacCode",
+        "The output mentions or returns the inParams (e.g., shipmentId or Id) from the generated config"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "required-filter-params",
+      "prompt": "Create a standalone datasource on connection 9 (branch {branch_id}) for order lines filtered by a specific warehouse ID and a date range on the order's created date. The report will pass WarehouseId, FromDate, and ToDate as parameters. Reference name: ds_eval_order_lines.",
+      "expected_output": "An OData datasource with template literal params in $filter, --detect-params flag, validated and upserted with in_params verified.",
+      "files": [],
+      "expectations": [
+        "The generate command $filter uses template literal syntax ${$datasource.inParams.WarehouseId} (not {WarehouseId} or simple curly braces)",
+        "The generate command $filter uses template literal syntax for FromDate and ToDate parameters",
+        "The generate command includes --detect-params flag",
+        "The generate command does NOT use --dynamic-filter for these required parameters (dynamic filters are for optional UI filtering)",
+        "The transcript contains 'dxs datasource validate' before upsert",
+        "The transcript contains 'dxs datasource upsert'",
+        "The transcript contains 'dxs report datasource-fields' after upsert",
+        "The datasource-fields output shows in_params is populated (not empty) with WarehouseId, FromDate, and ToDate",
+        "The generate command includes -r ds_eval_order_lines and -t \"ds_eval_order_lines\"",
+        "The transcript shows schema exploration to find the correct entity (OrderLines or equivalent) and verify WarehouseId and date field names"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "flow-datasource",
+      "prompt": "I need a datasource for a packing slip report on connection 9 (branch {branch_id}). It should return a single shipment's header info (lookup code, carrier name, SCAC code, status) plus the ship-to contact name and primary telephone, flattened into scalar fields. The ship-to contact info comes through a path that may not work as flat OData fields. Build this as a flow datasource with a shipmentId input param. Create any supporting standalone OData datasources it needs first. Reference name for the flow: ds_eval_packing_slip.",
+      "expected_output": "A flow datasource with standalone OData dependencies created first, proper flow runtime usage ($datasources, $flow.inParams, $flow.outParams.result), type-def YAML, and validated config.",
+      "files": [],
+      "expectations": [
+        "The transcript creates at least one standalone OData datasource (generate + upsert) BEFORE creating the flow datasource",
+        "The flow code references standalone datasources via $datasources.<name>.get() or $datasources.<name>.getList() (not raw OData queries)",
+        "The flow code accesses input parameters via $flow.inParams (e.g., $flow.inParams.shipmentId)",
+        "The flow code sets output via $flow.outParams.result = { ... } (assignment, not return)",
+        "The flow code unwraps .result from $datasources responses before accessing fields (e.g., const shipment = resp.result)",
+        "The transcript contains a 'dxs datasource generate-flow' command with --type-def and --get-flow flags",
+        "The generate-flow command includes --in-param with shipmentId:number (or similar)",
+        "A type-def YAML file is created with field definitions including at least LookupCode, carrier name, status, and contact fields",
+        "The transcript contains 'dxs datasource validate' for the flow datasource",
+        "The flow datasource reference name is ds_eval_packing_slip with matching -t title"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "linked-datasource",
+      "prompt": "On connection 9 (branch {branch_id}), create two standalone datasources: first, ds_eval_shp_header that fetches a single shipment by ID (with --param-keys) including lookup code and status. Second, ds_eval_shp_lines for that shipment's line items (ShipmentLines) with line number, material lookup code, and expected/actual amounts — linked to ds_eval_shp_header as oneToMany. The lines datasource should take a ShipmentId parameter.",
+      "expected_output": "Two datasources: a header with --param-keys, then a lines datasource with --linked pointing to the header, --detect-params for ShipmentId, both upserted and verified.",
+      "files": [],
+      "expectations": [
+        "The transcript creates ds_eval_shp_header FIRST (with --param-keys) and upserts it before creating ds_eval_shp_lines",
+        "The ds_eval_shp_lines generate command includes --linked with a 3-part value containing 'oneToMany' and targeting ds_eval_shp_header",
+        "The ds_eval_shp_lines generate command uses --detect-params with template literal syntax for ShipmentId in the $filter",
+        "Both datasources use matching -r and -t values (ds_eval_shp_header/ds_eval_shp_lines)",
+        "The transcript contains 'dxs datasource validate' for both datasources",
+        "The transcript contains 'dxs datasource upsert' for both datasources",
+        "The transcript contains 'dxs report datasource-fields' for at least ds_eval_shp_lines after upsert",
+        "The ds_eval_shp_lines query includes $expand for Material with at least LookupCode in the $select",
+        "The transcript shows schema exploration to verify ShipmentLines entity structure"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "vague-request-schema-first",
+      "prompt": "hey I need a datasource that shows me what inventory we have on hand by warehouse on connection 9. not sure what entity to use, can you figure it out? make it standalone on branch {branch_id}. reference name: ds_eval_inventory.",
+      "expected_output": "Agent discovers InventoryByWarehouseMaterial as the correct entity through schema exploration, builds the datasource from validated schema, and completes the standalone workflow.",
+      "files": [],
+      "expectations": [
+        "The transcript contains schema search commands (dxs schema search) looking for inventory-related entities",
+        "The transcript discovers InventoryByWarehouseMaterial as the primary entity (NOT a non-existent 'InventoryBalances' or 'Inventory' entity)",
+        "The transcript contains at least one dxs schema describe-entity command for the discovered inventory entity",
+        "The generate command query targets InventoryByWarehouseMaterial (or its equivalent entity set name)",
+        "The generate command query includes $expand for Warehouse and/or Material with $select",
+        "The generate command query includes quantity fields (e.g., TotalAmount, AvailableAmount)",
+        "The generate command includes -r ds_eval_inventory and -t \"ds_eval_inventory\"",
+        "The transcript contains 'dxs datasource validate'",
+        "The transcript contains 'dxs datasource upsert'",
+        "The transcript contains 'dxs report datasource-fields ds_eval_inventory' after upsert"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "odata-string-literal-encoding",
+      "prompt": "Create a standalone datasource on connection 9 (branch {branch_id}) that lists warehouses where the name ends with '-10'. Reference name: ds_eval_warehouses. Include the warehouse name, type, and contact info.",
+      "expected_output": "A datasource that correctly handles OData string literals using %27 encoding or -Q query file, avoiding raw single quotes that break generated TypeScript.",
+      "files": [],
+      "expectations": [
+        "The generate command filter uses %27 encoding for the string literal '-10' (e.g., endswith(Name,%27-10%27)) OR uses -Q/--query-file to pass the query from a file",
+        "The generate command does NOT use raw single quotes inside the OData filter for string literals (e.g., NOT endswith(Name,'-10') which breaks TypeScript)",
+        "The generate command includes $select with Name and relevant fields",
+        "The generate command includes -r ds_eval_warehouses and -t \"ds_eval_warehouses\"",
+        "The transcript contains 'dxs datasource validate'",
+        "The transcript contains 'dxs datasource upsert'",
+        "The transcript shows schema exploration to discover Warehouses entity and its properties (type, contact fields)"
+      ]
+    }
+  ]
+}
