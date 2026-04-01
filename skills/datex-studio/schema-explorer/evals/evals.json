@@ -1,0 +1,128 @@
+{
+  "skill_name": "schema-explorer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to build a dashboard on connection 9 that tracks outbound shipments — when they shipped, what carrier was used, current status, and what was on each shipment. I also want the ship-to address. Can you map out the schema for me so I know what fields are available?",
+      "expected_output": "A field-mapping.md that discovers Shipments as the primary entity, identifies ShipmentLines as 1:N collection, maps the ShipToContact->Address path for ship-to info, and includes Carrier and Status lookups.",
+      "files": [],
+      "expectations": [
+        "Output contains a file named field-mapping.md (possibly prefixed, e.g. 02-field-mapping.md)",
+        "field-mapping.md identifies Shipments as the primary entity (entity set name 'Shipments' or type 'Datex.FootPrint.Api.Shipment')",
+        "field-mapping.md includes ShipmentLines as a related entity with 1:N or collection cardinality (not flat)",
+        "field-mapping.md includes the ship-to address path through ShipToContact and then Address (a two-hop path: ShipToContact -> Address). A direct 'ShipToAddress' nav property does NOT exist on Shipments.",
+        "field-mapping.md includes Carrier or Carriers as a related entity for carrier info (Name, ScacCode)",
+        "field-mapping.md includes CarrierServiceType or CarrierServiceTypes as a related entity (distinct from Carrier — this is the service level)",
+        "field-mapping.md includes Status or ShipmentStatuses as a flat/many-to-one lookup for shipment status",
+        "field-mapping.md includes ShippedDate (or equivalent date field) in the root fields for 'when they shipped'",
+        "field-mapping.md correctly classifies ShipmentLines paths as collection/⚠ collection and Status/Carrier/ShipToContact paths as flat",
+        "All describe-entity commands in the transcript include both --compact and --no-udf flags"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "On connection 9, I want to build a report showing how much inventory we have on hand, broken down by warehouse and product. I'll need to filter by things like material status and warehouse type, so I need to know what the valid filter values are. Map out the schema so I can build the datasource.",
+      "expected_output": "A field-mapping.md that discovers InventoryByWarehouseMaterial as the primary entity (not 'InventoryBalances' which doesn't exist), documents its composite key, maps to Warehouses and Materials, and resolves MaterialStatus and WarehouseType filter values.",
+      "files": [],
+      "expectations": [
+        "Output contains a file named field-mapping.md (possibly prefixed, e.g. 02-field-mapping.md)",
+        "field-mapping.md identifies InventoryByWarehouseMaterial as the primary entity (not InventoryBalances, which does not exist)",
+        "field-mapping.md documents the composite key: WarehouseId, MaterialId, PackagedId (all three components)",
+        "field-mapping.md includes Warehouse as a related entity and notes that Warehouse has NO LookupCode field (only Name)",
+        "field-mapping.md includes Material as a related entity with LookupCode and Name fields",
+        "field-mapping.md includes quantity fields like TotalAmount and AvailableAmount (or their equivalents)",
+        "The output resolves MaterialStatus filter values — either by querying MaterialStatuses entity set or by listing at least some valid values (e.g. Active, Inactive)",
+        "The output resolves WarehouseType filter values — either by querying WarehouseTypes entity set or by listing values (Internal, Third Party)",
+        "The output explains how to filter by warehouse type (through Warehouse/TypeId path, not a direct FK on the inventory entity)",
+        "All describe-entity commands in the transcript include both --compact and --no-udf flags",
+        "At least one dxs schema batch command in the transcript combines 2 or more --request flags"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "On connection 9, I need a report that shows customer orders with all their line items, and for each line item I need to see the product name and what product group it belongs to. I also need the customer's contact info from the order. Some of this data is probably nested 2-3 levels deep — flag anything that won't work as a flat datasource field and verify the tricky expansion paths actually return data.",
+      "expected_output": "A field-mapping.md that maps Orders -> OrderLines -> Material -> MaterialGroup (depth 3), identifies 'customer' as Accounts and 'product' as Materials, documents collection boundaries on OrderLines and Addresses, and verifies deep expansion paths with live queries.",
+      "files": [],
+      "expectations": [
+        "field-mapping.md identifies Orders as the primary entity",
+        "field-mapping.md maps 'product name' to Material.Name or Material.LookupCode (via OrderLines -> Material path)",
+        "field-mapping.md maps 'product group' to MaterialGroup.Name (via OrderLines -> Material -> MaterialGroup, a depth-3 path)",
+        "field-mapping.md maps 'customer' to Account or Accounts (via Orders.AccountId, not a 'Customer' entity which doesn't exist)",
+        "field-mapping.md identifies OrderLines as 1:N collection from Orders (not flat — composite key OrderId+LineNumber)",
+        "field-mapping.md documents at least one path for customer contact info — either via OrderAddresses (recommended) or via Account -> AccountsContactsLookup -> Contact",
+        "field-mapping.md flags the Orders -> Addresses path as crossing a collection boundary (one order can have multiple addresses)",
+        "field-mapping.md contains at least one dot-separated expansion path with depth >= 2 (e.g. OrderLines.Material.MaterialGroup)",
+        "The transcript contains at least one dxs odata execute command or reference to odata-execution skill for verifying deep expansion paths",
+        "All describe-entity commands in the transcript include both --compact and --no-udf flags"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "hey can you figure out whats going out the door today and this week? use the Prod footprint connection. like what orders are being picked and shipped, who they're going to, the quantities. i need to put together a report for the ops meeting tomorrow",
+      "expected_output": "A field-mapping.md that identifies Orders and/or Shipments as primary entities for outbound operations. Must discover date fields for time filtering, status values for active/in-progress work, the Account or ShipToContact path for 'who they're going to', and quantity fields on line items.",
+      "files": [],
+      "expectations": [
+        "The transcript shows the agent resolved 'Prod footprint connection' to a specific connection ID (9) — either by listing connections with 'dxs organization connection list' or by using '--connection Prod'",
+        "Output contains a file named field-mapping.md (possibly prefixed)",
+        "field-mapping.md identifies at least one of: Orders or Shipments as a primary or key entity for outbound operations",
+        "field-mapping.md includes date fields suitable for 'today/this week' filtering (e.g. ShippedDate, FulfillmentDate, CreatedSysDateTime, or similar)",
+        "field-mapping.md includes or references status values that indicate active/in-progress work (e.g. Processing, Ready, Released — not just listing the StatusId FK)",
+        "field-mapping.md includes a path to identify 'who they're going to' — via Account, ShipToAccount, ShipToContact, or OrderAddresses",
+        "field-mapping.md includes quantity fields from line items (e.g. Amount on OrderLines, ExpectedAmount/ActualAmount on ShipmentLines)",
+        "field-mapping.md identifies OrderLines and/or ShipmentLines as 1:N collections (not flat)",
+        "field-mapping.md distinguishes between inbound and outbound orders (via OrderClass, OrderType, or similar — not all orders are outbound)"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "my boss wants to know about late stuff on our Prod system. like orders that missed their delivery window or whatever. can you find what data we have to track that kind of thing",
+      "expected_output": "A field-mapping.md that discovers the date fields needed to calculate lateness (RequestedDeliveryDate, FulfillmentDate, CancelThresholdDate) and notes there is no IsLate boolean — lateness must be derived from date comparisons.",
+      "files": [],
+      "expectations": [
+        "The transcript shows the agent resolved 'Prod system' to a specific connection ID (9) — either by listing connections with 'dxs organization connection list' or by using '--connection Prod'",
+        "Output contains a file named field-mapping.md (possibly prefixed)",
+        "field-mapping.md identifies Orders as a primary or key entity",
+        "field-mapping.md includes RequestedDeliveryDate as a field on Orders (this is the 'delivery window' / promise date)",
+        "field-mapping.md includes FulfillmentDate as a field on Orders (this is the 'actual' date to compare against the promise)",
+        "field-mapping.md notes or implies that lateness must be calculated from date comparisons — there is no IsLate or IsOverdue boolean field in the schema",
+        "field-mapping.md includes OrderStatuses or status values so the user knows which orders are completed vs in-progress",
+        "field-mapping.md includes Account as a related entity (to show who the late orders belong to)",
+        "field-mapping.md includes OrderLines as a related entity with DueDate for line-level lateness tracking"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "We need a dashboard showing all EDI/integration activity on our Prod Footprint API — what messages came in, what went out, whether they succeeded or failed, and what orders or shipments they relate to. Our integration team needs visibility into this.",
+      "expected_output": "A field-mapping.md that discovers the WavelengthConnector*Transmission entities despite the user saying 'EDI/integration'. Must find at least the order and shipment transmission tables, the Direction lookup (In/Out), the Type lookup, and the FK relationships to Orders and Shipments.",
+      "files": [],
+      "expectations": [
+        "The transcript shows the agent resolved 'Prod Footprint API' to a specific connection ID (9) — either by listing connections with 'dxs organization connection list' or by using '--connection Prod'",
+        "field-mapping.md identifies at least one WavelengthConnector*Transmission entity (e.g. WavelengthConnectorOrderTransmissions or WavelengthConnectorShipmentTransmissions) — the user said 'EDI/integration' but the entities use the 'WavelengthConnector' prefix",
+        "field-mapping.md includes both WavelengthConnectorOrderTransmissions and WavelengthConnectorShipmentTransmissions (order-level and shipment-level transmissions)",
+        "field-mapping.md includes WavelengthConnectorTransmissionDirections as a lookup entity with values for inbound vs outbound (Direction: In=1, Out=2)",
+        "field-mapping.md includes WavelengthConnectorTransmissionTypes as a lookup entity for message types",
+        "field-mapping.md documents the relationship from transmission entities to Orders (via OrderId) and/or Shipments (via ShipmentId)",
+        "field-mapping.md includes IntegrationId and/or TransactionId as key fields for identifying integration sessions",
+        "field-mapping.md includes CreatedSysDateTime for tracking when transmissions occurred",
+        "field-mapping.md notes that there is no explicit success/failure status field on the transmission entities (or correctly identifies whatever mechanism exists for tracking success/failure)"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "We need to build a warehouse capacity report on our Prod system, to see how much of the warehouse space is utilized",
+      "expected_output": "A field-mapping.md that discovers LocationContainers as the key entity for warehouse capacity (not a 'Capacity' or 'Space' entity, which don't exist). Must find VolumeCapacity, WeightCapacity, and dimension fields (Height/Length/Width). Must identify that utilization requires joining capacity data with current inventory (via InventoryByLocationLot, LicensePlates, or PhysicalInventoryByLocationMaterial).",
+      "files": [],
+      "expectations": [
+        "The transcript shows the agent resolved 'Prod system' to connection ID 9",
+        "Output contains a file named field-mapping.md (possibly prefixed)",
+        "field-mapping.md identifies LocationContainers as the primary or key entity for warehouse capacity/space (not a 'Capacity' or 'Space' entity, which don't exist)",
+        "field-mapping.md includes VolumeCapacity and/or WeightCapacity as capacity fields on LocationContainers",
+        "field-mapping.md includes dimension fields (Height, Length, Width) on LocationContainers",
+        "field-mapping.md includes or references an inventory entity for measuring utilization (e.g. InventoryByLocationLot, LicensePlates, PhysicalInventoryByLocationMaterial) — capacity alone doesn't tell you utilization without current inventory counts",
+        "field-mapping.md includes Warehouse as a related entity for filtering locations by warehouse",
+        "field-mapping.md includes LocationContainerTypes or Type as a lookup for categorizing location types",
+        "field-mapping.md notes that utilization is a derived metric — there is no pre-calculated utilization percentage field in the schema"
+      ]
+    }
+  ]
+}

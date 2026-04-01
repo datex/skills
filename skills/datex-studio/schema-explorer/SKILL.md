@@ -15,6 +15,22 @@ OData schema discovery using `dxs schema` commands.
 - [references/batch-syntax.md](references/batch-syntax.md) — Batch command syntax, argument styles, describe-entity flags, anti-patterns
 - [references/subagent-template.md](references/subagent-template.md) — Subagent delegation prompt
 
+## Resolving the Connection
+
+Schema commands require a connection ID (`-c <id>`). The user may or may not provide one explicitly.
+
+**If the user provides a connection ID or name** — use it directly. Examples: "use connection 9", "use the Prod connection".
+
+**If the user says something like "in Prod" or "on the Demo environment"** — find the matching FootprintApi connection:
+1. `dxs auth status` — get the authenticated organization ID
+2. `dxs organization connection list --org <org_id>` — list all connections
+3. Filter to `apiConnectionTypeName: FootPrintApi` and match the name
+
+**If the user doesn't specify a connection at all** — list the available FootprintApi connections and ask which one to use:
+1. `dxs auth status` — get the org ID
+2. `dxs organization connection list --org <org_id>` — list connections
+3. Show the user just the FootprintApi connections (filter out MongoDB, AMQP, SFTP, etc.) and ask them to pick one
+
 ## Input/Output Contract
 
 **Input:** Connection ID + search keywords
@@ -125,6 +141,8 @@ Mark the **Binding** column:
    Note gaps and suggest alternate query paths (e.g., querying the related entity directly with a filter). Also test lambda operators (`any()`/`all()`) if you need to filter within expanded collections.
 
 6. **Build field mapping table** — Compile all discovered fields into the field mapping template, separating root fields from navigation properties and expanded fields.
+
+   **Address gaps explicitly.** If the user asked about a concept (e.g., "success/failure", "late orders", "priority") and the schema has no direct field for it, say so in the field mapping. Explaining what *doesn't* exist is as valuable as documenting what does — it saves the user from searching for something that isn't there, and lets them decide on a workaround (derived calculation, external lookup, etc.).
 
 ## Subagent Usage
 

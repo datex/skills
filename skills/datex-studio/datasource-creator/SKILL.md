@@ -77,7 +77,7 @@ Do NOT skip this check. Building a datasource without understanding what fields 
  query ->     the flow code will query against the connection)
  generate    create standalone OData datasources (generate + upsert each)
   |          write type-def YAML (from validated schema, NOT from examples)
-  |          write flow TS code (referencing $datasources.<ref_name>)
+  |          write flow TS code (referencing $datasources.<RepoName>.<ref_name>)
   |          generate-flow
   |            |
   +-----+------+
@@ -199,20 +199,23 @@ dxs datasource generate \
 
 ### Flow Runtime Model (CRITICAL)
 
-Flow datasource code does **NOT** execute raw OData queries. Instead, flows reference **standalone OData datasources** that already exist on the branch, using the `$datasources` object:
+Flow datasource code does **NOT** execute raw OData queries. Instead, flows reference **standalone OData datasources** that already exist on the branch, using the `$datasources` object. Standalone datasources are scoped under their **repository module name** (the repo's `uniqueIdentifier` name, e.g., `PurchaseOrders`, `AsnOrders`), so the path is `$datasources.<RepoName>.<ref_name>`:
 
 ```typescript
-// CORRECT: Reference standalone OData datasources, unwrap .result
-const shipmentResp = await $datasources.ds_shipment.get({ shipmentId: $flow.inParams.shipmentId });
+// CORRECT: Reference standalone OData datasources with module scope, unwrap .result
+const shipmentResp = await $datasources.PurchaseOrders.ds_shipment.get({ shipmentId: $flow.inParams.shipmentId });
 const shipment = shipmentResp.result;
 // For collection datasources, .result is an array:
-const contactsResp = await $datasources.ds_wh_contacts.get({ warehouseId: shipment.ActualWarehouse.Id });
+const contactsResp = await $datasources.PurchaseOrders.ds_wh_contacts.get({ warehouseId: shipment.ActualWarehouse.Id });
 const firstContact = contactsResp.result?.[0]?.Contact;
 // Set output via $flow.outParams.result
 $flow.outParams.result = { Name: shipment.Name, Phone: firstContact?.PrimaryTelephone };
 ```
 
 ```typescript
+// WRONG: Missing module scope — datasources are not at the root level
+const result = await $datasources.ds_shipment.get({ shipmentId: 123 });
+
 // WRONG: Raw OData queries in flow code — this is NOT how flows work
 const result = await $datasource.getList({ query: 'Shipments(123)?$expand=Carrier' });
 ```
@@ -223,14 +226,14 @@ const result = await $datasource.getList({ query: 'Shipments(123)?$expand=Carrie
 |----------|---------|
 | `$flow.inParams` | Access the flow datasource's input parameters |
 | `$flow.outParams.result` | Set the flow's output (assign, don't return) |
-| `$datasources.<ref_name>` | Access standalone datasources on the branch |
+| `$datasources.<RepoName>.<ref_name>` | Access standalone datasources on the branch (module-scoped by repository name) |
 
 **Unwrapping responses:** All `$datasources` calls return `{ result?: ... }`. For `--param-keys` datasources, `result` is a single object. For collection datasources, `result` is an array. Always access `.result` before navigating into fields.
 
 **The workflow for building a flow datasource:**
 
 1. **Create standalone OData datasources** for each query the flow needs — use `dxs datasource generate` + `dxs datasource upsert` for each
-2. **Write the flow code** referencing those datasources via `$datasources.<ref_name>.get()` or `$datasources.<ref_name>.getList()`
+2. **Write the flow code** referencing those datasources via `$datasources.<RepoName>.<ref_name>.get()` or `$datasources.<RepoName>.<ref_name>.getList()` (where `<RepoName>` is the repository's `name` from `dxs source repo list`)
 3. **Generate the flow config** with `dxs datasource generate-flow`, which embeds the flow code and type definition
 4. The flow datasource itself can be **owned** (embedded in the report), but its OData dependencies must be **standalone** on the branch
 
@@ -238,8 +241,8 @@ const result = await $datasource.getList({ query: 'Shipments(123)?$expand=Carrie
 
 | Method | Use when | Returns |
 |--------|----------|---------|
-| `$datasources.ds_name.get({ paramName: value })` | The OData datasource uses `--param-keys` (single entity) | Single object |
-| `$datasources.ds_name.getList({ paramName: value })` | The OData datasource returns a collection | Array of objects |
+| `$datasources.RepoName.ds_name.get({ paramName: value })` | The OData datasource uses `--param-keys` (single entity) | Single object |
+| `$datasources.RepoName.ds_name.getList({ paramName: value })` | The OData datasource returns a collection | Array of objects |
 
 Pass input parameters as an object — the keys must match the OData datasource's `inParams` exactly.
 
@@ -395,5 +398,6 @@ DataSet.Name = "ds_my_report"                  # RDLX-JSON
 | Linked target doesn't exist | Create targets first, verify with `datasource-fields` |
 | `mergeByValue` on `oneToOne` | Only `oneToOneWithMerge` gets 4th component |
 | Hardcoded dates in filter | Use `${new Date(...).toISOString()}` for dynamic |
-| Raw OData queries in flow code | Flow code must reference standalone datasources via `$datasources.ds_name.get()` / `.getList()` — never embed OData query strings |
+| Raw OData queries in flow code | Flow code must reference standalone datasources via `$datasources.RepoName.ds_name.get()` / `.getList()` — never embed OData query strings |
+| `$datasources.ds_name` without module scope | Standalone datasources are scoped under the repository module — use `$datasources.RepoName.ds_name` (e.g., `$datasources.PurchaseOrders.ds_shipment`). Without the module prefix, the flow validator reports "Property does not exist on type 'IDatasourceService'" |
 | Flow datasource without standalone OData dependencies on the branch | Create and upsert the OData datasources first, then write the flow that references them |
