@@ -28,6 +28,7 @@ Workflow for building and deploying RDLX-JSON reports using the `dxs` CLI. Repor
 - [references/cli-commands.md](references/cli-commands.md) — Detailed CLI syntax: batch ops, tablix, images, datasets, set/move/remove
 - [references/sample-data.md](references/sample-data.md) — Companion `.data.json` files for live preview
 - [references/ssrs-migration.md](references/ssrs-migration.md) — Converting legacy SSRS (.rdl) reports to NextGen RDLX-JSON
+- [references/examples/](references/examples/) — **Platonic ideals:** canonical patterns for common report types, distilled from real-world corpus analysis
 
 ## Orchestration Model
 
@@ -162,6 +163,8 @@ You MUST gather and document requirements BEFORE schema exploration or datasourc
 - Parameters
 
 The requirements brief is the input to Phase 2 (schema exploration + datasource creation) and the coverage gate that follows it.
+
+**Platonic ideals:** Check [references/examples/](references/examples/) for a canonical pattern matching the report type (e.g., license plate label, BOL, packing slip). These are distilled from corpus analysis of real-world reports and define the essential elements, common optional fields, layout properties, and structural archetypes. Use the platonic ideal to validate requirements completeness and guide layout decisions — it tells you what a typical report of this type looks like and what variations exist.
 
 **For SSRS migrations:** If the source includes `.rdl` files, also see [references/ssrs-migration.md](references/ssrs-migration.md) for how to read them and translate SQL→OData.
 
