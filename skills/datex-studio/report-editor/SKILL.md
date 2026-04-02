@@ -212,25 +212,36 @@ Proceed?
 
 ### Open in Studio for live preview
 
-<HARD-GATE>
-For ANY change that involves layout (Categories 1-3, or layout portions of Categories 4-5), prompt the user to start Studio and preview the report BEFORE making modifications. The user must confirm they can see the report in Studio before you proceed with changes.
-</HARD-GATE>
+For ANY change that involves layout (Categories 1-3, or layout portions of Categories 4-5), ensure Studio is running and the report is open for live preview BEFORE making modifications.
 
-**Before starting modifications, tell the user:**
-> I'm about to make layout changes. To preview them live, please make sure Studio is running:
-> 1. Run `dxs studio` in another terminal (if not already running)
-> 2. I'll open the report in Studio so you can see each change as I make it
-
-Then open the report:
+**Auto-manage Studio:** Check if Studio is already running, start it automatically if not, and open the report:
 
 ```bash
+# Check if Studio is running
+dxs studio status
+```
+
+- **If Studio is running** (status returns successfully): reuse it, just open the report.
+- **If Studio is NOT running** (status fails with "No studio server running"): start it in the background, then open the report.
+
+Start Studio in background using your tool's `run_in_background` parameter (Bash tool with `run_in_background: true`). This works cross-platform (Windows, macOS, Linux) without shell-specific syntax like `&` or `Start-Process`.
+
+```bash
+# Start Studio in background (use run_in_background: true on the Bash tool)
+dxs studio --no-browser
+
+# Then open the report for live preview (separate call, normal mode)
 dxs studio open <folder>/report.rdlx-json
 ```
 
-If the `open` command fails with "No studio server running", inform the user:
-> Studio needs to be running for live preview. Start it with `dxs studio` in another terminal, then we'll continue.
+Tell the user Studio is running and they can preview changes at the URL shown. If the user already has Studio running, `dxs studio status` will detect it and you skip the start step.
 
-Wait for the user to confirm Studio is running and the report is visible before proceeding with modifications.
+**Cleanup:** If you started Studio yourself in the background, stop it after Phase 4 (deploy & verify) is complete. Use the lockfile PID to kill the process cross-platform:
+
+```bash
+# Read PID from lockfile and kill (works on all platforms via Python)
+python -c "import json, os, signal; pid=json.load(open(os.path.expanduser('~/.datex/studio.lock')))['pid']; os.kill(pid, signal.SIGTERM)"
+```
 
 ### Category 1-2: Layout-only changes
 
@@ -264,6 +275,8 @@ OPEOF
 
 dxs report batch <file> --ops-file /tmp/ops.json
 ```
+
+**Batch limit: maximum 25 operations per call.** If you have more than 25 operations, split them into multiple batch calls. Group logically (e.g., first batch for repositioning, second for styling and new elements).
 
 Apply [design-standards.md](../shared/report-authoring/design-standards.md) for any new or modified elements: Arial font family, official color palette, 0.25in grid alignment.
 

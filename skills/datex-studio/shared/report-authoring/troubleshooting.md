@@ -42,6 +42,7 @@
 | Manually editing JSON to add a table column | Use `dxs report table add-column` |
 | Manually editing JSON to add a dataset field | Use `dxs report dataset add-field <file> --dataset NAME --field FIELD` |
 | Using `dxs report set` without `--width`/`--height` for resizing | `report set` supports `--width` and `--height` directly |
+| `dxs report batch` with more than 25 operations | Split into multiple batch calls of 25 or fewer -- group logically (e.g., repositioning in one batch, styling in another) |
 | Using `--value` with a URL for embedded images | Use `--file logo.png` to embed -- `--value` is for expressions or external URLs |
 | Database-bound image field missing from sample data | Use `dxs report data add-image` to encode image files as data URIs in `.data.json` |
 | Setting number format via `set`/`batch` | `format` is not yet a recognized key in `set`/`batch` -- edit `"Format": "N2"` in JSON `Style` directly |

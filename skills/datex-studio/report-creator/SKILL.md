@@ -210,8 +210,26 @@ dxs studio open <artifact_dir>/<report_name>_report/report.rdlx-json
 
 This opens the report in the Studio design canvas at `http://127.0.0.1:5051/design`. Every file change is reflected live.
 
-**Prerequisite:** The user must have `dxs studio` running in another terminal. If the `open` command fails with "No studio server running", inform the user:
-> Studio needs to be running for live preview. Start it with `dxs studio` in another terminal, then we'll continue.
+**Auto-manage Studio:** Before opening, check if Studio is already running with `dxs studio status`. If running, reuse it. If not, start it in the background and then open the report:
+
+```bash
+# Check if Studio is running
+dxs studio status
+
+# If NOT running, start in background (use run_in_background: true on the Bash tool)
+dxs studio --no-browser
+
+# Then open the report (separate call, normal mode)
+dxs studio open <artifact_dir>/<report_name>_report/report.rdlx-json
+```
+
+Using `run_in_background: true` on the Bash tool works cross-platform (Windows, macOS, Linux) without shell-specific syntax like `&` or `Start-Process`.
+
+If you started Studio yourself, stop it after Phase 5 (deploy & verify) is complete. Use the lockfile PID to kill the process cross-platform:
+
+```bash
+python -c "import json, os, signal; pid=json.load(open(os.path.expanduser('~/.datex/studio.lock')))['pid']; os.kill(pid, signal.SIGTERM)"
+```
 
 ### Step 3: Build layout incrementally with `dxs report batch`
 
