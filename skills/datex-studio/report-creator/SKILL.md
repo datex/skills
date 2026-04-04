@@ -31,6 +31,7 @@ Workflow for building and deploying RDLX-JSON reports using the `dxs` CLI. Repor
 - [../shared/report-authoring/dataset-rules.md](../shared/report-authoring/dataset-rules.md) — DataSet management: CommandText rules, collection handling, date annotations
 - [../shared/report-authoring/deploy-patterns.md](../shared/report-authoring/deploy-patterns.md) — Upload, preview, and verification patterns
 - [../shared/report-authoring/troubleshooting.md](../shared/report-authoring/troubleshooting.md) — Common RDLX-JSON and CLI mistakes & fixes
+- [../shared/studio-management.md](../shared/studio-management.md) — Studio lifecycle: check, start, cleanup
 
 **References (creation-specific):**
 - [references/ssrs-migration.md](references/ssrs-migration.md) — Converting legacy SSRS (.rdl) reports to NextGen RDLX-JSON
@@ -210,26 +211,7 @@ dxs studio open <artifact_dir>/<report_name>_report/report.rdlx-json
 
 This opens the report in the Studio design canvas at `http://127.0.0.1:5051/design`. Every file change is reflected live.
 
-**Auto-manage Studio:** Before opening, check if Studio is already running with `dxs studio status`. If running, reuse it. If not, start it in the background and then open the report:
-
-```bash
-# Check if Studio is running
-dxs studio status
-
-# If NOT running, start in background (use run_in_background: true on the Bash tool)
-dxs studio --no-browser
-
-# Then open the report (separate call, normal mode)
-dxs studio open <artifact_dir>/<report_name>_report/report.rdlx-json
-```
-
-Using `run_in_background: true` on the Bash tool works cross-platform (Windows, macOS, Linux) without shell-specific syntax like `&` or `Start-Process`.
-
-If you started Studio yourself, stop it after Phase 5 (deploy & verify) is complete. Use the lockfile PID to kill the process cross-platform:
-
-```bash
-python -c "import json, os, signal; pid=json.load(open(os.path.expanduser('~/.datex/studio.lock')))['pid']; os.kill(pid, signal.SIGTERM)"
-```
+**Auto-manage Studio** per [../shared/studio-management.md](../shared/studio-management.md): check status, start in background if needed (with readiness verification), open the report, and clean up after Phase 5.
 
 ### Step 3: Build layout incrementally with `dxs report batch`
 

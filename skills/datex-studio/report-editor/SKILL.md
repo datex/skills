@@ -22,6 +22,7 @@ Workflow for modifying existing RDLX-JSON reports on a Datex Studio branch using
 ## References (shared)
 
 - [../shared/branch-setup.md](../shared/branch-setup.md) -- Branch & connection selection
+- [../shared/studio-management.md](../shared/studio-management.md) -- Studio lifecycle: check, start, cleanup
 - [../shared/report-authoring/design-standards.md](../shared/report-authoring/design-standards.md) -- Datex design language: color palette, typography, table styling, field label-value pattern, grid alignment, report categories
 - [../shared/report-authoring/design-patterns.md](../shared/report-authoring/design-patterns.md) -- Coordinate system, layout patterns, element sizing
 - [../shared/report-authoring/json-structure.md](../shared/report-authoring/json-structure.md) -- RDLX-JSON format: document template, element JSON formats, expression quick reference
@@ -108,6 +109,14 @@ dxs report inspect <folder>/report.rdlx-json
 ```
 
 Also read the RDLX-JSON directly to understand DataSets, element hierarchy, and expressions.
+
+### Visual layout inspection
+
+Use `--bbox` to generate a preview with colored bounding boxes — helpful for understanding element positions before modifying:
+
+```bash
+dxs report preview <file.rdlx-json> --bbox ElementName:red --bbox AnotherElement:blue -o /tmp/inspect.svg
+```
 
 ### Inspect current layout
 
@@ -214,34 +223,7 @@ Proceed?
 
 For ANY change that involves layout (Categories 1-3, or layout portions of Categories 4-5), ensure Studio is running and the report is open for live preview BEFORE making modifications.
 
-**Auto-manage Studio:** Check if Studio is already running, start it automatically if not, and open the report:
-
-```bash
-# Check if Studio is running
-dxs studio status
-```
-
-- **If Studio is running** (status returns successfully): reuse it, just open the report.
-- **If Studio is NOT running** (status fails with "No studio server running"): start it in the background, then open the report.
-
-Start Studio in background using your tool's `run_in_background` parameter (Bash tool with `run_in_background: true`). This works cross-platform (Windows, macOS, Linux) without shell-specific syntax like `&` or `Start-Process`.
-
-```bash
-# Start Studio in background (use run_in_background: true on the Bash tool)
-dxs studio --no-browser
-
-# Then open the report for live preview (separate call, normal mode)
-dxs studio open <folder>/report.rdlx-json
-```
-
-Tell the user Studio is running and they can preview changes at the URL shown. If the user already has Studio running, `dxs studio status` will detect it and you skip the start step.
-
-**Cleanup:** If you started Studio yourself in the background, stop it after Phase 4 (deploy & verify) is complete. Use the lockfile PID to kill the process cross-platform:
-
-```bash
-# Read PID from lockfile and kill (works on all platforms via Python)
-python -c "import json, os, signal; pid=json.load(open(os.path.expanduser('~/.datex/studio.lock')))['pid']; os.kill(pid, signal.SIGTERM)"
-```
+**Auto-manage Studio** per [../shared/studio-management.md](../shared/studio-management.md): check status, start in background if needed (with readiness verification), open the report, and clean up after Phase 4.
 
 ### Category 1-2: Layout-only changes
 
