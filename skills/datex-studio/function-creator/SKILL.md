@@ -18,6 +18,7 @@ Create new Wavelength functions or modify existing ones on a Datex Studio branch
 - [references/command-syntax.md](references/command-syntax.md) -- All `dxs function` commands with examples
 - [references/flag-guide.md](references/flag-guide.md) -- When/why/how for each flag
 - [references/code-patterns.md](references/code-patterns.md) -- Common patterns for function code
+- [../shared/context-navigation.md](../shared/context-navigation.md) -- How to retrieve & navigate designer context responses
 
 ## Dependencies
 
@@ -90,29 +91,18 @@ dxs function upsert <config.json> --branch <id>
 
 ### Phase 2: Intellisense
 
-Run `dxs function context <config.json> --branch <id>` to get the full type system. This returns:
-
-- **`flowContext`** — the function's own `$flow.inParams` and `$flow.outParams` types
-- **`appContext`** — the full branch catalog with typed signatures for all available services:
-  - `$flows.*` — other functions on the branch
-  - `$datasources.*` — datasources with get/getList/getByKeys methods
-  - `$reports.*` — reports with export methods
-  - `$apis.*` — Footprint API actions
-  - `$db.*` — storage service
-  - `$services.*` (aliased from `$backendServices`) — email, analytics, jobs, xml, logging
-  - `$shell.*` — UI navigation
-  - `$settings.*` — app settings
-  - `$operations.*` — operations
-  - `$auth.*` — auth service
-  - `$connectors.*` — SFTP, AMQP, TCP connectors
-  - `$types.*` / `_types.*` — custom types and workflow types
-  - `$context.*` — execution context (org, app, env)
-  - `$global.*` — global reports and connectors
-- **`globalContext`** — runtime utilities: `$utils` (http, date, odata, excel, blob), UI control interfaces, enums
+See [context-navigation.md](../shared/context-navigation.md) for the full guide on retrieving and reading context responses, including the backend vs frontend symbol filtering rules.
 
 **For create:** Run `dxs function generate --code-file <placeholder.ts> -r <name> -t "<title>" -d "<desc>" --in-param <params> --out-param <params> -o <config.json>` with a placeholder code file (e.g., containing just `// placeholder`), then run context on the resulting JSON to get the type system before writing actual code.
 
 **For modify:** The fetched config JSON from `dxs function get` can be saved to a file and used directly with the context command.
+
+**Retrieval:**
+```bash
+dxs -O json function context <config.json> --branch <id>
+```
+
+Read `defaultContext.imports` to determine which `$`-symbols are actually available — not every symbol in `appContext.vars` is usable in backend function code. Look up type definitions in `appContext.text` for imported symbols only. The `global_context` provides ambient utilities (`$utils`, enums).
 
 ### Phase 3: Signature Safety (modify only)
 
@@ -164,6 +154,7 @@ dxs function upsert <config.json> --branch <id>
 | Using `return` to set output | Assign to `$flow.outParams.*` instead — functions don't use return values |
 | Wrong scoping on `$datasources` or `$flows` | Module code requires module prefix (`$datasources.ModuleName.ds_name`). App code referencing its own configs does not (`$datasources.ds_name`). Always check the `appContext` types from `dxs function context` to determine the correct path. |
 | Changing params without checking callers | Always invoke impact-analysis skill first when modifying input/output params |
-| Guessing available services from memory | Always run `dxs function context` — the type system varies by branch and app |
+| Guessing available services from memory | Always run `dxs -O json function context` and read `defaultContext.imports` — see [context-navigation.md](../shared/context-navigation.md). |
+| Referencing a frontend-only symbol (`$shell`, `$frontendFlows`) | Functions are backend-only. If a symbol is not in `defaultContext.imports`, you cannot use it — see [context-navigation.md](../shared/context-navigation.md). |
 | Using `$item` instead of `$entity` | The expression variable is `$entity` in Wavelength |
 | Code file exceeding 512 KB | Split logic into multiple functions or extract helpers |
