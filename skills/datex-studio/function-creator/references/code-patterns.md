@@ -19,10 +19,10 @@ return { result: computedValue, success: true };
 
 ```typescript
 // From app code referencing own functions (no module prefix):
-const result = await $flows.fn_other_function({ param1: value1 });
+const result = await $flows.other_flow({ param1: value1 });
 
 // From module code referencing same or other module's functions:
-const result = await $flows.ModuleName.fn_other_function({ param1: value1 });
+const result = await $flows.ModuleName.other_flow({ param1: value1 });
 ```
 
 ## Calling Datasources
@@ -94,10 +94,10 @@ $services.logging.info('Processing started', { orderId: 123 });
 $services.logging.error('Processing failed', error, { orderId: 123 });
 
 // Jobs — submit a progress-enabled function as a background job
-const jobId = await $services.jobs.fn_heavy_task.submit({ items: largeArray });
+const jobId = await $services.jobs.heavy_task_flow.submit({ items: largeArray });
 
 // Scheduling — create a recurring schedule for a progress-enabled function
-await $services.jobs.fn_daily_sync.schedule.create('daily-sync', {
+await $services.jobs.daily_sync_flow.schedule.create('daily-sync', {
   cronExpression: '0 6 * * *',
   concurrency: ScheduleConcurrency.cancel,
   inParams: { mode: 'full' }

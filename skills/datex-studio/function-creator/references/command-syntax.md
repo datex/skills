@@ -35,13 +35,13 @@ dxs function generate \
 **Example:**
 ```bash
 dxs function generate \
-  -r fn_sum \
-  -t "Sum Function" \
+  -r sum_flow \
+  -t "Sum Flow" \
   -d "Sums an array of numbers" \
-  --code-file fn_sum.ts \
+  --code-file sum_flow.ts \
   --in-param addends:number \
   --out-param sum:number \
-  -o fn_sum.json \
+  -o sum_flow.json \
   --branch 64
 ```
 

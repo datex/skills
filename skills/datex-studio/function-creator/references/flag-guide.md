@@ -12,7 +12,7 @@ When, why, and how to use each `dxs function generate` flag.
 
 **How:**
 ```bash
-dxs function generate ... --enable-progress -o fn.json
+dxs function generate ... --enable-progress -o process_items_flow.json
 ```
 
 **Code pattern:**
@@ -26,7 +26,7 @@ for (let i = 0; i < items.length; i++) {
 $flow.outParams.processed = items.length;
 ```
 
-**Note:** Functions with `--enable-progress` appear in the jobs/scheduling system. Callers can submit them as background jobs with `$services.jobs.fn_name.submit()` and track progress.
+**Note:** Functions with `--enable-progress` appear in the jobs/scheduling system. Callers can submit them as background jobs with `$services.jobs.process_items_flow.submit()` and track progress.
 
 ## --private
 
@@ -36,7 +36,7 @@ $flow.outParams.processed = items.length;
 
 **How:**
 ```bash
-dxs function generate ... --private -o fn.json
+dxs function generate ... --private -o helper_flow.json
 ```
 
 **Decision guide:**
@@ -52,7 +52,7 @@ dxs function generate ... --private -o fn.json
 
 **How:**
 ```bash
-dxs function generate ... --code-file fn_sum.ts -o fn_sum.json
+dxs function generate ... --code-file sum_flow.ts -o sum_flow.json
 ```
 
 **Rules:**
@@ -64,16 +64,16 @@ dxs function generate ... --code-file fn_sum.ts -o fn_sum.json
 
 **When:** Always required. The function's identifier on the branch.
 
-**Why:** Other configs reference the function by this name (e.g., `$flows.fn_sum()`). It becomes part of the generated TypeScript service interface.
+**Why:** Other configs reference the function by this name (e.g., `$flows.sum_flow()`). It becomes part of the generated TypeScript service interface.
 
 **How:**
 ```bash
-dxs function generate -r fn_process_order ...
+dxs function generate -r process_order_flow ...
 ```
 
 **Rules:**
 - Must be a valid JS identifier (start with letter/`_`/`$`, no spaces/hyphens)
-- Convention (not enforced): `fn_` prefix (e.g., `fn_sum`, `fn_validate_order`)
+- Must end with `_flow` suffix (e.g., `sum_flow`, `validate_order_flow`, `boolean_array_to_mask_flow`)
 - Cannot be changed after creation — renaming requires delete + recreate
 
 ## -t / --title
@@ -106,10 +106,10 @@ dxs function generate -d "Processes an order and returns the shipment ID" ...
 
 **How:**
 ```bash
-dxs function generate ... -o fn_process_order.json
+dxs function generate ... -o process_order_flow.json
 ```
 
-**Convention:** `fn_<name>.json` matching the reference name.
+**Convention:** `<name>_flow.json` matching the reference name.
 
 ## --in-param
 
@@ -133,7 +133,7 @@ dxs function generate ... \
   --in-param status:string? \
   --in-param flags:boolean[] \
   --in-param tags:string[]? \
-  -o fn.json
+  -o order_flow.json
 ```
 
 **Rules:**
@@ -154,7 +154,7 @@ dxs function generate ... \
   --out-param result:object \
   --out-param success:boolean \
   --out-param items:object[] \
-  -o fn.json
+  -o order_flow.json
 ```
 
 **In code:** Set outputs via `$flow.outParams.*`:

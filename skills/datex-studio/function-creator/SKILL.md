@@ -4,8 +4,8 @@ description: |
   Use when creating or modifying Wavelength functions (configurationTypeId=9)
   on a Datex Studio branch. Covers the full lifecycle: requirements, intellisense,
   code authoring, validation, and upload. Trigger for: "create a function",
-  "modify a function", "update fn_xxx", "write a function that does X",
-  "add a parameter to fn_xxx", "change the function code".
+  "modify a function", "update xxx_flow", "write a function that does X",
+  "add a parameter to xxx_flow", "change the function code".
 ---
 
 # Function Creator
@@ -79,7 +79,7 @@ dxs function upsert <config.json> --branch <id>
 3. Determine intent: create new or modify existing?
 
 **Create flow (continued):**
-4. Determine reference name (valid JS identifier — convention: `fn_` prefix, e.g., `fn_sum`, `fn_process_order`)
+4. Determine reference name (valid JS identifier — must end with `_flow` suffix, e.g., `sum_flow`, `process_order_flow`)
 5. Determine input/output parameters from the requirements brief
 
 **Modify flow (continued):**
@@ -154,7 +154,7 @@ dxs function upsert <config.json> --branch <id>
 ## Naming Convention
 
 - Reference names must be valid JS identifiers (start with letter/`_`/`$`, no spaces/hyphens)
-- Convention (not enforced): `fn_` prefix for functions (e.g., `fn_sum`, `fn_validate_order`). The CLI accepts any valid JS identifier.
+- Must end with `_flow` suffix (e.g., `sum_flow`, `validate_order_flow`, `boolean_array_to_mask_flow`)
 - Title (`-t`) is a human-readable display name — can differ from reference name
 
 ## Common Mistakes
