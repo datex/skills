@@ -309,11 +309,15 @@ Enhancement flags (`--dynamic-filter`, `--linked`, `--custom-column`, etc.) work
 
 ## Context Command
 
+See [../shared/context-navigation.md](../shared/context-navigation.md) for the full guide on retrieving and reading context responses, including backend vs frontend symbol filtering.
+
 ```bash
-dxs datasource context <file.json> --branch <branch_id>
+dxs -O json datasource context <file.json> --branch <branch_id>
 ```
 
-Returns designer type definitions (`$entity`, `$ccentity`, etc.) for writing expressions or TypeScript code. Works for both OData and flow datasources. Run after `generate` / `generate-flow` to understand the available fields before writing custom columns or flow code.
+Returns designer type definitions for writing expressions or TypeScript code. Works for both OData and flow datasources. Run after `generate` / `generate-flow` to understand the available fields before writing custom columns or flow code.
+
+For datasources, the primary scope symbols are `$entity`, `$ccentity`, and `$datasource` (in `flowContext` or `linkedDatasourcesContext`). The `appContext` contains additional services — read `defaultContext.imports` to determine which ones are available (see the shared reference).
 
 ## Validation
 
