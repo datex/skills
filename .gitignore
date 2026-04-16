@@ -1,4 +1,5 @@
 .testing/
 node_modules
+.vscode
 reports/
 datasource-creator-workspace/
