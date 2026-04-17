@@ -30,7 +30,7 @@ Scan `<CommandText>` for:
 2. **`FROM` / `JOIN` tables** — these identify the OData entities to explore. Table names often differ from OData entity set names (e.g., SQL `inv_inventoryTask` → OData `Tasks`).
 3. **`WHERE` clauses** — these become `$filter` expressions. See mapping table below.
 4. **`GROUP BY` / aggregates** — OData typically doesn't support server-side aggregation. Handle these in report expressions (`=Sum()`, `=Count()`, etc.) or use OData `$apply` if supported.
-5. **Subqueries** — often replaceable with lambda operators. See [odata-patterns.md](odata-patterns.md).
+5. **Subqueries** — often replaceable with lambda operators. See [filter-patterns.md](../../odata-execution/references/filter-patterns.md).
 
 ## SQL → OData Structural Mapping
 
@@ -39,7 +39,7 @@ Scan `<CommandText>` for:
 | `SELECT col1, col2` | `$select=col1,col2` | Direct mapping |
 | `JOIN ChildTable ON ...` | `$expand=ChildNav($select=...)` | Navigation property replaces join |
 | `LEFT JOIN` | `$expand=NavProp($select=...)` | Expands return null if no related entity — same as LEFT JOIN |
-| `WHERE col = value` | `$filter=col eq value` | See [odata-patterns.md](odata-patterns.md) for full mapping |
+| `WHERE col = value` | `$filter=col eq value` | See [filter-patterns.md](../../odata-execution/references/filter-patterns.md) for full mapping |
 | `WHERE col LIKE 'prefix%'` | `$filter=startswith(col,'prefix')` | String functions replace LIKE |
 | `NOT IN (SELECT ...)` | `not Collection/any(c: c/cond)` | Lambda operators replace subqueries |
 | `GROUP BY` + `SUM()` | Report expression `=Sum(Fields!X.Value)` | Aggregation happens in the report, not the query |
@@ -53,13 +53,18 @@ Scan `<CommandText>` for:
 
 ### Report parameters
 
-SSRS `<ReportParameters>` map to NextGen report params declared on `dxs report upload`:
+SSRS `<ReportParameters>` map to NextGen report params declared on `dxs report datasource add`:
 
 ```bash
---param WarehouseId:number \
---param ProjectId:number \
---param FromDate:date \
---param ToDate:date
+dxs report datasource add <folder> --owned ds_data.json:ds_data \
+  --param WarehouseId:number \
+  --param ProjectId:number \
+  --param FromDate:date \
+  --param ToDate:date \
+  --datasource-param 'WarehouseId=$report.inParams.WarehouseId' \
+  --datasource-param 'ProjectId=$report.inParams.ProjectId' \
+  --datasource-param 'FromDate=$report.inParams.FromDate' \
+  --datasource-param 'ToDate=$report.inParams.ToDate'
 ```
 
 ### Parameter-populating datasources
@@ -82,7 +87,7 @@ Consider filtering by name instead of ID for portability (e.g., `OperationCode/N
 
 ## Layout Translation
 
-**Adopt the Datex design language** when migrating — don't replicate SSRS styling. The original SSRS report may use different fonts, colors, row heights, and table borders. Apply the standards from [design-standards.md](design-standards.md): Arial font family, Datex color palette (Black, DimGray, LightGray, Gray, Purple #5B08B2), purple header borders instead of gray backgrounds, 0.375in row heights, and the field label-value pattern. The migrated report should look like a native Datex report, not a pixel-perfect copy of the SSRS original.
+**Adopt the Datex design language** when migrating — don't replicate SSRS styling. The original SSRS report may use different fonts, colors, row heights, and table borders. Apply the standards from [design-standards.md](../../shared/report-authoring/design-standards.md): Arial font family, Datex color palette (Black, DimGray, LightGray, Gray, Purple #5B08B2), purple header borders instead of gray backgrounds, 0.375in row heights, and the field label-value pattern. The migrated report should look like a native Datex report, not a pixel-perfect copy of the SSRS original.
 
 | SSRS concept | NextGen equivalent | Notes |
 |-------------|-------------------|-------|
@@ -94,7 +99,7 @@ Consider filtering by name instead of ID for portability (e.g., `OperationCode/N
 | Rectangle | Rectangle | Direct mapping — container element |
 | Image (embedded) | Image with `--file` | `dxs report add image --file logo.png` |
 | Chart | Not directly available | Use alternative visualization or external charting |
-| Page header/footer | PageHeader/PageFooter | Same concept, different JSON structure — see [json-structure.md](json-structure.md) |
+| Page header/footer | PageHeader/PageFooter | Same concept, different JSON structure — see [json-structure.md](../../shared/report-authoring/json-structure.md) |
 
 ### Expression differences
 

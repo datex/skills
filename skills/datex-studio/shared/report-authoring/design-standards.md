@@ -163,7 +163,7 @@ Every report footer should include:
 
 ## Applying These Standards
 
-**During Phase 3 (Layout Prototype):**
+**During layout prototyping:**
 
 1. Set FontFamily on all textbox elements — `Arial` for text, `Courier New` for numbers/barcodes
 2. Use the color palette — no arbitrary hex values

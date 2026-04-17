@@ -7,7 +7,8 @@ Detailed reference for `dxs datasource` commands, parameter strategies, and post
 When a report must pass parameters (e.g., warehouse, project, date range) to the datasource query, use **template literal syntax** in the `$filter` and add `--detect-params`:
 
 ```bash
-dxs datasource upsert \
+# Step 1: Generate the datasource config with --detect-params
+dxs datasource generate \
   -c <id> \
   -q 'Tasks?$select=Id,Name&$filter=WarehouseId eq ${$datasource.inParams.WarehouseId} and ProjectId eq ${$datasource.inParams.ProjectId} and CompletedDateTime ge ${$datasource.inParams.FromDate} and CompletedDateTime le ${$datasource.inParams.ToDate}' \
   -r ds_my_report \
@@ -15,17 +16,15 @@ dxs datasource upsert \
   -d "Description" \
   --api-setting-name FootPrintAPI \
   --branch <id> \
-  --detect-params
+  --detect-params \
+  -o ds_my_report.json
 ```
 
-Then on `report upload`, declare matching report params and pipe them down:
+Then add the owned datasource to the report folder with matching report params and datasource-param bindings:
 
 ```bash
-dxs report upload report.rdlx-json --branch <id> --name "My Report" \
-  --owned-datasource ds_my_report:ds_my_report \
-  --owned-connection <connection_id> \
-  --owned-query '<odata_query>' \
-  --owned-title "ds_my_report" \
+# Step 2: Add owned datasource to report folder with param bindings
+dxs report datasource add my_report/ --owned ds_my_report.json:ds_my_report \
   --param WarehouseId:number \
   --param ProjectId:number \
   --param FromDate:date \
@@ -34,6 +33,10 @@ dxs report upload report.rdlx-json --branch <id> --name "My Report" \
   --datasource-param 'ProjectId=$report.inParams.ProjectId' \
   --datasource-param 'FromDate=$report.inParams.FromDate' \
   --datasource-param 'ToDate=$report.inParams.ToDate'
+
+# Step 3: Assemble and upload
+dxs report assemble my_report/ -o my_report.json
+dxs report upload my_report.json --branch <id>
 ```
 
 **CRITICAL:** The placeholder syntax is `${$datasource.inParams.paramName}` — NOT `{paramName}`. Simple curly braces are **not detected** by `--detect-params`.
@@ -80,8 +83,9 @@ cat > /tmp/ds-query.txt << 'QUERYEOF'
 Entity?$select=Id,Name&$filter=TypeId eq 3 and endswith(Name,%27-10%27)&$orderby=Name
 QUERYEOF
 
-# Pass via --query-file
-dxs datasource upsert -Q /tmp/ds-query.txt -r ds_name -t "ds_name" ...
+# Pass via --query-file on generate
+dxs datasource generate -Q /tmp/ds-query.txt -r ds_name -t "ds_name" -d "Description" \
+  -c <id> --branch <id> -o ds_name.json
 ```
 
 **Why this works:** A heredoc with a quoted delimiter (`'QUERYEOF'`) treats ALL content literally — no expansion of `$`, backticks, or single quotes. The `-Q` flag reads the file content as-is.

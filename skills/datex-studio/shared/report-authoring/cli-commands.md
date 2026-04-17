@@ -369,7 +369,34 @@ dxs report tablix add-row <file> --tablix Grid --group wh --position header \
 
 ### Per-cell style refinement
 
-`--cell-style` applies to all cells in the row. To style individual cells differently, use `batch set` afterward with the auto-generated cell names (pattern: `{Tablix}_{Group}_GHdr{N}_{Col}` for group headers, `{Tablix}_THdr{N}_{Col}` for table headers).
+`--cell-style` applies to all cells in the row. To style individual cells differently, use `batch set` afterward with the auto-generated cell names.
+
+**Naming patterns:**
+
+| Context | Pattern | Example |
+|---------|---------|---------|
+| Column header (at creation) | `{Tablix}_Hdr{ColIndex}` | `LinesTable_Hdr0`, `LinesTable_Hdr5` |
+| Column detail (at creation) | `{Tablix}_Det{ColIndex}` | `LinesTable_Det0`, `LinesTable_Det5` |
+| Column footer (at creation) | `{Tablix}_Ftr{ColIndex}` | `LinesTable_Ftr0`, `LinesTable_Ftr5` |
+| Group header row (add-group/add-row) | `{Tablix}_{Group}_GHdr{RowN}_{ColIndex}` | `Grid_Wh_GHdr0_0` |
+| Group footer row (add-group/add-row) | `{Tablix}_{Group}_GFtr{RowN}_{ColIndex}` | `Grid_Wh_GFtr0_0` |
+| Table header row (add-row) | `{Tablix}_THdr{RowN}_{ColIndex}` | `Grid_THdr0_0` |
+| Table footer row (add-row) | `{Tablix}_TFtr{RowN}_{ColIndex}` | `Grid_TFtr0_0` |
+
+- `{ColIndex}` is 0-based column position (left to right)
+- `{RowN}` is 0-based count of existing rows with the same prefix
+- `{Group}` is the group alias with first letter capitalized
+- Column cells at creation use `{ColIndex}` directly; added rows use `{RowN}_{ColIndex}`
+
+**Example:** Style the 4th column (index 3) of a tablix named `LinesTable`:
+
+```json
+[
+  {"action": "set", "name": "LinesTable_Hdr3", "text-align": "Right"},
+  {"action": "set", "name": "LinesTable_Det3", "text-align": "Right", "font-family": "Courier New"},
+  {"action": "set", "name": "LinesTable_Ftr3", "text-align": "Right"}
+]
+```
 
 ## Image Handling
 
