@@ -6,6 +6,8 @@ Complete reference for all `dxs function` commands.
 
 Generate a function config JSON file from a TypeScript code file and parameters.
 
+`generate` is a pure local file operation — it builds the config JSON from flags. It does NOT call the platform and does NOT accept `--branch`. Pass the branch only to `context`, `validate`, `upsert`, `get`, `list`, and `delete`.
+
 ```bash
 dxs function generate \
   -r <reference_name> \
@@ -14,8 +16,7 @@ dxs function generate \
   --code-file <path.ts> \
   --in-param <name>:<type> \
   --out-param <name>:<type> \
-  -o <output.json> \
-  --branch <id>
+  -o <output.json>
 ```
 
 | Flag | Required | Description |
@@ -41,8 +42,7 @@ dxs function generate \
   --code-file sum_flow.ts \
   --in-param addends:number \
   --out-param sum:number \
-  -o sum_flow.json \
-  --branch 64
+  -o sum_flow.json
 ```
 
 ## context

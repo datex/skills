@@ -123,7 +123,7 @@ See [code-patterns.md](references/code-patterns.md) for common patterns.
 ### Phase 5: Generate, Validate, Upload
 
 ```bash
-# Generate the config
+# Generate the config (local file operation — does not take --branch)
 dxs function generate \
   --code-file <file.ts> \
   -r <reference_name> \
@@ -131,8 +131,7 @@ dxs function generate \
   -d "<description>" \
   --in-param <name>:<type> \
   --out-param <name>:<type> \
-  -o <config.json> \
-  --branch <id>
+  -o <config.json>
 
 # Validate
 dxs function validate <config.json> --branch <id>
