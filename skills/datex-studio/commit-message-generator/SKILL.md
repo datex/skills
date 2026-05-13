@@ -114,8 +114,20 @@ what changed.
 
 ### Phase 4: Draft Message
 
-Use the format below. Keep the title under ~72 chars; wrap body at reasonable
-line width.
+Produce a three-section message. The downstream parser splits the output on
+blank lines:
+
+1. **Title** — the first line. Conventional commits style, ~72 chars.
+   Prefix with ⚠ when Phase 3 surfaced something that warrants review.
+2. **Description** — the second paragraph (everything up to the next blank
+   line). Short, human-readable summary. This is the only part the developer
+   sees and edits in the Datex Studio commit dialog, so keep it focused.
+3. **Release Notes** — everything from the third paragraph onward. The
+   detailed body. Never shown to the developer; consumed only by downstream
+   release-note tooling.
+
+See "Output Format" below for the exact shape. Wrap each section at a
+reasonable line width.
 
 ### Phase 5 (optional): Persist to Knowledge Base
 
@@ -140,25 +152,35 @@ saving manually.
 ## Output Format
 
 ```
-<Title — single line describing the change. Prefix with ⚠ if a review is recommended.>
+<Title — single line. Conventional commits style. Prefix with ⚠ when Phase 3
+surfaced something that warrants review.>
 
-<Paragraph 1 — what was added/changed/deleted, at the config level. Mention
-counts or notable config names where useful.>
+<Description — one paragraph, ~1-3 sentences, summarizing the change in
+human terms. This is what the developer sees and edits in the commit dialog,
+so keep it focused on the "what" and "why" at a high level. If the title is
+⚠-prefixed, end this paragraph with:
+"⚠ Recommend running a code review before merging — <one-line reason>.">
 
-<Paragraph 2 — how it works at a high level. One or two sentences explaining
-the mechanism, not the individual line changes.>
-
-⚠ Recommend running a code review before merging — <one-line reason>.
+<Release Notes — the detailed body, never shown to the developer. Typically
+two paragraphs:
+(1) what was added/changed/deleted at the config level — counts and notable
+    config names;
+(2) how it works at a high level — one or two sentences explaining the
+    mechanism, not individual line changes.>
 ```
 
-The third paragraph is **conditional**: include it only if Phase 3 surfaced
-something that warrants review (bug, security concern, significant design
-issue). A clean branch gets a two-paragraph message.
+The three sections are **separated by blank lines**: the parser uses those
+blank lines as boundaries, so do not omit them and do not introduce extra
+blank lines inside a section.
 
 **Example (clean branch):**
 
 ```
 feat(mobile): add Mobile Configurator hub for per-warehouse settings
+
+Adds a new Mobile Configurator hub with sub-tabs for warehouses, owners,
+order classes, and equipment types, so Settings exposes per-warehouse
+configuration to mobile users.
 
 Adds 29 new configs: one hub (mobile_configurator_hub), four sub-tabs
 (Warehouses, Owners, Order Classes, Equipment Types), and the grids/editors/
@@ -175,13 +197,16 @@ layered on top in the respective sub-tabs.
 ```
 ⚠ fix(udf): correct TypeId remap in custom_field_editor
 
+Fixes a UDF type-remap bug where Text fields rendered as Selection lists,
+with a small refactor that inlines a datasource and refreshes three hubs
+after the editor closes.
+⚠ Recommend running a code review before merging — the save flow has
+duplicated error handling that can show two dialogs on failure.
+
 Updates custom_field_editor to remap TypeId 5→1 so "Text" UDFs no longer
 render as "Selection list". Inlines ds_get_custom_field_options into
 custom_field_options_grid (deletes the standalone datasource) and adjusts
 three hubs to await the editor dialog and refresh on close.
-
-⚠ Recommend running a code review before merging — the save flow has
-duplicated error handling that can show two dialogs on failure.
 ```
 
 ## Tips
