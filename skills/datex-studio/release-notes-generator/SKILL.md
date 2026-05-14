@@ -70,9 +70,18 @@ The response contains three arrays that drive the rest of the workflow:
 
 - **`releases`** — intermediate published releases between the two branches.
   Use this for the summary header (release count, date span).
-- **`committed_branches`** — each merged feature branch, with `id`, `title`
-  (commit message), `author`, and a `changes` array listing `reference_name`,
-  `type`, `modification` (`add`/`update`/`delete`).
+- **`committed_branches`** — each merged feature branch, with:
+  - `id` — branch id of the commit
+  - `title` — short commit headline (one-liner)
+  - `release_notes` — verbose, engineering-oriented description of the
+    change, produced by SideKick at commit time alongside the short title.
+    This is the primary commit-level account of *what* the commit did and
+    the main textual input for the Phase 5 narrative. If null (older commits
+    with no SideKick output, or a SideKick outage at commit time), use the
+    short `title` as the headline and rely on the Phase 3 diff for the body.
+  - `author` — who committed
+  - `changes` — array of config-level changes (`reference_name`, `type`,
+    `modification` of `add`/`update`/`delete`)
 - **`dependency_changes`** — which component packages (Waves, Carts, etc.)
   were updated, with old/new branch IDs for drilling.
 
@@ -89,9 +98,10 @@ scope allows), fetch the linked work items:
 dxs source workitems --branch <commit_branch_id> --description
 ```
 
-Work items are the most valuable input for release notes. They contain:
+Work items are the most valuable input for the **business context** of a
+release note. They contain:
 
-- `title` — often far more descriptive than the commit message
+- `title` — concise feature name (often more descriptive than the commit title)
 - `type` — Development / Bug / Wavelength Component / etc.
 - `state` — Done / Committed / etc.
 - `assigned_to` — author attribution
@@ -99,11 +109,19 @@ Work items are the most valuable input for release notes. They contain:
   criteria
 
 If a commit has **no linked work items**, flag it as "Missing traceability"
-and fall back to the commit ID and title for the entry. Never silently drop
-these.
+and fall back to the commit's `release_notes` (Phase 1) for the body. Use
+the commit ID and `title` as the entry headline. Never silently drop these.
 
-> Work items provide the *why*. Commit titles are a signal — work items are
-> the authoritative source for business context.
+> Three inputs, three roles:
+> - **`release_notes` on each commit (Phase 1)** — the *what*. Engineering-
+>   oriented narrative of the change, produced at commit time. Primary input
+>   for the change description in the notes.
+> - **Work items (Phase 2)** — the *why*. Business intent, requirements,
+>   acceptance criteria.
+> - **Diffs (Phase 3)** — the *how*. The code itself, the final source of
+>   truth when the prose disagrees with what was actually committed.
+>
+> Commit titles are just headlines; they're not a primary input.
 
 ### Phase 3: Source Diffs
 
@@ -346,6 +364,7 @@ dxs source diff --from 64919 --to 67159 \
 |---------|-----|
 | Skipping Phase 4 because "the main app only had sync commits" | Those sync commits are the signal that the work is in dependencies — drill |
 | Using commit titles as feature titles | Use the linked work item's title; commit titles are often rushed |
+| Reconstructing what each commit did from titles + diffs alone | The `release_notes` field on each commit (Phase 1) is SideKick's engineering-oriented description of the change — use it as the primary input for the per-commit narrative |
 | Repeating the same feature under multiple dependencies | Deduplicate by work item ID when composing |
 | Omitting work item links "to keep notes clean" | Links are mandatory; without them notes are untraceable |
 | Customer notes with config names / branch IDs | Strip internal vocabulary — customer variant is prose, not config soup |
