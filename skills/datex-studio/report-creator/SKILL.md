@@ -6,6 +6,8 @@ description: |
   datasource creation, layout prototyping, and deployment as a single workflow.
   Trigger for: "create a report", "build a report", "report from work item",
   "report from requirements". For modifying EXISTING reports, use `report-editor`.
+depends:
+  - datex-studio-shared
 ---
 
 # Report Creator
@@ -22,16 +24,16 @@ Workflow for building and deploying RDLX-JSON reports using the `dxs` CLI. Repor
 - **Direct JSON** only for advanced structures not yet in the CLI (e.g., complex BandedList grouping, custom Tablix column/row hierarchies beyond simple header/detail)
 
 **References (shared):**
-- [../shared/branch-setup.md](../shared/branch-setup.md) — Branch & connection selection
-- [../shared/report-authoring/design-standards.md](../shared/report-authoring/design-standards.md) — **Datex design language:** color palette, typography, table styling, field label-value pattern, grid alignment, report categories
-- [../shared/report-authoring/json-structure.md](../shared/report-authoring/json-structure.md) — Document template, element JSON formats, expression quick reference
-- [../shared/report-authoring/design-patterns.md](../shared/report-authoring/design-patterns.md) — Coordinate system, layout patterns, element sizing
-- [../shared/report-authoring/cli-commands.md](../shared/report-authoring/cli-commands.md) — Detailed CLI syntax: batch ops, tablix, images, datasets, set/move/remove
-- [../shared/report-authoring/sample-data.md](../shared/report-authoring/sample-data.md) — Companion `.data.json` files for live preview
-- [../shared/report-authoring/dataset-rules.md](../shared/report-authoring/dataset-rules.md) — DataSet management: CommandText rules, collection handling, date annotations
-- [../shared/report-authoring/deploy-patterns.md](../shared/report-authoring/deploy-patterns.md) — Upload, preview, and verification patterns
-- [../shared/report-authoring/troubleshooting.md](../shared/report-authoring/troubleshooting.md) — Common RDLX-JSON and CLI mistakes & fixes
-- [../shared/studio-management.md](../shared/studio-management.md) — Studio lifecycle: check, start, cleanup
+- [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) — Branch & connection selection
+- [../datex-studio-shared/report-authoring/design-standards.md](../datex-studio-shared/report-authoring/design-standards.md) — **Datex design language:** color palette, typography, table styling, field label-value pattern, grid alignment, report categories
+- [../datex-studio-shared/report-authoring/json-structure.md](../datex-studio-shared/report-authoring/json-structure.md) — Document template, element JSON formats, expression quick reference
+- [../datex-studio-shared/report-authoring/design-patterns.md](../datex-studio-shared/report-authoring/design-patterns.md) — Coordinate system, layout patterns, element sizing
+- [../datex-studio-shared/report-authoring/cli-commands.md](../datex-studio-shared/report-authoring/cli-commands.md) — Detailed CLI syntax: batch ops, tablix, images, datasets, set/move/remove
+- [../datex-studio-shared/report-authoring/sample-data.md](../datex-studio-shared/report-authoring/sample-data.md) — Companion `.data.json` files for live preview
+- [../datex-studio-shared/report-authoring/dataset-rules.md](../datex-studio-shared/report-authoring/dataset-rules.md) — DataSet management: CommandText rules, collection handling, date annotations
+- [../datex-studio-shared/report-authoring/deploy-patterns.md](../datex-studio-shared/report-authoring/deploy-patterns.md) — Upload, preview, and verification patterns
+- [../datex-studio-shared/report-authoring/troubleshooting.md](../datex-studio-shared/report-authoring/troubleshooting.md) — Common RDLX-JSON and CLI mistakes & fixes
+- [../datex-studio-shared/studio-management.md](../datex-studio-shared/studio-management.md) — Studio lifecycle: check, start, cleanup
 
 **References (creation-specific):**
 - [references/ssrs-migration.md](references/ssrs-migration.md) — Converting legacy SSRS (.rdl) reports to NextGen RDLX-JSON
@@ -94,7 +96,7 @@ If the user says "modify" but the report does not exist yet on the branch, confi
 
 ### Select branch
 
-Follow [branch-setup.md](../shared/branch-setup.md) to identify the active organization, list repositories, select a feature branch, and discover API connections.
+Follow [branch-setup.md](../datex-studio-shared/branch-setup.md) to identify the active organization, list repositories, select a feature branch, and discover API connections.
 
 ### Artifact collection (optional)
 
@@ -161,7 +163,7 @@ OData endpoints return **at most 5,000 records per request**. For any datasource
 - Collection OData datasources backing a tablix (typical line-items query) — usually no pagination needed if the parent filter already bounds the rows (e.g., `ShipmentLines?$filter=ShipmentId eq X`).
 - Flow datasources that aggregate over date ranges, warehouses, owners, etc. — **must paginate**. Surface this to the `datasource-creator` invocation so the standalone OData datasources it builds declare a `skip` inParam, and the flow code loops until a short page comes back.
 
-See [../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap) for the wiring details and the canonical loop. If you don't paginate when you should, the report under-counts at busy warehouses without any error — the symptom is silent data loss.
+See [../datex-studio-shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../datex-studio-shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap) for the wiring details and the canonical loop. If you don't paginate when you should, the report under-counts at busy warehouses without any error — the symptom is silent data loss.
 
 ### Coverage gate: requirements vs datasource fields
 
@@ -225,25 +227,25 @@ dxs studio open <artifact_dir>/<report_name>_report/report.rdlx-json
 
 This opens the report in the Studio design canvas at `http://127.0.0.1:5051/design`. Every file change is reflected live.
 
-**Auto-manage Studio** per [../shared/studio-management.md](../shared/studio-management.md): check status, start in background if needed (with readiness verification), open the report, and clean up after Phase 5.
+**Auto-manage Studio** per [../datex-studio-shared/studio-management.md](../datex-studio-shared/studio-management.md): check status, start in background if needed (with readiness verification), open the report, and clean up after Phase 5.
 
 ### Step 3: Build layout incrementally with `dxs report batch`
 
 Use `dxs report batch` to add elements in groups. Write ops to a file and use `--ops-file` to avoid shell escaping issues. Maximum 25 operations per batch.
 
-**Apply the Datex design language** from [../shared/report-authoring/design-standards.md](../shared/report-authoring/design-standards.md): set `FontFamily: Arial` on all text elements (use `Courier New` for numeric values and barcode captions), use the official color palette (Black, DimGray, LightGray, Gray, Datex Purple #5B08B2), style tables with purple header borders and LightGray row separators (no background colors), follow the field label-value pattern (8pt DimGray labels above 10pt Black values), and snap positions to the 0.25in grid.
+**Apply the Datex design language** from [../datex-studio-shared/report-authoring/design-standards.md](../datex-studio-shared/report-authoring/design-standards.md): set `FontFamily: Arial` on all text elements (use `Courier New` for numeric values and barcode captions), use the official color palette (Black, DimGray, LightGray, Gray, Datex Purple #5B08B2), style tables with purple header borders and LightGray row separators (no background colors), follow the field label-value pattern (8pt DimGray labels above 10pt Black values), and snap positions to the 0.25in grid.
 
-**Build in logical sections using rectangle containers.** Every major section (header, info fields, address blocks, footer) should be wrapped in a rectangle. Add the rectangle first, then add child elements with `"parent": "RectangleName"`. Child coordinates are relative to the rectangle's top-left corner (0,0), so moving the rectangle repositions everything inside it. This is important for layout iteration — without rectangles, repositioning a section means moving every element individually. See [../shared/report-authoring/cli-commands.md](../shared/report-authoring/cli-commands.md) for the batch pattern. Tables are self-contained and don't need a rectangle wrapper.
+**Build in logical sections using rectangle containers.** Every major section (header, info fields, address blocks, footer) should be wrapped in a rectangle. Add the rectangle first, then add child elements with `"parent": "RectangleName"`. Child coordinates are relative to the rectangle's top-left corner (0,0), so moving the rectangle repositions everything inside it. This is important for layout iteration — without rectangles, repositioning a section means moving every element individually. See [../datex-studio-shared/report-authoring/cli-commands.md](../datex-studio-shared/report-authoring/cli-commands.md) for the batch pattern. Tables are self-contained and don't need a rectangle wrapper.
 
 **Tables:** Use `dxs report add tablix` for line items with `--header-cell`, `--detail-cell`, `--footer-cell` (repeated options, one per cell) and `--header-style`/`--detail-style`/`--footer-style` for row-level defaults. Prefer footer rows over standalone textboxes for totals.
 
 **Lines** use `start-x`/`start-y`/`end-x`/`end-y` in batch (not `left`/`top`/`width`/`height`). `move` does not work on lines — edit JSON directly.
 
-**Images:** Use `dxs report add image --file logo.png` for embedded images, `--source Database --value '=Fields!X.Value'` for data-bound images. Database-bound images need data URIs in the sample data file — see [../shared/report-authoring/sample-data.md](../shared/report-authoring/sample-data.md).
+**Images:** Use `dxs report add image --file logo.png` for embedded images, `--source Database --value '=Fields!X.Value'` for data-bound images. Database-bound images need data URIs in the sample data file — see [../datex-studio-shared/report-authoring/sample-data.md](../datex-studio-shared/report-authoring/sample-data.md).
 
-**PageHeader/PageFooter:** These are document-root elements requiring direct JSON editing — see [../shared/report-authoring/json-structure.md](../shared/report-authoring/json-structure.md).
+**PageHeader/PageFooter:** These are document-root elements requiring direct JSON editing — see [../datex-studio-shared/report-authoring/json-structure.md](../datex-studio-shared/report-authoring/json-structure.md).
 
-See [../shared/report-authoring/cli-commands.md](../shared/report-authoring/cli-commands.md) for detailed syntax and examples of all batch operations, tablix creation, image handling, and element editing.
+See [../datex-studio-shared/report-authoring/cli-commands.md](../datex-studio-shared/report-authoring/cli-commands.md) for detailed syntax and examples of all batch operations, tablix creation, image handling, and element editing.
 
 ### Step 4: Create sample data file
 
@@ -257,13 +259,13 @@ dxs report data generate <report-name>.rdlx-json -o <report-name>.data.json
 
 Then replace placeholders with realistic sample values — 3-5 rows per dataset. Field names must match DataSet field **Names** (underscore notation, e.g., `Lines_Material_LookupCode`), not dot-notation DataField paths.
 
-See [../shared/report-authoring/sample-data.md](../shared/report-authoring/sample-data.md) for the full format and examples.
+See [../datex-studio-shared/report-authoring/sample-data.md](../datex-studio-shared/report-authoring/sample-data.md) for the full format and examples.
 
 ### Step 5: Add DataSets to the report
 
 **REQUIRED for Studio preview.** Without DataSet definitions, Studio shows "no matching DataSet in report" errors and field expressions render as raw text.
 
-Follow [dataset-rules.md](../shared/report-authoring/dataset-rules.md) for DataSet creation, CommandText patterns, collection handling, date annotations, and sensitivity properties.
+Follow [dataset-rules.md](../datex-studio-shared/report-authoring/dataset-rules.md) for DataSet creation, CommandText patterns, collection handling, date annotations, and sensitivity properties.
 
 Use the **field summary** from the datasource-creator's return as the primary source for field names. Phase 4 will verify against the actual datasource.
 
@@ -282,7 +284,7 @@ After building each section, ask the user how it looks in Studio. Use `dxs repor
 
 ### Layout reference
 
-See [../shared/report-authoring/design-patterns.md](../shared/report-authoring/design-patterns.md) for pattern examples (Shipping Label, GS1, BOL, Tabular Report) and element sizing tables.
+See [../datex-studio-shared/report-authoring/design-patterns.md](../datex-studio-shared/report-authoring/design-patterns.md) for pattern examples (Shipping Label, GS1, BOL, Tabular Report) and element sizing tables.
 
 ## Phase 4: Report Finalization
 
@@ -291,20 +293,20 @@ The `.rdlx-json` file already exists from Phase 3 with layout, elements, sample 
 ### Finalization checklist
 
 1. **Verify DataSets** — For **standalone** datasources: compare field Names/DataFields against `dxs report datasource-fields <ref> --branch <id>` output. For **owned** datasources: compare against the field summary from Phase 2 (datasource-fields is only available post-upload). Add missing fields with `dxs report dataset add-field`. Ensure `CommandText = $.{ds_name}.result.*` and all sensitivity properties are present.
-2. **Refine expressions** — Update any placeholder values with final `=Fields!Name.Value` expressions. See [../shared/report-authoring/json-structure.md](../shared/report-authoring/json-structure.md) for expression quick reference.
+2. **Refine expressions** — Update any placeholder values with final `=Fields!Name.Value` expressions. See [../datex-studio-shared/report-authoring/json-structure.md](../datex-studio-shared/report-authoring/json-structure.md) for expression quick reference.
 3. **Validate:**
    ```bash
    dxs report validate my-report.rdlx-json
    ```
 
-For incremental edits during finalization, see [../shared/report-authoring/cli-commands.md](../shared/report-authoring/cli-commands.md) for `set`/`move`/`remove`/`dataset add-field` syntax.
+For incremental edits during finalization, see [../datex-studio-shared/report-authoring/cli-commands.md](../datex-studio-shared/report-authoring/cli-commands.md) for `set`/`move`/`remove`/`dataset add-field` syntax.
 
 ## Phase 5: Deploy & Verify
 
-Follow [deploy-patterns.md](../shared/report-authoring/deploy-patterns.md) for upload (owned vs standalone), preview, verification, and test parameter discovery.
+Follow [deploy-patterns.md](../datex-studio-shared/report-authoring/deploy-patterns.md) for upload (owned vs standalone), preview, verification, and test parameter discovery.
 
 **Artifact:** Save preview with `dxs report preview <report>.rdlx-json -o <artifact_dir>/<report-name>-preview.svg`.
 
 ## Troubleshooting
 
-See [troubleshooting.md](../shared/report-authoring/troubleshooting.md) for common RDLX-JSON expression issues and layout/CLI mistakes.
+See [troubleshooting.md](../datex-studio-shared/report-authoring/troubleshooting.md) for common RDLX-JSON expression issues and layout/CLI mistakes.

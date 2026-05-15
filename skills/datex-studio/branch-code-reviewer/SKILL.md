@@ -8,6 +8,8 @@ description: |
   branch X", "code review this branch", "review the changes on <branch>",
   "audit branch before merge", "quality check this branch". For drafting a
   commit message on the same branch, use `commit-message-generator`.
+depends:
+  - datex-studio-shared
 ---
 
 # Branch Code Reviewer
@@ -19,7 +21,7 @@ and a verdict.
 
 ## References
 
-- [../shared/branch-setup.md](../shared/branch-setup.md) — Branch selection when the branch ID was not provided
+- [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) — Branch selection when the branch ID was not provided
 
 ## Dependencies
 

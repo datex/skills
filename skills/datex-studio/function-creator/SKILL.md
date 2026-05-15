@@ -6,6 +6,8 @@ description: |
   code authoring, validation, and upload. Trigger for: "create a function",
   "modify a function", "update xxx_flow", "write a function that does X",
   "add a parameter to xxx_flow", "change the function code".
+depends:
+  - datex-studio-shared
 ---
 
 # Function Creator
@@ -14,11 +16,11 @@ Create new Wavelength functions or modify existing ones on a Datex Studio branch
 
 ## References
 
-- [../shared/branch-setup.md](../shared/branch-setup.md) -- Branch & connection selection (shared across skills)
+- [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) -- Branch & connection selection (shared across skills)
 - [references/command-syntax.md](references/command-syntax.md) -- All `dxs function` commands with examples
 - [references/flag-guide.md](references/flag-guide.md) -- When/why/how for each flag
 - [references/code-patterns.md](references/code-patterns.md) -- Common patterns for function code
-- [../shared/context-navigation.md](../shared/context-navigation.md) -- How to retrieve & navigate designer context responses
+- [../datex-studio-shared/context-navigation.md](../datex-studio-shared/context-navigation.md) -- How to retrieve & navigate designer context responses
 
 ## Dependencies
 
@@ -73,7 +75,7 @@ dxs function upsert <config.json> --branch <id>
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [branch-setup.md](../shared/branch-setup.md) for branch/connection selection
+1. Follow [branch-setup.md](../datex-studio-shared/branch-setup.md) for branch/connection selection
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill)
    - **Requirements brief exists** — use it. The brief provides the intent, expected inputs/outputs, and business rules.
    - **No requirements brief exists** — invoke the `requirements-gathering` skill first. This ensures the agent understands what the function should do (create) or what changes are needed (modify) before touching code.
@@ -91,7 +93,7 @@ dxs function upsert <config.json> --branch <id>
 
 ### Phase 2: Intellisense
 
-See [context-navigation.md](../shared/context-navigation.md) for the full guide on retrieving and reading context responses, including the backend vs frontend symbol filtering rules.
+See [context-navigation.md](../datex-studio-shared/context-navigation.md) for the full guide on retrieving and reading context responses, including the backend vs frontend symbol filtering rules.
 
 **For create:** Run `dxs function generate --code-file <placeholder.ts> -r <name> -t "<title>" -d "<desc>" --in-param <params> --out-param <params> -o <config.json>` with a placeholder code file (e.g., containing just `// placeholder`), then run context on the resulting JSON to get the type system before writing actual code.
 
@@ -153,7 +155,7 @@ dxs function upsert <config.json> --branch <id>
 | Using `return` to set output | Assign to `$flow.outParams.*` instead — functions don't use return values |
 | Wrong scoping on `$datasources` or `$flows` | Module code requires module prefix (`$datasources.ModuleName.ds_name`). App code referencing its own configs does not (`$datasources.ds_name`). Always check the `appContext` types from `dxs function context` to determine the correct path. |
 | Changing params without checking callers | Always invoke impact-analysis skill first when modifying input/output params |
-| Guessing available services from memory | Always run `dxs -O json function context` and read `defaultContext.imports` — see [context-navigation.md](../shared/context-navigation.md). |
-| Referencing a frontend-only symbol (`$shell`, `$frontendFlows`) | Functions are backend-only. If a symbol is not in `defaultContext.imports`, you cannot use it — see [context-navigation.md](../shared/context-navigation.md). |
+| Guessing available services from memory | Always run `dxs -O json function context` and read `defaultContext.imports` — see [context-navigation.md](../datex-studio-shared/context-navigation.md). |
+| Referencing a frontend-only symbol (`$shell`, `$frontendFlows`) | Functions are backend-only. If a symbol is not in `defaultContext.imports`, you cannot use it — see [context-navigation.md](../datex-studio-shared/context-navigation.md). |
 | Using `$item` instead of `$entity` | The expression variable is `$entity` in Wavelength |
 | Code file exceeding 512 KB | Split logic into multiple functions or extract helpers |

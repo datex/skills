@@ -4,6 +4,8 @@ description: |
   Use when creating Datex Studio datasources with dxs datasource commands:
   generating OData or flow datasource configs, validating configs against a
   branch, or upserting standalone datasources.
+depends:
+  - datex-studio-shared
 ---
 
 # Datasource Creator
@@ -12,7 +14,7 @@ Create OData or flow-based datasource configurations for Datex Studio.
 
 ## References
 
-- [../shared/branch-setup.md](../shared/branch-setup.md) -- Branch & connection selection (shared across skills)
+- [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) -- Branch & connection selection (shared across skills)
 - [references/parameter-strategies.md](references/parameter-strategies.md) -- Parameter strategies, linked datasources, quoting rules, cascading params
 
 ## Dependencies
@@ -255,7 +257,7 @@ OData responses are capped at **5,000 records per request**. A flow that aggrega
 
 To paginate, the standalone OData datasource the flow calls must declare a `skip` inParam, and its query must use `$top=5000&$skip=${$datasource.inParams.skip}`. Then the flow loops with `getList({ ..., skip })`, breaking when a short page comes back.
 
-See [../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap) for the full pattern — datasource query shape, the `--detect-params` requirement, and the canonical fetch loop. If you're building a flow datasource whose underlying queries could exceed 5k rows, build the underlying OData datasources with pagination wired from the start; retrofitting later requires regenerating both the datasource and the flow code.
+See [../datex-studio-shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../datex-studio-shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap) for the full pattern — datasource query shape, the `--detect-params` requirement, and the canonical fetch loop. If you're building a flow datasource whose underlying queries could exceed 5k rows, build the underlying OData datasources with pagination wired from the start; retrofitting later requires regenerating both the datasource and the flow code.
 
 **`--param-keys` creates named params, NOT a `keys` array.** When an OData datasource uses `--param-keys` (e.g., `Shipments(0)`), the generator creates `inParams` named after the entity key (e.g., `shipmentId`). Always check the generated config's `inParams` to get the exact param name. **Never** use `{ keys: [value] }` — that pattern does not exist.
 
@@ -319,7 +321,7 @@ Enhancement flags (`--dynamic-filter`, `--linked`, `--custom-column`, etc.) work
 
 ## Context Command
 
-See [../shared/context-navigation.md](../shared/context-navigation.md) for the full guide on retrieving and reading context responses, including backend vs frontend symbol filtering.
+See [../datex-studio-shared/context-navigation.md](../datex-studio-shared/context-navigation.md) for the full guide on retrieving and reading context responses, including backend vs frontend symbol filtering.
 
 ```bash
 dxs -O json datasource context <file.json> --branch <branch_id>

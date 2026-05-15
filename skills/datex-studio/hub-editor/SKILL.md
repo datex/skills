@@ -8,6 +8,8 @@ description: |
   `dxs configuration update hub`. Trigger for: "add a toolbar button to the X
   hub", "wire a button that opens the Y report", "modify hub N", "change what
   the X button does", "launch report Y from a hub button".
+depends:
+  - datex-studio-shared
 ---
 
 # Hub Editor
@@ -16,8 +18,8 @@ Modify a Datex Studio hub configuration to add toolbar buttons, wire click flows
 
 ## References
 
-- [../shared/branch-setup.md](../shared/branch-setup.md) — Branch selection (shared across skills)
-- [../shared/flow-code-patterns.md](../shared/flow-code-patterns.md) — `$utils.isDefined()`, date defaulting, `$shell.Reports.open{ref}()`
+- [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) — Branch selection (shared across skills)
+- [../datex-studio-shared/flow-code-patterns.md](../datex-studio-shared/flow-code-patterns.md) — `$utils.isDefined()`, date defaulting, `$shell.Reports.open{ref}()`
 - [references/hub-config-api.md](references/hub-config-api.md) — `dxs configuration get/update` workflow for hub configs (and `dxs api --raw / -D / -O` fallback)
 - [references/toolbar-and-click-flows.md](references/toolbar-and-click-flows.md) — `toolbar[]` and `flows[]` JSON structure, `clickFlowConfig` reference, common patterns
 
@@ -100,7 +102,7 @@ to confirm the change took effect
 
 ### Phase 1: Setup
 
-Follow [../shared/branch-setup.md](../shared/branch-setup.md). The branch ID is required by every `dxs configuration` command (`-b/--branch`) — pass it explicitly in skill examples; don't rely on implicit scoping.
+Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md). The branch ID is required by every `dxs configuration` command (`-b/--branch`) — pass it explicitly in skill examples; don't rely on implicit scoping.
 
 ### Phase 2: Locate the hub
 
@@ -142,10 +144,10 @@ A typical "add a toolbar button that launches a report" change touches **both** 
 Hub toolbar buttons execute a Wavelength function as their click handler. If the target click flow function doesn't exist yet, invoke `function-creator` first. The click flow code typically:
 
 1. Reads the hub's date-range / context inputs from `$flow.inParams`
-2. Applies defaults for any missing values — see [../shared/flow-code-patterns.md](../shared/flow-code-patterns.md) for the canonical date-defaulting pattern using `$utils.isDefined()`
+2. Applies defaults for any missing values — see [../datex-studio-shared/flow-code-patterns.md](../datex-studio-shared/flow-code-patterns.md) for the canonical date-defaulting pattern using `$utils.isDefined()`
 3. Calls `$shell.Reports.open{ref}()` (or another shell action) with the resolved parameters
 
-Reference [../shared/flow-code-patterns.md](../shared/flow-code-patterns.md) when authoring the click flow so the function-creator's output uses `$utils.isDefined()` (not `!= null`) and the documented date-defaulting block.
+Reference [../datex-studio-shared/flow-code-patterns.md](../datex-studio-shared/flow-code-patterns.md) when authoring the click flow so the function-creator's output uses `$utils.isDefined()` (not `!= null`) and the documented date-defaulting block.
 
 ### Phase 6: Edit hub.json
 
@@ -197,7 +199,7 @@ The diff should be empty (or contain only server-side fields like `updatedDateTi
 - **Never edit a stale `hub.json`.** Always re-fetch with `dxs configuration get hub` before edits — other users or releases may have modified the hub.
 - **`dxs configuration update` replaces the entire config.** Don't omit fields you didn't intend to change.
 - **`toolbar[]` and `flows[]` must stay in sync.** A toolbar button without a corresponding flow entry won't fire; an orphaned flow entry is harmless but should be cleaned up.
-- **Click flow code must use `$utils.isDefined()`** — see [../shared/flow-code-patterns.md](../shared/flow-code-patterns.md). Native null checks misfire against Wavelength's value model.
+- **Click flow code must use `$utils.isDefined()`** — see [../datex-studio-shared/flow-code-patterns.md](../datex-studio-shared/flow-code-patterns.md). Native null checks misfire against Wavelength's value model.
 - **`$shell.Reports.open{ref}()` parameter keys are case-sensitive and must match the report's `ReportParameters[].Name` exactly.**
 - **Save `hub.json.orig` before editing.** It's your only diff target before push.
 

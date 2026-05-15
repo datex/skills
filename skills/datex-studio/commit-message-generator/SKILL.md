@@ -7,6 +7,8 @@ description: |
   message", "draft a commit for this branch", "what should the commit say",
   "suggest a commit message". For reviewing the branch's code quality, use
   `branch-code-reviewer` instead.
+depends:
+  - datex-studio-shared
 ---
 
 # Commit Message Generator
@@ -19,7 +21,7 @@ the branch's commit UI (or into whatever downstream delivery the user chose).
 
 ## References
 
-- [../shared/branch-setup.md](../shared/branch-setup.md) — Branch selection (the Branch ID Policy applies: always ask, never assume)
+- [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) — Branch selection (the Branch ID Policy applies: always ask, never assume)
 
 ## Prerequisites
 
@@ -61,7 +63,7 @@ Return the message to the user.
 ### Phase 1: Setup
 
 1. Get the branch ID from the user. Follow the Branch ID Policy in
-   [branch-setup.md](../shared/branch-setup.md) — ask, never assume, even if a
+   [branch-setup.md](../datex-studio-shared/branch-setup.md) — ask, never assume, even if a
    branch ID appeared earlier in the session.
 2. Determine the target environment. Default to `prod` unless the user said
    otherwise. `dxs` accepts `--target prod|qa|dev`; if unspecified, `prod` is used.

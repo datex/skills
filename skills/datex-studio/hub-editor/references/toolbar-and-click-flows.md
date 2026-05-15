@@ -1,6 +1,6 @@
 # Toolbar Buttons & Click Flows
 
-JSON shapes and common patterns for the two arrays you'll modify on a hub config: `toolbar[]` (visible buttons) and `flows[]` (the flow functions those buttons can call). For the flow-code patterns themselves (`$utils.isDefined()`, `$shell.Reports.open{ref}()`, date defaulting), see [../../shared/flow-code-patterns.md](../../shared/flow-code-patterns.md).
+JSON shapes and common patterns for the two arrays you'll modify on a hub config: `toolbar[]` (visible buttons) and `flows[]` (the flow functions those buttons can call). For the flow-code patterns themselves (`$utils.isDefined()`, `$shell.Reports.open{ref}()`, date defaulting), see [../../datex-studio-shared/flow-code-patterns.md](../../datex-studio-shared/flow-code-patterns.md).
 
 ## Hub config skeleton
 
@@ -116,7 +116,7 @@ await $shell.Reports.openlabor_summary_report({
 });
 ```
 
-Key details (full rationale in [../../shared/flow-code-patterns.md](../../shared/flow-code-patterns.md)):
+Key details (full rationale in [../../datex-studio-shared/flow-code-patterns.md](../../datex-studio-shared/flow-code-patterns.md)):
 
 - `$utils.isDefined()` — not `!= null`, not `!startDate` — for the null checks
 - `$shell.Reports.open{report_referenceName}(...)` — `open` is a literal prefix, no separator

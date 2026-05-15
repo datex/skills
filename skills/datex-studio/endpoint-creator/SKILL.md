@@ -6,6 +6,8 @@ description: |
   endpoint wiring, and verification. Trigger for: "create an endpoint", "expose this
   flow as an API", "add an API for X", "modify endpoint", "remove endpoint",
   "change endpoint alias", "create an API that does X".
+depends:
+  - datex-studio-shared
 ---
 
 # Endpoint Creator
@@ -15,7 +17,7 @@ flows or datasources as HTTP API routes. Only available for API Applications (ty
 
 ## References
 
-- [../shared/branch-setup.md](../shared/branch-setup.md) -- Branch & connection selection (shared across skills)
+- [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) -- Branch & connection selection (shared across skills)
 - [references/command-syntax.md](references/command-syntax.md) -- All `dxs endpoint` commands with examples
 
 ## Dependencies
@@ -92,7 +94,7 @@ Present focused changelog to user
 
 ### Phase 1: Setup + Validation
 
-1. Follow [branch-setup.md](../shared/branch-setup.md) for branch selection
+1. Follow [branch-setup.md](../datex-studio-shared/branch-setup.md) for branch selection
 2. Run `dxs source branch show <id>` and check `isApiApplication`
    - If false → error: "Endpoints are only supported for API Applications (type 6). This branch belongs to a {appTypeName} application."
 3. Check whether a **requirements brief** already exists in the conversation context

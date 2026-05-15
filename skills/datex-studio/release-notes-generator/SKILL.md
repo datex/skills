@@ -10,6 +10,8 @@ description: |
   X and Y and summarize". For time-range-based anchor picking ("weekly notes",
   "what shipped last week"), use `prospective-release-notes` — it resolves the
   two branch IDs and then invokes this skill.
+depends:
+  - datex-studio-shared
 ---
 
 # Release Notes Generator
@@ -20,7 +22,7 @@ actually changed). Produces both a Technical and a Customer variant.
 
 ## References
 
-- [../shared/branch-setup.md](../shared/branch-setup.md) — Branch selection, when the user has not yet given both branch IDs
+- [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) — Branch selection, when the user has not yet given both branch IDs
 
 ## Prerequisites
 

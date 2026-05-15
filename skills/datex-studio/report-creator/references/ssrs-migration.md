@@ -87,7 +87,7 @@ Consider filtering by name instead of ID for portability (e.g., `OperationCode/N
 
 ## Layout Translation
 
-**Adopt the Datex design language** when migrating — don't replicate SSRS styling. The original SSRS report may use different fonts, colors, row heights, and table borders. Apply the standards from [design-standards.md](../../shared/report-authoring/design-standards.md): Arial font family, Datex color palette (Black, DimGray, LightGray, Gray, Purple #5B08B2), purple header borders instead of gray backgrounds, 0.375in row heights, and the field label-value pattern. The migrated report should look like a native Datex report, not a pixel-perfect copy of the SSRS original.
+**Adopt the Datex design language** when migrating — don't replicate SSRS styling. The original SSRS report may use different fonts, colors, row heights, and table borders. Apply the standards from [design-standards.md](../../datex-studio-shared/report-authoring/design-standards.md): Arial font family, Datex color palette (Black, DimGray, LightGray, Gray, Purple #5B08B2), purple header borders instead of gray backgrounds, 0.375in row heights, and the field label-value pattern. The migrated report should look like a native Datex report, not a pixel-perfect copy of the SSRS original.
 
 | SSRS concept | NextGen equivalent | Notes |
 |-------------|-------------------|-------|
@@ -99,7 +99,7 @@ Consider filtering by name instead of ID for portability (e.g., `OperationCode/N
 | Rectangle | Rectangle | Direct mapping — container element |
 | Image (embedded) | Image with `--file` | `dxs report add image --file logo.png` |
 | Chart | Not directly available | Use alternative visualization or external charting |
-| Page header/footer | PageHeader/PageFooter | Same concept, different JSON structure — see [json-structure.md](../../shared/report-authoring/json-structure.md) |
+| Page header/footer | PageHeader/PageFooter | Same concept, different JSON structure — see [json-structure.md](../../datex-studio-shared/report-authoring/json-structure.md) |
 
 ### Expression differences
 

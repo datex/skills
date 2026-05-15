@@ -6,6 +6,8 @@ description: |
   and adding new data sections. Trigger for: "edit a report", "modify a report",
   "change the label", "add a column", "update the report on branch X",
   "fix the report layout". For creating NEW reports from scratch, use `report-creator`.
+depends:
+  - datex-studio-shared
 ---
 
 # Report Editor
@@ -21,16 +23,16 @@ Workflow for modifying existing RDLX-JSON reports on a Datex Studio branch using
 
 ## References (shared)
 
-- [../shared/branch-setup.md](../shared/branch-setup.md) -- Branch & connection selection
-- [../shared/studio-management.md](../shared/studio-management.md) -- Studio lifecycle: check, start, cleanup
-- [../shared/report-authoring/design-standards.md](../shared/report-authoring/design-standards.md) -- Datex design language: color palette, typography, table styling, field label-value pattern, grid alignment, report categories
-- [../shared/report-authoring/design-patterns.md](../shared/report-authoring/design-patterns.md) -- Coordinate system, layout patterns, element sizing
-- [../shared/report-authoring/json-structure.md](../shared/report-authoring/json-structure.md) -- RDLX-JSON format: document template, element JSON formats, expression quick reference
-- [../shared/report-authoring/cli-commands.md](../shared/report-authoring/cli-commands.md) -- CLI syntax: batch ops, tablix, images, datasets, set/move/remove, validation
-- [../shared/report-authoring/sample-data.md](../shared/report-authoring/sample-data.md) -- Sample data format for live preview
-- [../shared/report-authoring/dataset-rules.md](../shared/report-authoring/dataset-rules.md) -- DataSet management: CommandText rules, collection handling, date annotations, sensitivity properties
-- [../shared/report-authoring/deploy-patterns.md](../shared/report-authoring/deploy-patterns.md) -- Upload, preview, and verification patterns
-- [../shared/report-authoring/troubleshooting.md](../shared/report-authoring/troubleshooting.md) -- Common RDLX-JSON and CLI mistakes & fixes
+- [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) -- Branch & connection selection
+- [../datex-studio-shared/studio-management.md](../datex-studio-shared/studio-management.md) -- Studio lifecycle: check, start, cleanup
+- [../datex-studio-shared/report-authoring/design-standards.md](../datex-studio-shared/report-authoring/design-standards.md) -- Datex design language: color palette, typography, table styling, field label-value pattern, grid alignment, report categories
+- [../datex-studio-shared/report-authoring/design-patterns.md](../datex-studio-shared/report-authoring/design-patterns.md) -- Coordinate system, layout patterns, element sizing
+- [../datex-studio-shared/report-authoring/json-structure.md](../datex-studio-shared/report-authoring/json-structure.md) -- RDLX-JSON format: document template, element JSON formats, expression quick reference
+- [../datex-studio-shared/report-authoring/cli-commands.md](../datex-studio-shared/report-authoring/cli-commands.md) -- CLI syntax: batch ops, tablix, images, datasets, set/move/remove, validation
+- [../datex-studio-shared/report-authoring/sample-data.md](../datex-studio-shared/report-authoring/sample-data.md) -- Sample data format for live preview
+- [../datex-studio-shared/report-authoring/dataset-rules.md](../datex-studio-shared/report-authoring/dataset-rules.md) -- DataSet management: CommandText rules, collection handling, date annotations, sensitivity properties
+- [../datex-studio-shared/report-authoring/deploy-patterns.md](../datex-studio-shared/report-authoring/deploy-patterns.md) -- Upload, preview, and verification patterns
+- [../datex-studio-shared/report-authoring/troubleshooting.md](../datex-studio-shared/report-authoring/troubleshooting.md) -- Common RDLX-JSON and CLI mistakes & fixes
 
 ## Dependencies
 
@@ -67,7 +69,7 @@ report-editor (this skill)
 
 ### Select branch and find report
 
-Follow [branch-setup.md](../shared/branch-setup.md) for branch/connection selection.
+Follow [branch-setup.md](../datex-studio-shared/branch-setup.md) for branch/connection selection.
 
 Then list reports on the branch:
 
@@ -223,11 +225,11 @@ Proceed?
 
 For ANY change that involves layout (Categories 1-3, or layout portions of Categories 4-5), ensure Studio is running and the report is open for live preview BEFORE making modifications.
 
-**Auto-manage Studio** per [../shared/studio-management.md](../shared/studio-management.md): check status, start in background if needed (with readiness verification), open the report, and clean up after Phase 4.
+**Auto-manage Studio** per [../datex-studio-shared/studio-management.md](../datex-studio-shared/studio-management.md): check status, start in background if needed (with readiness verification), open the report, and clean up after Phase 4.
 
 ### Category 1-2: Layout-only changes
 
-Use CLI commands per [cli-commands.md](../shared/report-authoring/cli-commands.md):
+Use CLI commands per [cli-commands.md](../datex-studio-shared/report-authoring/cli-commands.md):
 
 ```bash
 # Change a label
@@ -260,7 +262,7 @@ dxs report batch <file> --ops-file /tmp/ops.json
 
 **Batch limit: maximum 25 operations per call.** If you have more than 25 operations, split them into multiple batch calls. Group logically (e.g., first batch for repositioning, second for styling and new elements).
 
-Apply [design-standards.md](../shared/report-authoring/design-standards.md) for any new or modified elements: Arial font family, official color palette, 0.25in grid alignment.
+Apply [design-standards.md](../datex-studio-shared/report-authoring/design-standards.md) for any new or modified elements: Arial font family, official color palette, 0.25in grid alignment.
 
 **Lines require special handling.** Lines use `StartPoint`/`EndPoint` with `start-x`/`start-y`/`end-x`/`end-y` -- NOT `left`/`top`/`width`/`height`. The `move` command does not work on lines. Edit line positions in JSON directly or use batch `set` with endpoint flags.
 
@@ -290,7 +292,7 @@ The field is available in the datasource output but was not included in the repo
 dxs report dataset add-field <file> --dataset <DataSetName> --field "New.Field.Path"
 ```
 
-Follow [dataset-rules.md](../shared/report-authoring/dataset-rules.md) for:
+Follow [dataset-rules.md](../datex-studio-shared/report-authoring/dataset-rules.md) for:
 - Date annotations: append `[Date|YYYY-MM-DDTHH:mm:ss.fffffff]` to date fields
 - Collection handling: collection fields cannot be added as flat DataSet fields on a single-result DataSet
 - CommandText: verify the DataSet's CommandText pattern is correct for the result type
@@ -334,9 +336,9 @@ A new section requires data from an entity or relationship not covered by any ex
 1. **Gather requirements** for the new section (what data, what layout). A brief conversation usually suffices -- only invoke `requirements-gathering` if the section is complex.
 2. **Invoke `schema-explorer`** to find the right OData entity and fields
 3. **Invoke `datasource-creator`** to create the datasource config, then `dxs report datasource add <folder> --owned <file>:<alias>` (owned preferred, standalone if shared)
-4. **Add DataSet** per [dataset-rules.md](../shared/report-authoring/dataset-rules.md) -- use the field summary from datasource-creator as the primary source for field names, include ALL fields
+4. **Add DataSet** per [dataset-rules.md](../datex-studio-shared/report-authoring/dataset-rules.md) -- use the field summary from datasource-creator as the primary source for field names, include ALL fields
 5. **Build layout** (rectangle container, textboxes, or tablix) using `dxs report batch`
-6. **Create/update sample data** per [sample-data.md](../shared/report-authoring/sample-data.md) if needed for preview
+6. **Create/update sample data** per [sample-data.md](../datex-studio-shared/report-authoring/sample-data.md) if needed for preview
 
 For DataSet creation:
 
@@ -364,7 +366,7 @@ OPEOF
 dxs report batch <file> --ops-file /tmp/new-section-ops.json
 ```
 
-For tables, use `dxs report add tablix` -- see [cli-commands.md](../shared/report-authoring/cli-commands.md) for full syntax including grouping, footer rows, and sort expressions.
+For tables, use `dxs report add tablix` -- see [cli-commands.md](../datex-studio-shared/report-authoring/cli-commands.md) for full syntax including grouping, footer rows, and sort expressions.
 
 ### Feedback iteration
 
@@ -390,7 +392,7 @@ dxs report upload <reference_name>.json --branch <branch_id>
 
 If you added or removed datasources during Phase 3, those changes are already reflected in the manifest via `dxs report datasource add/remove`.
 
-Follow [deploy-patterns.md](../shared/report-authoring/deploy-patterns.md) for additional upload patterns and verification.
+Follow [deploy-patterns.md](../datex-studio-shared/report-authoring/deploy-patterns.md) for additional upload patterns and verification.
 
 ### Verify
 
@@ -402,12 +404,12 @@ Confirm the report is on the branch with the expected structure, datasource bind
 
 ### Test parameter discovery
 
-If the datasource has `in_params`, follow [deploy-patterns.md](../shared/report-authoring/deploy-patterns.md) to discover real test values and output them as JSON for the user to test in Studio.
+If the datasource has `in_params`, follow [deploy-patterns.md](../datex-studio-shared/report-authoring/deploy-patterns.md) to discover real test values and output them as JSON for the user to test in Studio.
 
 
 ## Troubleshooting
 
-See [troubleshooting.md](../shared/report-authoring/troubleshooting.md) for common RDLX-JSON expression issues and layout/CLI mistakes.
+See [troubleshooting.md](../datex-studio-shared/report-authoring/troubleshooting.md) for common RDLX-JSON expression issues and layout/CLI mistakes.
 
 ### Editor-Specific Issues
 

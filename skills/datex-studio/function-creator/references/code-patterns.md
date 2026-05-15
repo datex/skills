@@ -2,7 +2,7 @@
 
 Common patterns for writing Wavelength function code. All code runs inside the function's execution scope with access to `$flow`, `$utils`, and the services from `dxs function context`.
 
-> **See also** — [../../shared/flow-code-patterns.md](../../shared/flow-code-patterns.md) for cross-skill patterns that apply equally to functions, flow datasources, and hub click flows: `$utils.isDefined()` semantics, date defaulting, `$shell.Reports.open{ref}()` from click flows, and OData pagination (the 5,000-record cap).
+> **See also** — [../../datex-studio-shared/flow-code-patterns.md](../../datex-studio-shared/flow-code-patterns.md) for cross-skill patterns that apply equally to functions, flow datasources, and hub click flows: `$utils.isDefined()` semantics, date defaulting, `$shell.Reports.open{ref}()` from click flows, and OData pagination (the 5,000-record cap).
 
 ## Setting Output
 
@@ -62,7 +62,7 @@ while (true) {
 }
 ```
 
-See [../../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap) for the full pattern, including the datasource query shape and the `--detect-params` wiring that makes `skip` an actual parameter. The truncation is silent — no error fires when a function blindly trusts a single non-paginated call.
+See [../../datex-studio-shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../../datex-studio-shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap) for the full pattern, including the datasource query shape and the `--detect-params` wiring that makes `skip` an actual parameter. The truncation is silent — no error fires when a function blindly trusts a single non-paginated call.
 
 ## Utilities ($utils)
 
