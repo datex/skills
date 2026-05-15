@@ -185,6 +185,18 @@ Represent the DataSet to use to obtain a list of values and, optionally, labels 
 | `ValueField` | `string` | **Y** | The name of the field in the referenced DataSet from which values are retrieved to populate the values of a parameter’s valid values or default value |
 | `LabelField` | `string` |  | The name of the field in the referenced DataSet from which values are retrieved to populate the labels of a parameter’s valid values |
 
+**`ValueField` casing must match the dataset's field `Name` exactly.** When the dataset comes from an OData query, fields use PascalCase (`Id`, `Name`, `LookupCode`). Using lowercase `"id"` populates the parameter dropdown with visible labels but the underlying value passed to downstream datasources is `null` — every cascading filter then silently fails. Always check the dataset's `Fields[].Name` and copy the casing exactly.
+
+```json
+"ValidValues": {
+  "DataSetReference": {
+    "DataSetName": "ds_warehouses",
+    "ValueField": "Id",        // ← uppercase: matches OData field name
+    "LabelField": "Name"
+  }
+}
+```
+
 ---
 
 ### DataSource

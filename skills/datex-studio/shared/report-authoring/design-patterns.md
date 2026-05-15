@@ -331,6 +331,34 @@ Rectangles with `ReportItems` act as container elements — children use **relat
 
 See [json-structure.md](json-structure.md) for the full Rectangle as Container JSON example.
 
+### Displaying Parameter Labels
+
+When a parameter is sourced from a dataset (e.g., a Warehouse picker with `ValidValues.DataSetReference`), the rendered report often needs to display the **label** (e.g., "Tampa") rather than the underlying value (e.g., `42`). The intuitive expression is `=Parameters!Warehouse.Label`, but this is **unreliable server-side**.
+
+`Parameters!Param.Label` works in Studio's live preview because the client retains the selection's label, but the server-rendered output may receive only the parameter's `Value` (the `Label` is a client-side display hint, not always passed through the rendering pipeline). The textbox then renders blank or shows the raw ID.
+
+**Reliable pattern:** look up the label from the source dataset using `Lookup()`:
+
+```
+=Lookup(CInt(Parameters!Warehouse.Value), Fields!Id.Value, Fields!Name.Value, "ds_warehouses")
+```
+
+Where:
+- `CInt(Parameters!Warehouse.Value)` — the selected value, cast to match the dataset's key type
+- `Fields!Id.Value` — the key field in the lookup dataset
+- `Fields!Name.Value` — the display field to return
+- `"ds_warehouses"` — the lookup dataset's name
+
+This works both in preview and server-side because it pulls the label from data that's always present in the rendered output.
+
+**Type casting matters:** `Parameters!X.Value` is a string. If the lookup dataset's key field is numeric, wrap with `CInt(...)` (or `CLng(...)` for long IDs). Without the cast, the type mismatch causes `Lookup()` to return `Nothing`.
+
+For multi-value parameters, use `LookupSet(...)` (returns an array) combined with `Join(...)`:
+
+```
+=Join(LookupSet(Split(Join(Parameters!Warehouses.Value, ","), ","), Fields!Id.Value, Fields!Name.Value, "ds_warehouses"), ", ")
+```
+
 ### Changing Margins (Checklist)
 
 Changing page margins affects multiple interdependent properties. Use this checklist to avoid missed updates:

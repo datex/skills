@@ -141,6 +141,8 @@ You MUST invoke the `datasource-creator` skill for EVERY datasource in this phas
 Examples and templates are hypotheses. Schema exploration against the CURRENT connection is the validation. Entity availability, property names, types, and relationships vary between connections.
 </HARD-GATE>
 
+> **Footprint reports — check `footprint-entity-expert` first.** If the report queries Footprint WMS entities (Tasks, Shipments, ArchivedShippingLicensePlateContents, LicensePlate, Lot, Material, etc.), the `footprint-entity-expert` skill has navigation chains, weight-calc rules, and entity-selection guidance that schema metadata alone won't tell you. Consult it before invoking `datasource-creator` so the schema exploration is targeted at the right entities. Skip this for non-Footprint apps.
+
 For each datasource the report needs:
 1. Invoke `datasource-creator` skill with mode = `owned` (preferred) or `standalone`
 2. Datasource-creator invokes `schema-explorer` and `odata-execution` to validate entities and properties against the live connection
@@ -148,6 +150,18 @@ For each datasource the report needs:
 4. Collect the return summary: JSON config file path, reference name, result type, in_params, and **field summary** (used in Phase 3 Step 5 for DataSet creation)
 
 Repeat for each datasource needed by the report.
+
+### Volume awareness: the 5,000-record OData cap
+
+OData endpoints return **at most 5,000 records per request**. For any datasource that aggregates over a date range, multiple owners/projects, or any other dimension that produces high record counts (`Tasks`, `ArchivedShippingLicensePlateContents`, `Shipments`, etc.), the report will silently truncate to the first 5k rows unless the underlying flow paginates.
+
+**When designing the datasource:**
+
+- Single-record OData datasources (`--param-keys`, e.g., `Shipments(0)`) — no pagination needed.
+- Collection OData datasources backing a tablix (typical line-items query) — usually no pagination needed if the parent filter already bounds the rows (e.g., `ShipmentLines?$filter=ShipmentId eq X`).
+- Flow datasources that aggregate over date ranges, warehouses, owners, etc. — **must paginate**. Surface this to the `datasource-creator` invocation so the standalone OData datasources it builds declare a `skip` inParam, and the flow code loops until a short page comes back.
+
+See [../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap) for the wiring details and the canonical loop. If you don't paginate when you should, the report under-counts at busy warehouses without any error — the symptom is silent data loss.
 
 ### Coverage gate: requirements vs datasource fields
 

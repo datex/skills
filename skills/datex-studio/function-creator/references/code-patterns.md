@@ -2,6 +2,8 @@
 
 Common patterns for writing Wavelength function code. All code runs inside the function's execution scope with access to `$flow`, `$utils`, and the services from `dxs function context`.
 
+> **See also** — [../../shared/flow-code-patterns.md](../../shared/flow-code-patterns.md) for cross-skill patterns that apply equally to functions, flow datasources, and hub click flows: `$utils.isDefined()` semantics, date defaulting, `$shell.Reports.open{ref}()` from click flows, and OData pagination (the 5,000-record cap).
+
 ## Setting Output
 
 Functions set their return values via `$flow.outParams.*`. Do NOT use `return`.
@@ -43,6 +45,25 @@ const orders = listResp.result; // array
 
 **Rule of thumb:** The `dxs function context` output defines the exact interface. Check `IFlowsService` and `IDatasourceService` in the `appContext` — if services are nested under a module namespace, use the module prefix. If they're at the root level, no prefix needed.
 
+### Paginated calls (5,000-record OData cap)
+
+OData endpoints cap responses at 5,000 records. A function that aggregates `Tasks`, `ArchivedShippingLicensePlateContents`, `Shipments`, or any high-volume entity over a date range must call its source datasource in a paged loop — the standalone datasource must declare a `skip` inParam:
+
+```typescript
+const PAGE_SIZE = 5000;
+const results = [];
+let skip = 0;
+while (true) {
+    const resp = await $datasources.Reports.ds_recv_tasks.getList({ warehouseId, fromDate, toDate, skip });
+    const page = resp.result ?? [];
+    results.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    skip += PAGE_SIZE;
+}
+```
+
+See [../../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap) for the full pattern, including the datasource query shape and the `--detect-params` wiring that makes `skip` an actual parameter. The truncation is silent — no error fires when a function blindly trusts a single non-paginated call.
+
 ## Utilities ($utils)
 
 ```typescript
@@ -54,8 +75,8 @@ const startOfMonth = $utils.date.startOf('month');
 
 // Misc
 const guid = $utils.createGuid();
-const isDef = $utils.isDefined(value);
-const allDef = $utils.isAllDefined(a, b, c);
+const isDef = $utils.isDefined(value);       // ← always use this for null/undefined checks
+const allDef = $utils.isAllDefined(a, b, c); // ← multi-arg variant
 
 // OData formatting
 const formattedId = $utils.odata.formatNumber(42);

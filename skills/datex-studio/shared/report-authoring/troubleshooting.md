@@ -19,6 +19,9 @@
 | Adding collection-path fields as flat DataSet fields (e.g., `OrderLookups.Order.OwnerReference`) | Collection navigation properties (`isCollection: true` in the type def) silently resolve to blank in single-result DataSets. Use a flow datasource to flatten, or create child datasets with `CommandText: "$.ds.result.Collection.*"` and `First()` expressions |
 | `CommandText: "$.ds.result"` for a collection datasource | Must be `$.ds.result.*` -- without `.*`, table/tablix gets no rows |
 | `$dataset:ParentDs/CollectionField` on an OData datasource | `$dataset:` child datasets only work with flow datasources. For OData, use `CommandText: "$.ds.result.CollectionPath.*"` with `DataSourceName: "Datasource"` instead |
+| `=Sum(Fields!X.Value)` in a report with multiple DataSets | Multi-dataset reports require the dataset name as a second arg: `=Sum(Fields!X.Value, "ds_lines")`. Without it, Studio preview may render correctly but server-side rendering raises "ambiguous field" errors. Applies to `Sum`, `Avg`, `Min`, `Max`, `Count`, `CountDistinct`, `StDev`. See [dataset-rules.md](dataset-rules.md) |
+| `=Parameters!Warehouse.Label` rendering blank server-side | `Parameters!*.Label` works in Studio preview but is unreliable when rendered by the server. Use `=Lookup(CInt(Parameters!Warehouse.Value), Fields!Id.Value, Fields!Name.Value, "ds_warehouses")` instead. See "Displaying Parameter Labels" in [design-patterns.md](design-patterns.md) |
+| Parameter dropdown shows labels but submits `null` | `ValidValues.DataSetReference.ValueField` is lowercase (e.g., `"id"`). Must be `"Id"` to match OData field casing. Lowercase populates the UI but the underlying value passed downstream is null |
 
 ## Upload & Deployment Issues
 

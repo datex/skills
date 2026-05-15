@@ -15,6 +15,10 @@ OData schema discovery using `dxs schema` commands.
 - [references/batch-syntax.md](references/batch-syntax.md) — Batch command syntax, argument styles, describe-entity flags, anti-patterns
 - [references/subagent-template.md](references/subagent-template.md) — Subagent delegation prompt
 
+## Footprint connections — check the entity-expert skill first
+
+If the connection is a `FootPrintApi` connection (Footprint WMS data — Tasks, Shipments, ArchivedShippingLicensePlateContents, LicensePlate, Lot, Material, etc.), check the `footprint-entity-expert` skill **before** exploring schema. It captures navigation chains, business-rule filters, and weight calculations that aren't visible in OData metadata — and tells you which entity actually backs a given business concept (e.g., "shipped inventory" → ASLPC, not Shipments). Skip this for non-Footprint connections.
+
 ## Resolving the Connection
 
 Schema commands require a connection ID (`-c <id>`). The user may or may not provide one explicitly.

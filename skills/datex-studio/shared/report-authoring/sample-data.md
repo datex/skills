@@ -2,6 +2,17 @@
 
 When designing a report, create a companion `<report>.data.json` file alongside the report file. This provides sample data for previewing and validating the report layout.
 
+## Common Mistake: Wrong Wrapper Shape
+
+The `.data.json` format is **not** the same as the OData API response shape. Reports preview against a `dataSets` wrapper; the OData runtime returns `result.*` arrays. Mixing them up is a recurring error — the preview file looks valid but Studio shows "no matching DataSet in report" warnings and field expressions render as raw text.
+
+| Format | Use for | Shape |
+|--------|---------|-------|
+| Preview file (`<report>.data.json`) | Studio live preview, `dxs report preview` | `{ "dataSets": { "ds_name": { "data": [ {...} ] } } }` |
+| OData response (what `$datasources.*.getList()` returns at runtime) | Flow code | `{ "result": [ {...} ] }` (or `{ "result": {...} }` for single-entity) |
+
+If you have a real API response dump and want to use it as preview data, transform it: wrap each `ds_name.result` array under `dataSets.<DataSetName>.data`.
+
 ## File Convention
 
 Place the data file next to the report with the same base name:

@@ -23,6 +23,8 @@ and the `odata-execution` skill for query building and verification.
 **Schema exploration is mandatory for ODATA datasources** —
 The type definition must be built from validated schema, not from examples or templates alone. Flow datasources might aggregate data from OData queries under the hood but if it works with already existing datasources, we assume they are already verified.
 
+> **Footprint connections — consult `footprint-entity-expert` first.** If the datasource will query Footprint WMS entities (Tasks, Shipments, ArchivedShippingLicensePlateContents, LicensePlate, Lot, Material, etc.), check `footprint-entity-expert` before schema exploration. It documents which entity backs a given business concept, the correct navigation chain to Owner/Project, weight-calc branching, and pagination obligations — context that the OData metadata doesn't surface. Skip for non-Footprint connections (custom apps, non-WMS data).
+
 ### Prerequisites check
 
 Before starting schema exploration or datasource generation, check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or `report-creator`).
@@ -246,6 +248,14 @@ const result = await $datasource.getList({ query: 'Shipments(123)?$expand=Carrie
 | `$datasources.RepoName.ds_name.getList({ paramName: value })` | The OData datasource returns a collection | Array of objects |
 
 Pass input parameters as an object — the keys must match the OData datasource's `inParams` exactly.
+
+### Pagination for high-volume collection datasources
+
+OData responses are capped at **5,000 records per request**. A flow that aggregates `Tasks`, `ArchivedShippingLicensePlateContents`, `Shipments`, or any other entity over a date range or multi-warehouse scope must paginate explicitly — there's no automatic continuation, and the truncation is silent.
+
+To paginate, the standalone OData datasource the flow calls must declare a `skip` inParam, and its query must use `$top=5000&$skip=${$datasource.inParams.skip}`. Then the flow loops with `getList({ ..., skip })`, breaking when a short page comes back.
+
+See [../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap) for the full pattern — datasource query shape, the `--detect-params` requirement, and the canonical fetch loop. If you're building a flow datasource whose underlying queries could exceed 5k rows, build the underlying OData datasources with pagination wired from the start; retrofitting later requires regenerating both the datasource and the flow code.
 
 **`--param-keys` creates named params, NOT a `keys` array.** When an OData datasource uses `--param-keys` (e.g., `Shipments(0)`), the generator creates `inParams` named after the entity key (e.g., `shipmentId`). Always check the generated config's `inParams` to get the exact param name. **Never** use `{ keys: [value] }` — that pattern does not exist.
 

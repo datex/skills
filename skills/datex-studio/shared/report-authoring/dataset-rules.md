@@ -49,6 +49,22 @@ Then reference fields with `=First(Fields!Order_OwnerReference.Value, "ds_shipme
 
 Use `=First(Fields!X.Value, "ds_other")` for fields from non-default datasets. Standalone textboxes resolve against the first DataSet by default.
 
+## Aggregates with Multiple DataSets
+
+When a report has more than one DataSet, **every aggregate expression must specify the dataset name** as a second argument:
+
+```
+=Sum(Fields!Amount.Value, "ds_lines")           ← REQUIRED with multi-dataset reports
+=Avg(Fields!Weight.Value, "ds_shipment_lines")  ← same rule for Avg, Min, Max, Count
+=Sum(Fields!Amount.Value)                       ← AMBIGUOUS — fails at render time
+```
+
+This applies to `Sum`, `Avg`, `Min`, `Max`, `Count`, `CountDistinct`, `StDev`, and any other aggregate. Inside a tablix or table cell, the cell's dataset context resolves the field implicitly — but **standalone textboxes (in the body, headers, footers) have no implicit dataset** and the engine cannot pick a default when multiple datasets exist.
+
+The failure mode is sneaky: Studio's local preview may render the aggregate correctly because it falls back to the first dataset, but server-side rendering raises "ambiguous field" errors. Always include the dataset name on aggregates in any report with two or more DataSets.
+
+`Lookup()` follows the same shape (`Lookup(source, dest, result, "dataset_name")`) but the dataset name is required by its own signature, so it's harder to forget.
+
 ## Date Type Annotation
 
 Date DataFields need the `[Date|YYYY-MM-DDTHH:mm:ss.fffffff]` suffix:
