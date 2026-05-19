@@ -178,7 +178,7 @@ dxs datasource generate \
 | `-r` | Reference name (valid JS identifier, `ds_` prefix convention) |
 | `-t` | Display title (must match `-r` -- see Naming Convention) |
 | `-d` | Description (always provide) |
-| `--api-setting-name` | App-level name from `dxs source branch settings` (NOT the manager connection name) |
+| `--api-setting-name` | App-level `name` from `dxs source branch settings` (NOT the manager connection name). Optional -- omit and the CLI auto-resolves from the branch's AppConfig settings (handles legacy `apiConnectionId`, ID-as-string, and connection-name shapes). Pass explicitly only to disambiguate when multiple API-connection settings exist. |
 | `--param-keys` | For single-entity queries with `Entity(0)` pattern |
 | `--detect-params` | Detect required filter parameters using `${$datasource.inParams.paramName}` syntax |
 | `--dynamic-filter PROP:TYPE` | Optional UI filtering (generates conditional filter with `$utils.isDefined()` guard) |
@@ -416,7 +416,8 @@ DataSet.Name = "ds_my_report"                  # RDLX-JSON
 
 | Mistake | Fix |
 |---------|-----|
-| Using manager connection name as `--api-setting-name` | Use app-level `name` from `branch settings` |
+| Using manager connection name as `--api-setting-name` | Use app-level `name` from `branch settings`, or omit the flag entirely and let the CLI auto-resolve from the branch's AppConfig |
+| Assuming `apiConnectionId` is always present in `branch settings` output | Post-AppConfig-migration, each setting is `{ name, settingType, value }`. Legacy fields may be absent. Use `name` for `--api-setting-name` and look up the connection ID via `dxs organization connection list --search <name>` |
 | `{Param}` instead of `${$datasource.inParams.Param}` in filter | `--detect-params` requires template literal syntax -- simple `{curly braces}` are silently ignored |
 | Using only `--dynamic-filter` for required params | Dynamic filters are optional UI filters -- use `--detect-params` with template literals for required params |
 | Not verifying `in_params` after upsert | Always run `datasource-fields` and confirm `in_params` is populated, not empty |

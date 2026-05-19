@@ -30,7 +30,7 @@ Modify a Datex Studio hub configuration to add toolbar buttons, wire click flows
 
 ## CLI Status
 
-Hub edits go through `dxs configuration` — the generic CRUD primitive over every platform configuration type (hub, grid, form, flow, etc.). The full round-trip is:
+Hub edits go through `dxs configuration` — the generic CRUD primitive over every platform configuration type (hub, grid, form, flow, footprintquerymanager, appconfig, etc.; run `dxs configuration types` to list all). The full round-trip is:
 
 ```bash
 dxs configuration get hub <configId> -b <branchId> -O hub.json   # fetch

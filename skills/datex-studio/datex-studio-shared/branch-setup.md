@@ -58,9 +58,15 @@ Never assume or reuse a branch ID from memory. Always ask the user to confirm wh
 dxs source branch settings <branch_id>
 ```
 
-Present API connections using **AskUserQuestion** (skip if only one -- just inform the user). Store both:
-- The `apiConnectionId` (used for `-c` flag)
-- The `name` (used for `--api-setting-name`)
+Each item is an AppConfig setting record, minimally `{ name, settingType, value }`. For an API-connection setting, `settingType` is the enum string `"ApiConnection"` and `value` holds the connection name (post-AppConfig-migration) or the connection ID as a string (mixed-state environments). Legacy fields such as `apiConnectionId`, `apiConnectionName`, and `settingTypeId` may or may not be present -- do NOT rely on them.
+
+Present API connections using **AskUserQuestion** (skip if only one -- just inform the user). Store:
+- The `name` (used for `--api-setting-name`, or rely on auto-resolve -- see below)
+- The connection ID (used for `-c` flag) -- look it up via `dxs organization connection list --search <name>` rather than reading it off the settings record
+
+### Auto-resolving `--api-setting-name`
+
+`dxs datasource generate` will auto-resolve the API setting name from the branch's AppConfig if you omit `--api-setting-name`. The resolver handles all three legacy/migrated shapes (legacy `apiConnectionId` match, `value == str(connection_id)`, or `value == <connection name>`), so the omit-and-auto-resolve pattern is the most portable choice. Pass `--api-setting-name` explicitly only when there are multiple API-connection settings on the branch and you need to disambiguate.
 
 ### Finding a Customer's Connection
 

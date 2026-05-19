@@ -14,7 +14,7 @@ dxs configuration get hub <configId> -b <branchId> -O hub.json
 dxs configuration update hub <configId> -b <branchId> -D hub.json
 ```
 
-That's the entire round-trip. The same pattern works for any config type — substitute `flow`, `grid`, `form`, `editor`, `report`, etc. (`dxs configuration types` lists the supported names).
+That's the entire round-trip. The same pattern works for any config type — substitute `flow`, `grid`, `form`, `editor`, `report`, `footprintquerymanager`, `appconfig`, etc. (`dxs configuration types` lists the supported names).
 
 ### Finding the IDs
 
