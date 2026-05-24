@@ -14,7 +14,6 @@ dxs datasource generate \
   -r ds_my_report \
   -t "ds_my_report" \
   -d "Description" \
-  --api-setting-name FootPrintAPI \
   --branch <id> \
   --detect-params \
   -o ds_my_report.json

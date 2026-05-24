@@ -93,7 +93,6 @@ dxs datasource generate -c <id> \
   -q 'Tasks?$top=5000&$skip=${$datasource.inParams.skip}&$filter=...' \
   --detect-params \
   -r ds_recv_tasks -t "ds_recv_tasks" -d "Receiving tasks (paged)" \
-  --api-setting-name FootPrintAPI \
   --branch <id> -o ds_recv_tasks.json
 ```
 
