@@ -18,7 +18,7 @@
         "The generate command query includes $select with at least ShippedDate (or similar date field)",
         "The generate command query includes $expand referencing Carrier and Status (or their entity set equivalents, e.g. Carrier($select=Name) and Status($select=Name))",
         "The generate command includes --dynamic-filter with a status-related property (e.g., StatusId:number or Status/Name:string)",
-        "The generate command includes --api-setting-name with a value obtained from 'dxs source branch settings' (not a guessed value like 'FootPrintAPI')",
+        "The generate command either omits --api-setting-name (letting the CLI auto-resolve from the branch's AppConfig) or passes a value derived from 'dxs source branch settings' -- it must NOT pass a hardcoded/guessed value like 'FootPrintAPI'",
         "The transcript contains a 'dxs datasource validate' command run before upsert",
         "The transcript contains a 'dxs datasource upsert' command",
         "The transcript contains a 'dxs report datasource-fields ds_eval_shipments' command after upsert",
