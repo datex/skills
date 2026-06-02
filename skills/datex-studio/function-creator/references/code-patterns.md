@@ -1,6 +1,6 @@
 # Function Code Patterns
 
-Common patterns for writing Wavelength function code. All code runs inside the function's execution scope with access to `$flow`, `$utils`, and the services from `dxs function context`.
+Common patterns for writing Datex Studio function code. All code runs inside the function's execution scope with access to `$flow`, `$utils`, and the services from `dxs function context`.
 
 > **See also** — [../../datex-studio-shared/flow-code-patterns.md](../../datex-studio-shared/flow-code-patterns.md) for cross-skill patterns that apply equally to functions, flow datasources, and hub click flows: `$utils.isDefined()` semantics, date defaulting, `$shell.Reports.open{ref}()` from click flows, and OData pagination (the 5,000-record cap).
 

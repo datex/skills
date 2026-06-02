@@ -33,3 +33,102 @@ npx skills add <repo-url> -s report-creator -s datex-studio-shared
 ### Why `datex-studio-shared` exists as a skill
 
 Cross-skill content used to live in a plain `shared/` directory. `npx skills` only copies directories that contain a `SKILL.md`, so sibling non-skill directories were silently dropped on install. Promoting the content to a real skill with its own `SKILL.md` is the only pattern that travels through every installer today.
+
+## Skill catalog
+
+**36 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
+
+### Datex Studio — Component creators (13)
+
+Skills for authoring NEW component configurations on a branch. Each owns the rules and lifecycle for one component type.
+
+| Skill | What it creates | configurationTypeId |
+|---|---|---|
+| [`action-creator`](skills/datex-studio/action-creator/SKILL.md) | Server-tier transactional flows (`*-footprintFlow.json`) | 18 |
+| [`backend-test-creator`](skills/datex-studio/backend-test-creator/SKILL.md) | Mocha test suites (`*-backendTest.json`) | 24 |
+| [`datasource-creator`](skills/datex-studio/datasource-creator/SKILL.md) | OData and flow datasources (`*-datasource.json`, `*-footprintDatasource.json`) | 6 / 19 |
+| [`editor-creator`](skills/datex-studio/editor-creator/SKILL.md) | Single-entity view/edit screens (`*-editor.json`) | 4 |
+| [`endpoint-creator`](skills/datex-studio/endpoint-creator/SKILL.md) | API endpoints exposing flows or datasources as HTTP routes | 26 |
+| [`form-creator`](skills/datex-studio/form-creator/SKILL.md) | Transient-input forms and dialog openers (`*-form.json`) | 5 |
+| [`function-creator`](skills/datex-studio/function-creator/SKILL.md) | Backend functions / flows (`*-flow.json`) | 9 |
+| [`grid-creator`](skills/datex-studio/grid-creator/SKILL.md) | Data grids — densest creator (`*-grid.json`) | 3 |
+| [`hub-creator`](skills/datex-studio/hub-creator/SKILL.md) | Filter-driven hub containers (`*-hub.json`) | 2 |
+| [`report-creator`](skills/datex-studio/report-creator/SKILL.md) | RDLX-JSON reports (Active Reports JS) | — |
+| [`selector-creator`](skills/datex-studio/selector-creator/SKILL.md) | Datasource-backed dropdowns / autocompletes (`*-selector.json`) | 7 |
+| [`storage-creator`](skills/datex-studio/storage-creator/SKILL.md) | Cloud-persisted Mongo storage (`*-storage.json`) | 17 |
+| [`type-definition-creator`](skills/datex-studio/type-definition-creator/SKILL.md) | Interfaces (`i_*`) and enums (`e_*`) (`*-customType.json`) | 22 |
+
+### Datex Studio — Component editors (2)
+
+Modifying EXISTING component configurations.
+
+| Skill | What it modifies |
+|---|---|
+| [`hub-editor`](skills/datex-studio/hub-editor/SKILL.md) | Toolbar buttons and click flows on an existing hub |
+| [`report-editor`](skills/datex-studio/report-editor/SKILL.md) | 5-category triage (label/style, rearrange, add column, datasource gap, new section) |
+
+### Datex Studio — Tailoring (1)
+
+| Skill | Purpose |
+|---|---|
+| [`tailoring-overlay`](skills/datex-studio/tailoring-overlay/SKILL.md) | Extend a core-library component via `baseConfiguration` overlay; flatten tailored → standalone custom |
+
+### Datex Studio — Validators (3)
+
+Audit-only skills (no mutations). Invoked as the final gate after authoring/modifying.
+
+| Skill | Scope |
+|---|---|
+| [`component-validator`](skills/datex-studio/component-validator/SKILL.md) | Generic single-file audit; routes by file suffix to the matching creator's rules |
+| [`grid-validator`](skills/datex-studio/grid-validator/SKILL.md) | Grid-specific gotchas (envelope, text-display coercion, dynamic-filter five-location sync) |
+| [`project-validator`](skills/datex-studio/project-validator/SKILL.md) | Project-wide lint across 5 cross-component check categories |
+
+### Datex Studio — Shared / library skills (3)
+
+Reference-only library skills. **Not invoked directly.** Other skills link into the files they contain.
+
+| Skill | Content |
+|---|---|
+| [`datex-studio-shared`](skills/datex-studio/datex-studio-shared/SKILL.md) | Branch & connection setup, Studio lifecycle, context navigation, flow code patterns, RDLX-JSON report authoring |
+| [`datex-studio-conventions`](skills/datex-studio/datex-studio-conventions/SKILL.md) | File format invariants, naming conventions, defaults |
+| [`datex-studio-runtime`](skills/datex-studio/datex-studio-runtime/SKILL.md) | Runtime globals, three-tier execution model, control-type catalog |
+
+### Datex Studio — Utilities (14)
+
+Workflow helpers consumed by creator skills or invoked standalone.
+
+| Skill | Purpose |
+|---|---|
+| [`branch-code-reviewer`](skills/datex-studio/branch-code-reviewer/SKILL.md) | Branch-level code review with severity tags ([ISSUE]/[WARNING]/[INFO]/[OK]) |
+| [`codebase-research`](skills/datex-studio/codebase-research/SKILL.md) | Read-only codebase investigation with Datex Studio-specific patterns |
+| [`commit-message-generator`](skills/datex-studio/commit-message-generator/SKILL.md) | Draft 3-part Datex commit messages |
+| [`component-scaffolder`](skills/datex-studio/component-scaffolder/SKILL.md) | Type → folder/suffix/configurationTypeId/skeleton/creator dispatch |
+| [`component-wiring-check`](skills/datex-studio/component-wiring-check/SKILL.md) | Audit the three silent-failure traps (moduleId, configParameters mirror, vars declaration) |
+| [`db-query`](skills/datex-studio/db-query/SKILL.md) | `$db` predicate DSL + flow-db-datasource patterns |
+| [`devops-requirements`](skills/datex-studio/devops-requirements/SKILL.md) | Extract requirements from Azure DevOps work items |
+| [`impact-analysis`](skills/datex-studio/impact-analysis/SKILL.md) | Reverse-trace caller analysis before contract changes (write-side / read-side split) |
+| [`odata-execution`](skills/datex-studio/odata-execution/SKILL.md) | Incremental OData query development with `dxs odata execute` |
+| [`post-edit-verification`](skills/datex-studio/post-edit-verification/SKILL.md) | Cheapest-first verification ladder after every component edit |
+| [`prospective-release-notes`](skills/datex-studio/prospective-release-notes/SKILL.md) | Time-range anchor picker for unattended weekly release notes |
+| [`release-notes-generator`](skills/datex-studio/release-notes-generator/SKILL.md) | 5-phase release notes pipeline (Technical + Customer outputs) |
+| [`requirements-gathering`](skills/datex-studio/requirements-gathering/SKILL.md) | Standardized requirements brief from any source |
+| [`schema-explorer`](skills/datex-studio/schema-explorer/SKILL.md) | OData schema discovery and field-mapping table builder |
+
+### Footprint (3 skills, out of scope for the Mitch merge)
+
+| Skill | Status |
+|---|---|
+| [`building-waves`](skills/footprint/building-waves/SKILL.md) | Empty stub — placeholder |
+| [`footprint-entity-expert`](skills/footprint/footprint-entity-expert/SKILL.md) | Footprint WMS entity navigation, filter conventions, weight/unit math |
+| [`slotting`](skills/footprint/slotting/SKILL.md) | Empty stub — placeholder |
+
+## Recent history
+
+The Datex Studio skill set was substantially expanded by the **Mitch skills merge**: 20 net-new skills added (12 component creators, 2 validators, 1 post-edit verification, 3 command-replacement skills, 2 shared/library siblings to `datex-studio-shared`) plus targeted absorption of Mitch's domain depth into 4 existing Datex skills (`datasource-creator`, `function-creator`, `impact-analysis`, `hub-editor` ↔ `hub-creator` cross-link).
+
+## Not yet covered (roadmap)
+
+Component types the platform supports but that no skill or reference doc covers yet. When feature work first touches one, add a skill and a reference doc following [docs/component-doc-template.md](docs/component-doc-template.md).
+
+- dashboards, widgets, notifications, workflows, events, layouts — and other platform config types not yet given a skill. The authoritative set of config types the CLI recognizes is `ConfigurationEndpoints.KNOWN_TYPES` in the dxs CLI.
+- Reports and API endpoints appeared on the original backlog but are now covered by `report-creator` and `endpoint-creator`.

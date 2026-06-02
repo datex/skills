@@ -1,11 +1,22 @@
 ---
 name: datasource-creator
 description: |
-  Use when creating Datex Studio datasources with dxs datasource commands:
-  generating OData or flow datasource configs, validating configs against a
-  branch, or upserting standalone datasources.
+  Use when creating Datex Studio datasources with dxs datasource/configuration
+  commands: generating OData or flow datasource configs — both the cloud
+  `-datasource.json` (typeId 6, called by functions/selectors) and the
+  server-tier FootprintDatasource variant (`-footprintDatasource.json`, typeId
+  19, called by actions) — validating configs against a branch, and upserting
+  standalone or owned datasources. Triggers: "create a datasource", "OData/flow
+  datasource", "FPDS", "footprintDatasource", "a datasource an action can call",
+  "standalone vs owned datasource".
 depends:
   - datex-studio-shared
+  - grid-creator
+  - editor-creator
+  - selector-creator
+  - action-creator
+  - post-edit-verification
+  - component-validator
 ---
 
 # Datasource Creator
@@ -16,6 +27,9 @@ Create OData or flow-based datasource configurations for Datex Studio.
 
 - [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) -- Branch & connection selection (shared across skills)
 - [references/parameter-strategies.md](references/parameter-strategies.md) -- Parameter strategies, linked datasources, quoting rules, cascading params
+- [references/datasources.md](references/datasources.md) -- Datasource taxonomy: component variant (`-datasource.json` vs `-footprintDatasource.json`) × query type (OData vs flow), calling convention, tier restrictions, embedded datasources
+- [references/odata-datasources.md](references/odata-datasources.md) -- OData query-type platform reference: queryOptions tree, filter expressions, expands, result type shape, pre-flight schema validation, canonical skeleton
+- [references/flow-datasources.md](references/flow-datasources.md) -- Flow query-type platform reference: paginated vs single-result shapes, getFlow/getListFlow/getByKeysFlow slots, callsite syntax, entity-definition contract, canonical skeletons
 
 ## Dependencies
 
@@ -55,7 +69,7 @@ Do NOT skip this check. Building a datasource without understanding what fields 
 | `dxs datasource generate` / `generate-flow` | Yes | Yes |
 | `dxs datasource context` (type defs) | Yes | Yes |
 | `dxs datasource validate` (against branch) | Yes | Yes |
-| `dxs datasource upsert` (to branch) | Yes | No |
+| `dxs configuration upsert datasource` (to branch) | Yes | No |
 | `datasource-fields` (post-upsert verification) | Yes | No (deferred to after report upload) |
 | Test data / `in_params` discovery | Yes | No (report-creator handles) |
 
@@ -80,7 +94,7 @@ Do NOT skip this check. Building a datasource without understanding what fields 
   |            |
  schema ->   schema -> (REQUIRED: validate entities/properties
  query ->     the flow code will query against the connection)
- generate    create standalone OData datasources (generate + upsert each)
+ generate    create standalone OData datasources (generate + dxs configuration upsert datasource each)
   |          write type-def YAML (from validated schema, NOT from examples)
   |          write flow TS code (referencing $datasources.<RepoName>.<ref_name>)
   |          generate-flow
@@ -94,7 +108,8 @@ Do NOT skip this check. Building a datasource without understanding what fields 
   |            |
 Standalone   Owned
   |            |
- upsert      return JSON file path
+ dxs configuration upsert datasource
+              return JSON file path
  fields       + ref name
  test data
  return ref
@@ -107,6 +122,7 @@ Standalone   Owned
 | All needed fields are scalar or reachable through single navigation properties (no collections in the path) | The result needs data from collection navigation properties flattened into scalar fields (e.g., a single-entity shipment where `OrderLookups` or `WarehousesContactsLookup` must appear as flat fields) |
 | The result IS a collection that maps directly to a table/tablix (e.g., ShipmentLines) | Multiple OData queries need to be combined or joined into a single result |
 | Simple parameter-based filtering is sufficient | Calculated fields require data from multiple entities or custom aggregation |
+| Data lives in the Footprint OData schema | Rows come from a cloud `*-storage.json` component, read function-tier via `$db` (grid/selector over storage) — see [../db-query/references/flow-db-datasources.md](../db-query/references/flow-db-datasources.md) |
 
 **How to tell:** Run `dxs report datasource-fields <ref> --branch <id>` (or `--report <ref>` for owned). If the output has a `collections:` section with fields you need in **standalone textboxes** (not tables), use a flow datasource. Collections in OData datasources cannot be bound as flat DataSet fields — they silently resolve to blank.
 
@@ -155,6 +171,8 @@ Fields:
 
 ## OData Datasource Generation
 
+> **Platform reference:** [references/odata-datasources.md](references/odata-datasources.md) covers the underlying Datex Studio file shape — `queryOptions` tree, filter expression syntax, expands, result type contract, single-object vs collection traps, and the canonical skeleton. Consult it when reasoning about why a generated config has the structure it does, when authoring or hand-editing JSON outside the generator, or when debugging import errors.
+
 Generate an OData datasource config with `dxs datasource generate`:
 
 ```bash
@@ -202,7 +220,11 @@ dxs datasource generate \
 
 ## Flow Datasource Generation
 
+> **Platform reference:** [references/flow-datasources.md](references/flow-datasources.md) covers the underlying Datex Studio file shape — paginated vs single-result execution shapes, the `getFlow`/`getListFlow`/`getByKeysFlow` slots, callsite syntax via `referenceName`, the entity-definition output contract, and the canonical skeletons for both shapes (including the enum-dropdown pattern). Consult it when reasoning about which shape a use case needs, when authoring JSON outside the generator, or when fields are silently undefined at runtime.
+
 ### Flow Runtime Model (CRITICAL)
+
+A flow datasource draws its data from one of **two** legitimate sources, never from a raw OData query string: (a) **standalone OData datasources** already on the branch, via `$datasources.<RepoName>.<ref_name>` (covered below); or (b) **cloud storage**, via the function-tier `$db.<Package>.<storage_referenceName>` predicate API — the pattern that backs a grid or selector over a `*-storage.json` component. The `$db` path has its own authoring rules (paging, dynamic filter/sort, `getQuery()` factory); see [../db-query/references/flow-db-datasources.md](../db-query/references/flow-db-datasources.md). The rest of this section covers source (a).
 
 Flow datasource code does **NOT** execute raw OData queries. Instead, flows reference **standalone OData datasources** that already exist on the branch, using the `$datasources` object. Standalone datasources are scoped under their **repository module name** (the repo's `uniqueIdentifier` name, e.g., `PurchaseOrders`, `AsnOrders`), so the path is `$datasources.<RepoName>.<ref_name>`:
 
@@ -237,7 +259,7 @@ const result = await $datasource.getList({ query: 'Shipments(123)?$expand=Carrie
 
 **The workflow for building a flow datasource:**
 
-1. **Create standalone OData datasources** for each query the flow needs — use `dxs datasource generate` + `dxs datasource upsert` for each
+1. **Create standalone OData datasources** for each query the flow needs — use `dxs datasource generate` + `dxs configuration upsert datasource` for each
 2. **Write the flow code** referencing those datasources via `$datasources.<RepoName>.<ref_name>.get()` or `$datasources.<RepoName>.<ref_name>.getList()` (where `<RepoName>` is the repository's `name` from `dxs source repo list`)
 3. **Generate the flow config** with `dxs datasource generate-flow`, which embeds the flow code and type definition
 4. The flow datasource itself can be **owned** (embedded in the report), but its OData dependencies must be **standalone** on the branch
@@ -319,6 +341,28 @@ Enhancement flags (`--dynamic-filter`, `--linked`, `--custom-column`, etc.) work
 
 **File size limit:** All code files and the type definition file are limited to **512 KB**.
 
+## Server-Tier Variant (FPDS — `-footprintDatasource.json`, typeId 19)
+
+Everything above produces the **cloud** `-datasource.json` (`configurationTypeId: 6`), callable by **functions** and **selectors**. When the datasource must be called by an **action** (Footprint server tier), author the **FootprintDatasource (FPDS)** variant instead. Both OData and flow query types support it; the body shape is identical to the cloud variant — only the variant fields change.
+
+The generator has no FPDS flag — generate the config exactly as above, then edit the produced JSON:
+
+- **OData FPDS:** set `configurationTypeId: 19`. `apiSettingName` already names the branch's Footprint API connection (set by `generate`) — leave it. *(One-field change.)*
+- **Flow FPDS:** set `configurationTypeId: 19` **and** set `apiSettingName` to the branch's Footprint API connection setting name (`generate-flow` leaves it `null`; get the name from `dxs source branch settings <branch_id>` — conventionally `FootprintApi`, but branches may differ, e.g. `fpapiconn`).
+
+Everything else — `queryOptions` / flow slots, `outParams`, `keyDef`, and the explicit `null` slots — is identical to the cloud variant. See [references/datasources.md → Structural Deltas Between Variants](references/datasources.md#structural-deltas-between-variants).
+
+Validate and push with the **`footprintdatasource`** CLI type (the `dxs datasource …` / `dxs configuration upsert datasource` path is hardwired to the cloud `datasource`/6 endpoint and cannot emit typeId 19):
+
+```bash
+dxs configuration validate footprintdatasource -b <branch_id> -D ds_name.json
+dxs configuration upsert  footprintdatasource -b <branch_id> -D ds_name.json
+```
+
+`upsert` resolves by `referenceName` (creates or updates). Delete with `dxs configuration delete footprintdatasource <id> -b <branch_id> -y`.
+
+**Selectors must never be backed by an FPDS** — a selector backing must be the cloud `-datasource.json` variant (see [references/datasources.md](references/datasources.md)). FPDS targets are for action-tier callers.
+
 ## Context Command
 
 See [../datex-studio-shared/context-navigation.md](../datex-studio-shared/context-navigation.md) for the full guide on retrieving and reading context responses, including backend vs frontend symbol filtering.
@@ -346,7 +390,7 @@ After validation passes, complete the standalone workflow:
 ### 1. Upsert
 
 ```bash
-dxs datasource upsert <file.json> --branch <branch_id>
+dxs configuration upsert datasource -D <file.json> --branch <branch_id>
 ```
 
 ### 2. Verify Fields
@@ -430,3 +474,7 @@ DataSet.Name = "ds_my_report"                  # RDLX-JSON
 | Raw OData queries in flow code | Flow code must reference standalone datasources via `$datasources.RepoName.ds_name.get()` / `.getList()` — never embed OData query strings |
 | `$datasources.ds_name` without module scope | Standalone datasources are scoped under the repository module — use `$datasources.RepoName.ds_name` (e.g., `$datasources.PurchaseOrders.ds_shipment`). Without the module prefix, the flow validator reports "Property does not exist on type 'IDatasourceService'" |
 | Flow datasource without standalone OData dependencies on the branch | Create and upsert the OData datasources first, then write the flow that references them |
+
+---
+
+**After your edit, invoke `post-edit-verification` to surface description/JSON/schema violations. For a final review, invoke `component-validator`.**

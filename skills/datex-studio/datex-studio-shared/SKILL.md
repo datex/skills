@@ -6,10 +6,14 @@ description: |
   branch-code-reviewer, commit-message-generator, release-notes-generator).
   Not invoked directly — other skills link into the files below. Install this
   alongside any Datex Studio skill so cross-skill references resolve.
-  Covers: branch & connection selection, Studio lifecycle, designer context
-  navigation, flow code patterns (`$utils.isDefined()`, OData pagination), and
-  RDLX-JSON report authoring (design standards, CLI commands, dataset rules,
-  sample data, deploy patterns, troubleshooting).
+  Covers: the canonical `dxs configuration` round-trip (get → extract `.json` →
+  edit → upsert) and its silent-wipe guard, branch & connection selection,
+  Studio lifecycle, designer context navigation, flow code patterns
+  (`$utils.isDefined()`, OData pagination), and RDLX-JSON report authoring
+  (design standards, CLI commands, dataset rules, sample data, deploy patterns,
+  troubleshooting).
+depends:
+  - function-creator
 ---
 
 # Datex Studio — Shared Reference
@@ -26,6 +30,7 @@ If a user asks a Datex Studio question that isn't already scoped to a more speci
 
 ### Cross-skill operational context
 
+- [configuration-roundtrip.md](configuration-roundtrip.md) — **Canonical** `dxs configuration get → extract inner `.json` → edit → upsert` round-trip for every component-creator/editor skill, and the silent-wipe bug the extraction step prevents. The branch is the source of truth; the JSON files are throwaway scratch.
 - [branch-setup.md](branch-setup.md) — Active organization, repository, feature branch, and API connection selection. The Branch ID Policy (always ask, never assume) lives here.
 - [studio-management.md](studio-management.md) — Studio lifecycle: check status, start in background with readiness verification, clean up.
 - [context-navigation.md](context-navigation.md) — How to retrieve and read `dxs -O json … context` responses, including backend vs. frontend symbol filtering rules.

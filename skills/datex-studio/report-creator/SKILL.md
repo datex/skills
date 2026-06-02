@@ -8,6 +8,9 @@ description: |
   "report from requirements". For modifying EXISTING reports, use `report-editor`.
 depends:
   - datex-studio-shared
+  - odata-execution
+  - post-edit-verification
+  - component-validator
 ---
 
 # Report Creator
@@ -209,7 +212,7 @@ dxs report create <artifact_dir>/<report_name>_report --page letter --margins 0.
 
 Use `--page` for standard sizes (`letter`, `legal`, `a4`, `4x6`, `4x8`) or custom (`WxH`). Add `--landscape` for landscape orientation. `--margins` supports CSS-style shorthand.
 
-**Naming rule:** The folder name becomes the report's `referenceName`, which the Wavelength platform uses to generate TypeScript service classes. It **must be a valid JavaScript identifier** — letters, digits, underscores, `$` only. No hyphens, dots, or spaces. Use the `_report` suffix convention.
+**Naming rule:** The folder name becomes the report's `referenceName`, which the Datex Studio platform uses to generate TypeScript service classes. It **must be a valid JavaScript identifier** — letters, digits, underscores, `$` only. No hyphens, dots, or spaces. Use the `_report` suffix convention.
 
 | Bad | Good | Why |
 |-----|------|-----|
@@ -310,3 +313,7 @@ Follow [deploy-patterns.md](../datex-studio-shared/report-authoring/deploy-patte
 ## Troubleshooting
 
 See [troubleshooting.md](../datex-studio-shared/report-authoring/troubleshooting.md) for common RDLX-JSON expression issues and layout/CLI mistakes.
+
+---
+
+**After your edit, invoke `post-edit-verification` to surface description/JSON/schema violations. For a final review, invoke `component-validator`.**

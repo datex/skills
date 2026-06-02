@@ -150,7 +150,7 @@ This approach works well when the "cascading" data is available through OData `$
 
 1. **Expand the scope of an existing datasource** to include the bridging field, then use cross-dataset expressions in the report
 2. **Use report-level parameters** and have the calling context (e.g., Invoice Editor) pass all needed IDs
-3. **Use the `--linked` flag** on `dxs datasource upsert` to formally declare inter-datasource dependencies (format: `name:type:target` — see Linked Datasources section above)
+3. **Use the `--linked` flag** on `dxs datasource generate` (then `dxs configuration upsert datasource`) to formally declare inter-datasource dependencies (format: `name:type:target` — see Linked Datasources section above)
 
 **Example architecture — Invoice with Receipt Details:**
 ```

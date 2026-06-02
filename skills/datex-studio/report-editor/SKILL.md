@@ -8,6 +8,8 @@ description: |
   "fix the report layout". For creating NEW reports from scratch, use `report-creator`.
 depends:
   - datex-studio-shared
+  - post-edit-verification
+  - component-validator
 ---
 
 # Report Editor
@@ -308,7 +310,7 @@ The field exists on the OData entity but is not in the datasource's `$select` or
 1. Get the current datasource config: `dxs datasource get <ref> --branch <id>`
 2. Identify the missing field path (e.g., needs `Material/Description` in `$expand`)
 3. Invoke `datasource-creator` to regenerate with the updated query
-4. `dxs datasource upsert` to update the branch
+4. `dxs configuration upsert datasource -D <file.json> --branch <id>` to update the branch
 5. Add field to DataSet with `dxs report dataset add-field`
 6. Add the layout element
 
@@ -421,3 +423,7 @@ See [troubleshooting.md](../datex-studio-shared/report-authoring/troubleshooting
 | Changing a field expression but not the DataSet field | If you rename a DataField path, the DataSet field must also be updated to match |
 | Removing a datasource field that is still referenced | Check all expressions in the report for `Fields!RemovedField.Value` before removing |
 | Adding collection-path fields as flat DataSet fields | Collection navigation properties silently resolve to blank in single-result DataSets -- use a flow datasource to flatten, or create child datasets with `CommandText: "$.ds.result.Collection.*"` |
+
+---
+
+**After your edit, invoke `post-edit-verification` to surface description/JSON/schema violations. For a final review, invoke `component-validator`.**

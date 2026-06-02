@@ -20,7 +20,7 @@
         "The generate command includes --dynamic-filter with a status-related property (e.g., StatusId:number or Status/Name:string)",
         "The generate command either omits --api-setting-name (letting the CLI auto-resolve from the branch's AppConfig) or passes a value derived from 'dxs source branch settings' -- it must NOT pass a hardcoded/guessed value like 'FootPrintAPI'",
         "The transcript contains a 'dxs datasource validate' command run before upsert",
-        "The transcript contains a 'dxs datasource upsert' command",
+        "The transcript contains a 'dxs configuration upsert datasource' command",
         "The transcript contains a 'dxs report datasource-fields ds_eval_shipments' command after upsert",
         "The transcript contains at least one 'dxs odata execute' command for test data discovery (with $top to limit results)",
         "The transcript shows schema exploration (dxs schema search or describe-entity) before building the query — the agent did not guess the entity structure"
@@ -40,7 +40,7 @@
         "The generate command query $expand includes ShipToContact (or equivalent) with nested address fields",
         "The generate command includes -r ds_eval_shipment_detail and -t \"ds_eval_shipment_detail\"",
         "The transcript contains a 'dxs datasource validate' command",
-        "The transcript does NOT contain a 'dxs datasource upsert' command (owned mode — no upsert)",
+        "The transcript does NOT contain a 'dxs configuration upsert datasource' command (owned mode — no upsert)",
         "The transcript shows schema exploration to discover the ShipToContact path and verify Carrier has ScacCode",
         "The output mentions or returns the inParams (e.g., shipmentId or Id) from the generated config"
       ]
@@ -57,7 +57,7 @@
         "The generate command includes --detect-params flag",
         "The generate command does NOT use --dynamic-filter for these required parameters (dynamic filters are for optional UI filtering)",
         "The transcript contains 'dxs datasource validate' before upsert",
-        "The transcript contains 'dxs datasource upsert'",
+        "The transcript contains 'dxs configuration upsert datasource'",
         "The transcript contains 'dxs report datasource-fields' after upsert",
         "The datasource-fields output shows in_params is populated (not empty) with WarehouseId, FromDate, and ToDate",
         "The generate command includes -r ds_eval_order_lines and -t \"ds_eval_order_lines\"",
@@ -71,7 +71,7 @@
       "expected_output": "A flow datasource with standalone OData dependencies created first, proper flow runtime usage ($datasources, $flow.inParams, $flow.outParams.result), type-def YAML, and validated config.",
       "files": [],
       "expectations": [
-        "The transcript creates at least one standalone OData datasource (generate + upsert) BEFORE creating the flow datasource",
+        "The transcript creates at least one standalone OData datasource (dxs datasource generate + dxs configuration upsert datasource) BEFORE creating the flow datasource",
         "The flow code references standalone datasources via $datasources.<name>.get() or $datasources.<name>.getList() (not raw OData queries)",
         "The flow code accesses input parameters via $flow.inParams (e.g., $flow.inParams.shipmentId)",
         "The flow code sets output via $flow.outParams.result = { ... } (assignment, not return)",
@@ -95,7 +95,7 @@
         "The ds_eval_shp_lines generate command uses --detect-params with template literal syntax for ShipmentId in the $filter",
         "Both datasources use matching -r and -t values (ds_eval_shp_header/ds_eval_shp_lines)",
         "The transcript contains 'dxs datasource validate' for both datasources",
-        "The transcript contains 'dxs datasource upsert' for both datasources",
+        "The transcript contains 'dxs configuration upsert datasource' for both datasources",
         "The transcript contains 'dxs report datasource-fields' for at least ds_eval_shp_lines after upsert",
         "The ds_eval_shp_lines query includes $expand for Material with at least LookupCode in the $select",
         "The transcript shows schema exploration to verify ShipmentLines entity structure"
@@ -116,7 +116,7 @@
         "The generate command query includes quantity fields (e.g., TotalAmount, AvailableAmount)",
         "The generate command includes -r ds_eval_inventory and -t \"ds_eval_inventory\"",
         "The transcript contains 'dxs datasource validate'",
-        "The transcript contains 'dxs datasource upsert'",
+        "The transcript contains 'dxs configuration upsert datasource'",
         "The transcript contains 'dxs report datasource-fields ds_eval_inventory' after upsert"
       ]
     },
@@ -132,7 +132,7 @@
         "The generate command includes $select with Name and relevant fields",
         "The generate command includes -r ds_eval_warehouses and -t \"ds_eval_warehouses\"",
         "The transcript contains 'dxs datasource validate'",
-        "The transcript contains 'dxs datasource upsert'",
+        "The transcript contains 'dxs configuration upsert datasource'",
         "The transcript shows schema exploration to discover Warehouses entity and its properties (type, contact fields)"
       ]
     }

@@ -1,18 +1,27 @@
 ---
 name: function-creator
 description: |
-  Use when creating or modifying Wavelength functions (configurationTypeId=9)
+  Use when creating or modifying Datex Studio functions (configurationTypeId=9)
   on a Datex Studio branch. Covers the full lifecycle: requirements, intellisense,
   code authoring, validation, and upload. Trigger for: "create a function",
   "modify a function", "update xxx_flow", "write a function that does X",
   "add a parameter to xxx_flow", "change the function code".
 depends:
   - datex-studio-shared
+  - action-creator
+  - datasource-creator
+  - datex-studio-runtime
+  - component-wiring-check
+  - datex-studio-conventions
+  - post-edit-verification
+  - component-validator
 ---
 
 # Function Creator
 
-Create new Wavelength functions or modify existing ones on a Datex Studio branch.
+Create new Datex Studio functions or modify existing ones on a Datex Studio branch.
+
+> **See also:** `db-query` — `$db` predicate DSL and storage access patterns for flow code that reads/writes from `*-storage.json` components. function-creator owns the function lifecycle (`dxs function generate` / `validate` / `dxs configuration upsert flow`); db-query owns the `$db` predicate mechanics.
 
 ## References
 
@@ -20,6 +29,7 @@ Create new Wavelength functions or modify existing ones on a Datex Studio branch
 - [references/command-syntax.md](references/command-syntax.md) -- All `dxs function` commands with examples
 - [references/flag-guide.md](references/flag-guide.md) -- When/why/how for each flag
 - [references/code-patterns.md](references/code-patterns.md) -- Common patterns for function code
+- [references/functions.md](references/functions.md) -- Function platform reference: purpose, file shape, `configurationTypeId=9`, parameter-descriptor boilerplate, UI→action bridge, runtime globals, invocation contract
 - [../datex-studio-shared/context-navigation.md](../datex-studio-shared/context-navigation.md) -- How to retrieve & navigate designer context responses
 
 ## Dependencies
@@ -68,7 +78,7 @@ Write or update TypeScript code in temp .ts file
 [Phase 5: Generate + Validate + Upload]
 dxs function generate ... --code-file <file.ts> -o <config.json>
 dxs function validate <config.json> --branch <id>
-dxs function upsert <config.json> --branch <id>
+dxs configuration upsert flow -D <config.json> --branch <id>
 ```
 
 ## Phase Details
@@ -139,7 +149,7 @@ dxs function generate \
 dxs function validate <config.json> --branch <id>
 
 # Upload
-dxs function upsert <config.json> --branch <id>
+dxs configuration upsert flow -D <config.json> --branch <id>
 ```
 
 ## Naming Convention
@@ -157,5 +167,9 @@ dxs function upsert <config.json> --branch <id>
 | Changing params without checking callers | Always invoke impact-analysis skill first when modifying input/output params |
 | Guessing available services from memory | Always run `dxs -O json function context` and read `defaultContext.imports` — see [context-navigation.md](../datex-studio-shared/context-navigation.md). |
 | Referencing a frontend-only symbol (`$shell`, `$frontendFlows`) | Functions are backend-only. If a symbol is not in `defaultContext.imports`, you cannot use it — see [context-navigation.md](../datex-studio-shared/context-navigation.md). |
-| Using `$item` instead of `$entity` | The expression variable is `$entity` in Wavelength |
+| Using `$item` instead of `$entity` | The expression variable is `$entity` in Datex Studio |
 | Code file exceeding 512 KB | Split logic into multiple functions or extract helpers |
+
+---
+
+**After your edit, invoke `post-edit-verification` to surface description/JSON/schema violations. For a final review, invoke `component-validator`.**

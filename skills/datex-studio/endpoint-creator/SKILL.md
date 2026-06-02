@@ -8,6 +8,8 @@ description: |
   "change endpoint alias", "create an API that does X".
 depends:
   - datex-studio-shared
+  - post-edit-verification
+  - component-validator
 ---
 
 # Endpoint Creator
@@ -196,3 +198,7 @@ Present only the endpoints that were just changed — not the full list.
 | Referencing a flow/datasource that doesn't exist on branch | Verify existence in Phase 3; create via the appropriate skill if missing |
 | Skipping requirements and guessing endpoint structure | Always ensure requirements are gathered first |
 | Adding endpoints to wrong branch | Confirm branch with user in Phase 1 via branch-setup.md |
+
+---
+
+**After your edit, invoke `post-edit-verification` to surface description/JSON/schema violations. For a final review, invoke `component-validator`.**
