@@ -2,19 +2,24 @@
 
 Concrete commands for reading and writing a hub configuration. The `dxs configuration` command group is the generic primitive for CRUD on every platform configuration type (hub, grid, form, flow, etc.) — there is no hub-specific subcommand, and you no longer need to know the underlying URL pattern.
 
+> **Read [../../datex-studio-shared/configuration-roundtrip.md](../../datex-studio-shared/configuration-roundtrip.md) first.** It is the canonical round-trip for every `dxs configuration` consumer. This file only adds hub-specific notes on top of it.
+
 ## Recommended workflow (use this)
 
 ```bash
-# 1. Pull the current hub config to a file
-dxs configuration get hub <configId> -b <branchId> -O hub.json
+# 1. Pull the current hub config (writes the FULL server envelope)
+dxs configuration get hub <configId> -b <branchId> -O envelope.json
 
-# 2. Edit hub.json locally (toolbar[], flows[], etc.)
+# 2. Extract the inner body — REQUIRED. Pushing the envelope back silently wipes the config.
+jq .json envelope.json > body.json
 
-# 3. Push it back
-dxs configuration update hub <configId> -b <branchId> -D hub.json
+# 3. Edit body.json locally (toolbar[], flows[], etc.)
+
+# 4. Push the inner body back (upsert resolves create-vs-update by referenceName)
+dxs configuration upsert hub -b <branchId> -D body.json
 ```
 
-That's the entire round-trip. The same pattern works for any config type — substitute `flow`, `grid`, `form`, `editor`, `report`, `footprintquerymanager`, `appconfig`, etc. (`dxs configuration types` lists the supported names).
+That's the entire round-trip. The branch is the source of truth; `envelope.json` / `body.json` are throwaway scratch files. The same pattern works for any config type — substitute `flow`, `grid`, `form`, `editor`, `report`, `footprintquerymanager`, `appconfig`, etc. (`dxs configuration types` lists the supported names). The extraction step is not optional — see the canonical doc for the silent-wipe bug it prevents.
 
 ### Finding the IDs
 
@@ -27,23 +32,24 @@ The output includes the hub config's `id`. The `-b/--branch` flag on `dxs config
 ### Validation and diff
 
 ```bash
-python -m json.tool hub.json > /dev/null && echo "valid JSON"
-cp hub.json hub.json.orig          # save before editing for diff target
+python -m json.tool body.json > /dev/null && echo "valid JSON"
+cp body.json body.json.orig        # save right after extraction for diff target
 ```
 
 After editing:
 
 ```bash
-diff -u hub.json.orig hub.json     # review the change before PUT
+diff -u body.json.orig body.json   # review the change before upsert
 ```
 
 ### Verify after update
 
-Re-fetch and diff:
+Re-fetch, extract, and diff inner bodies:
 
 ```bash
-dxs configuration get hub <configId> -b <branchId> -O hub-after.json
-diff -u hub.json hub-after.json
+dxs configuration get hub <configId> -b <branchId> -O envelope-after.json
+jq .json envelope-after.json > body-after.json
+diff -u body.json body-after.json
 ```
 
 The diff should be empty, or contain only server-managed fields (e.g., `updatedDateTime`, `version`, `lastModifiedBy`).

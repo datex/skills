@@ -1,10 +1,10 @@
 # Flow Code Patterns
 
-> **Shared reference** — used by `function-creator`, `hub-editor`, and any other skill whose output includes Wavelength flow code (datasource flows, click flows, scheduled jobs). Function-specific patterns (jobs, progress, $services) live in [../function-creator/references/code-patterns.md](../function-creator/references/code-patterns.md).
+> **Shared reference** — used by `function-creator`, `hub-editor`, and any other skill whose output includes Datex Studio flow code (datasource flows, click flows, scheduled jobs). Function-specific patterns (jobs, progress, $services) live in [../function-creator/references/code-patterns.md](../function-creator/references/code-patterns.md).
 
 ## `$utils.isDefined()` — Null/Undefined Checks
 
-Always use `$utils.isDefined(value)` to check for nullish values in flow code. Native JavaScript checks (`== null`, `=== undefined`, falsy checks) may behave incorrectly against Wavelength's runtime value model — optional inParams and unbound fields are wrapped in a way that doesn't always compare cleanly with literal `null`/`undefined`, and falsy checks misfire on legitimate `0` and `""` values.
+Always use `$utils.isDefined(value)` to check for nullish values in flow code. Native JavaScript checks (`== null`, `=== undefined`, falsy checks) may behave incorrectly against Datex Studio's runtime value model — optional inParams and unbound fields are wrapped in a way that doesn't always compare cleanly with literal `null`/`undefined`, and falsy checks misfire on legitimate `0` and `""` values.
 
 ```typescript
 // CORRECT

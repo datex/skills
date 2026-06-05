@@ -78,7 +78,7 @@ dxs function generate -r process_order_flow ...
 
 ## -t / --title
 
-**When:** Always required. Display title shown in the Wavelength designer.
+**When:** Always required. Display title shown in the Datex Studio designer.
 
 **Why:** Human-readable name for the function in the UI. Can differ from the reference name.
 

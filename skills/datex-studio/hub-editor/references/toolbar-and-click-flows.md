@@ -25,7 +25,7 @@ A hub configuration is a JSON object with many top-level fields. The two that ma
 }
 ```
 
-`dxs configuration update` replaces the **entire** object — every field not in your edited copy is deleted server-side. Always start from a fresh `dxs configuration get hub <id> -b <branchId> -O hub.json` (see [hub-config-api.md](hub-config-api.md)) and modify only `toolbar[]` and `flows[]`.
+`dxs configuration upsert` replaces the **entire** object — every field not in your edited copy is deleted server-side. Always start from a fresh `dxs configuration get hub <id> -b <branchId> -O envelope.json`, extract the inner body with `jq .json envelope.json > body.json` (see [hub-config-api.md](hub-config-api.md)), and modify only `toolbar[]` and `flows[]` in `body.json`.
 
 ## Toolbar button entry
 
@@ -56,7 +56,7 @@ Fields:
 | `label` | Y | Display text on the button. |
 | `icon` | N | Font-awesome class or equivalent — match the convention already in use on the hub. |
 | `tooltip` | N | Hover text. |
-| `clickFlowConfig` | Y | Wires the button to a Wavelength flow function. |
+| `clickFlowConfig` | Y | Wires the button to a Datex Studio flow function. |
 | `clickFlowConfig.reference` | Y | The flow's `referenceName` (must match a function on the branch; must also appear in `flows[]`). |
 | `clickFlowConfig.inParamsMap` | N | Maps the flow's input parameter names to expressions sourced from hub context (e.g., `$hub.context.warehouseId`). |
 
@@ -128,9 +128,9 @@ Key details (full rationale in [../../datex-studio-shared/flow-code-patterns.md]
 
 1. Confirm the report exists and note its `referenceName` and `ReportParameters[].Name` list.
 2. Create the click flow with `function-creator` — inParams match what the hub will pass; body resolves defaults and calls `$shell.Reports.open{ref}()`.
-3. Fetch the hub config: `dxs configuration get hub <configId> -b <branchId> -O hub.json` (see [hub-config-api.md](hub-config-api.md)).
-4. Append the new entry to `toolbar[]` and add the click-flow reference to `flows[]`.
-5. Push: `dxs configuration update hub <configId> -b <branchId> -D hub.json`.
+3. Fetch the hub config: `dxs configuration get hub <configId> -b <branchId> -O envelope.json`, then extract `jq .json envelope.json > body.json` (see [hub-config-api.md](hub-config-api.md)).
+4. Append the new entry to `toolbar[]` and add the click-flow reference to `flows[]` in `body.json`.
+5. Push the inner body: `dxs configuration upsert hub -b <branchId> -D body.json`.
 
 ### Change which report a button launches
 
@@ -138,7 +138,7 @@ In most cases: edit the click flow function's code only (`$shell.Reports.open{ne
 
 ### Re-label a button
 
-Edit `toolbar[].label` (and optionally `icon` / `tooltip`). No flow change. `dxs configuration get hub` → edit → `dxs configuration update hub`.
+Edit `toolbar[].label` (and optionally `icon` / `tooltip`). No flow change. `dxs configuration get hub` → edit → `dxs configuration upsert hub`.
 
 ### Remove a button
 
@@ -154,7 +154,7 @@ Reorder `toolbar[]` entries. The display order matches array order.
 
 | Concern | Lives in | Edited via |
 |---------|----------|-----------|
-| Button label, icon, position | `toolbar[]` entry on the hub config | This skill (`dxs configuration get hub` → edit → `dxs configuration update hub`) |
+| Button label, icon, position | `toolbar[]` entry on the hub config | This skill (`dxs configuration get hub` → edit → `dxs configuration upsert hub`) |
 | What the button does | Click flow function code | `function-creator` |
 | Parameter wiring (hub → flow) | `toolbar[].clickFlowConfig.inParamsMap` | This skill |
 | Parameter wiring (flow → report) | Click flow body — `$shell.Reports.open{ref}({...})` | `function-creator` |

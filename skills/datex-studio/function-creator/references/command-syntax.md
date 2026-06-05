@@ -6,7 +6,7 @@ Complete reference for all `dxs function` commands.
 
 Generate a function config JSON file from a TypeScript code file and parameters.
 
-`generate` is a pure local file operation — it builds the config JSON from flags. It does NOT call the platform and does NOT accept `--branch`. Pass the branch only to `context`, `validate`, `upsert`, `get`, `list`, and `delete`.
+`generate` is a pure local file operation — it builds the config JSON from flags. It does NOT call the platform and does NOT accept `--branch`. Pass the branch only to `context`, `validate`, `get`, `list`, and `delete` (and to `dxs configuration upsert flow` when uploading the generated config).
 
 ```bash
 dxs function generate \
@@ -70,7 +70,17 @@ dxs function validate <config.json> --branch <id>
 Upload a function config file to a branch (create or update). If a function with the same reference name exists, it is updated.
 
 ```bash
-dxs function upsert <config.json> --branch <id>
+dxs configuration upsert flow -D <config.json> -b <id>
+```
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `-D, --data-file` | Yes | JSON file containing the full function configuration body |
+| `-b, --branch` | Yes | Branch ID |
+
+**Example:**
+```bash
+dxs configuration upsert flow -D sum_flow.json -b 64
 ```
 
 ## get
