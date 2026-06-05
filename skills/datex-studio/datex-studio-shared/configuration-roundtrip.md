@@ -22,6 +22,8 @@ dxs configuration upsert <type> -b <branch> -D body.json
 dxs configuration validate <type> -b <branch> -D body.json
 ```
 
+> **Which write verb?** The CLI ships `create` (POST), `update` (lock+PUT), and `upsert` (orchestrated create-or-update). Prefer `upsert` everywhere — it resolves the path by `referenceName` and manages the source-control lock for you, so you don't have to know whether the config already exists. Use the explicit `dxs configuration update <type> <id>` / `dxs configuration create <type>` only when you deliberately want one path.
+
 ## The bug this avoids
 
 `dxs configuration get -O envelope.json` writes the full server response shape (id, json, jsonString, version, modifiedDate, …). `dxs configuration upsert -D` expects only the inner `json` body. Piping the envelope directly results in the server silently wiping the configuration's content (Phase 0d smoke test on hub 655 — toolbar/flows/onInitFlowConfig all reset to null).
@@ -54,7 +56,7 @@ The dxs CLI normalizes type names to lowercase, no hyphens. Reference table:
 | form | 5 | `form` |
 | datasource | 6 | `datasource` |
 | selector | 7 | `selector` |
-| function (flow) | 9 | `function` |
+| function (flow) | 9 | `flow` |
 | storage | 17 | `storage` |
 | action (footprintFlow) | 18 | `footprintflow` |
 | footprintDatasource | 19 | `footprintdatasource` |

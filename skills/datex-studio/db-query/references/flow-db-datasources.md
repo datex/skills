@@ -209,7 +209,7 @@ function matchesFilter(value: any, op: string, target: any): boolean {
         case 'isNotNull': return value != null;
         case 'lt':        return value < target;
         case 'lte':       return value <= target;
-        case 'gt':        return value >= target;
+        case 'gt':        return value > target;
         case 'gte':       return value >= target;
         default:          return true;
     }

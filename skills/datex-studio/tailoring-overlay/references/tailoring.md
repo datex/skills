@@ -103,8 +103,8 @@ On a tailored grid, a `removed: true` toolbar button disappears from the UI even
 
 The standard tailoring pattern for **adding a field that isn't in the base datasource's `select` list** (UDFs, external-system fields, foreign-key display resolutions) is to embed a second datasource in `datasources[]` alongside the inherited one:
 
-- `datasources[0]` — the tailored overlay's secondary datasource (`tailored_ds_<base>`). Typically filtered by `Id in ${contactIds}` against the same entity set, selecting only the extra fields.
-- `datasources[1]` — the inherited primary (`fromBaseConfiguration: true`). Still drives row population.
+- `datasources[0]` — the inherited primary (`fromBaseConfiguration: true`). Still drives row population. The first datasource (or the one named by `datasourceConfig.configId`) is always the primary — see [grids.md → Datasource Wiring](../../grid-creator/references/grids.md#datasource-wiring--five-places-must-stay-in-sync).
+- `datasources[1]` — the tailored overlay's secondary datasource (`tailored_ds_<base>`). Typically filtered by `Id in ${contactIds}` against the same entity set, selecting only the extra fields.
 
 Then an `after` customization on `on_data_loaded` walks `$grid.rows`, batches a lookup against the secondary datasource, and writes the enrichment into each row using the [Imperative Cell API](../../grid-creator/references/grids.md#imperative-cell-api):
 
