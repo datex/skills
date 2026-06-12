@@ -39,6 +39,7 @@ Every component JSON carries a numeric `configurationTypeId` identifying its com
 | 18 | Action (top-level) | `-footprintFlow.json` |
 | 19 | Footprint-datasource | `-footprintDatasource.json` |
 | 22 | Custom type (interface or enum) | `-customType.json` |
+| 23 | Footprint-workflow | `-footprintWorkflow.json` |
 | 24 | Backend-test | `-backendTest.json` |
 
 `configurationTypeId: 9` is shared between top-level function files and embedded step nodes inside any flow's `nodes[]` — the file suffix (`-flow.json` vs no file) is the distinguisher. Actions use a different top-level id (`18`), so action vs function top-level files are unambiguously identifiable by `configurationTypeId` alone.

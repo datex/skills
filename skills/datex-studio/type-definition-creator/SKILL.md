@@ -32,6 +32,7 @@ Author or modify a Datex Studio type definition (configurationTypeId=22) on a br
 ## References
 
 - [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) — Branch/connection selection (shared across skills)
+- [../datex-studio-shared/context-navigation.md#discovering-custom-types-and-enum-members](../datex-studio-shared/context-navigation.md#discovering-custom-types-and-enum-members) — `dxs configuration nomenclature -b <id>` (optionally `--package`/`--kind`/`--search`): a fast, flat catalog of every `<Package>.<Type>` (and each enum's members) on the branch — run it before authoring to check whether a type/enum already exists and to confirm exact `referenceName`s and member names, without fetching full bodies
 - [references/type-definitions.md](references/type-definitions.md) — Authoritative type-definition reference: file shape, the six property-descriptor shapes for interfaces, the two value-descriptor shapes for enums, self-reference prohibition with inline-to-depth workaround, UI-component enum FQN constraint and the primitive-plus-cast workaround, the tightening-ripples-to-consumers impact rule
 - [../datex-studio-conventions/file-format.md](../datex-studio-conventions/file-format.md) — `configurationTypeId` table; JSON file locations
 - [../datex-studio-conventions/naming-conventions.md](../datex-studio-conventions/naming-conventions.md) — `i_*` / `e_*` prefix rules; `-customType.json` suffix; filename stem matching

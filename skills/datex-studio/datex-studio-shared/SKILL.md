@@ -33,7 +33,7 @@ If a user asks a Datex Studio question that isn't already scoped to a more speci
 - [configuration-roundtrip.md](configuration-roundtrip.md) — **Canonical** `dxs configuration get → extract inner `.json` → edit → upsert` round-trip for every component-creator/editor skill, and the silent-wipe bug the extraction step prevents. The branch is the source of truth; the JSON files are throwaway scratch.
 - [branch-setup.md](branch-setup.md) — Active organization, repository, feature branch, and API connection selection. The Branch ID Policy (always ask, never assume) lives here.
 - [studio-management.md](studio-management.md) — Studio lifecycle: check status, start in background with readiness verification, clean up.
-- [context-navigation.md](context-navigation.md) — How to retrieve and read `dxs -O json … context` responses, including backend vs. frontend symbol filtering rules.
+- [context-navigation.md](context-navigation.md) — How to retrieve and read `dxs -O json … context` responses (backend vs. frontend symbol filtering), plus the `nomenclature` registry for discovering custom types and enum members (`$types.<Package>.*`).
 - [flow-code-patterns.md](flow-code-patterns.md) — `$utils.isDefined()`, date defaulting, `$shell.Reports.open{ref}()`, and the OData pagination / 5000-record cap pattern.
 
 ### RDLX-JSON report authoring (`report-authoring/`)

@@ -36,9 +36,9 @@ Cross-skill content used to live in a plain `shared/` directory. `npx skills` on
 
 ## Skill catalog
 
-**36 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
+**37 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
 
-### Datex Studio — Component creators (13)
+### Datex Studio — Component creators (14)
 
 Skills for authoring NEW component configurations on a branch. Each owns the rules and lifecycle for one component type.
 
@@ -49,6 +49,7 @@ Skills for authoring NEW component configurations on a branch. Each owns the rul
 | [`datasource-creator`](skills/datex-studio/datasource-creator/SKILL.md) | OData and flow datasources (`*-datasource.json`, `*-footprintDatasource.json`) | 6 / 19 |
 | [`editor-creator`](skills/datex-studio/editor-creator/SKILL.md) | Single-entity view/edit screens (`*-editor.json`) | 4 |
 | [`endpoint-creator`](skills/datex-studio/endpoint-creator/SKILL.md) | API endpoints exposing flows or datasources as HTTP routes | 26 |
+| [`footprint-workflows`](skills/datex-studio/footprint-workflows/SKILL.md) | TypeScript implementations bound to Footprint platform workflow slots (`*-footprintWorkflow.json`) | 23 |
 | [`form-creator`](skills/datex-studio/form-creator/SKILL.md) | Transient-input forms and dialog openers (`*-form.json`) | 5 |
 | [`function-creator`](skills/datex-studio/function-creator/SKILL.md) | Backend functions / flows (`*-flow.json`) | 9 |
 | [`grid-creator`](skills/datex-studio/grid-creator/SKILL.md) | Data grids — densest creator (`*-grid.json`) | 3 |

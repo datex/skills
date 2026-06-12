@@ -365,7 +365,7 @@ dxs configuration upsert  footprintdatasource -b <branch_id> -D ds_name.json
 
 ## Context Command
 
-See [../datex-studio-shared/context-navigation.md](../datex-studio-shared/context-navigation.md) for the full guide on retrieving and reading context responses, including backend vs frontend symbol filtering.
+See [../datex-studio-shared/context-navigation.md](../datex-studio-shared/context-navigation.md) for the full guide on retrieving and reading context responses, including backend vs frontend symbol filtering. To quickly confirm a `$types.<Package>.*` custom type or enum member exists without parsing the full context blob, use the `nomenclature` registry described there.
 
 ```bash
 dxs -O json datasource context <file.json> --branch <branch_id>

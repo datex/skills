@@ -152,7 +152,7 @@ Compose the punch-list per the **Output format** section below. Findings are gro
 **Procedure:**
 1. Determine the current package (read from one of the package's component files; cross-check via folder convention).
 2. Collect every `objectType` string across all scanned component files.
-3. For each in-package reference, verify a matching `<TypeName>` customType config exists on the branch (in the temp export's `customtype/` folder).
+3. For each in-package reference, verify a matching `<TypeName>` customType config exists on the branch (in the temp export's `customtype/` folder). **Fast resolution shortcut:** pull the branch's nomenclature registry once — `dxs configuration nomenclature -b <branchId>` returns a flat `<Package>.<Type>` catalog (with enum members in `constantValues`) to membership-test every `objectType` against in one pass, instead of a per-type `dxs source explore` lookup. See [../datex-studio-shared/context-navigation.md#discovering-custom-types-and-enum-members](../datex-studio-shared/context-navigation.md#discovering-custom-types-and-enum-members).
 4. Report unresolved references.
 
 **Severity:**

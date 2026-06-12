@@ -103,7 +103,7 @@ dxs configuration upsert flow -D <config.json> --branch <id>
 
 ### Phase 2: Intellisense
 
-See [context-navigation.md](../datex-studio-shared/context-navigation.md) for the full guide on retrieving and reading context responses, including the backend vs frontend symbol filtering rules.
+See [context-navigation.md](../datex-studio-shared/context-navigation.md) for the full guide on retrieving and reading context responses, including the backend vs frontend symbol filtering rules. To quickly confirm a `$types.<Package>.*` custom type or enum member exists (e.g. before referencing `$types.Utilities.e_awi_scopes.Cartonization` in flow code) without parsing the full context blob, use the `nomenclature` registry described there.
 
 **For create:** Run `dxs function generate --code-file <placeholder.ts> -r <name> -t "<title>" -d "<desc>" --in-param <params> --out-param <params> -o <config.json>` with a placeholder code file (e.g., containing just `// placeholder`), then run context on the resulting JSON to get the type system before writing actual code.
 

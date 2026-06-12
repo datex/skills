@@ -1,6 +1,6 @@
 # Context Navigation
 
-> **Shared reference** — used by function-creator and datasource-creator skills.
+> **Shared reference** — used by function-creator, datasource-creator, type-definition-creator, project-validator, codebase-research, and footprint-workflows skills.
 
 ## Retrieval
 
@@ -79,6 +79,42 @@ Each entry has: `id`, optional `vars[]` (each with `id` and `type`), optional `t
 ```
 
 This means: `$flow` (from flowContext), `$apis` (use as `$apis`), `$backendServices` (use as `$services`), `$customTypes` (use as `$types`) are available. Anything else in `appContext.vars` — e.g. `$shell`, `$frontendFlows` — is **not imported** and cannot be used.
+
+## Discovering custom types and enum members
+
+When you only need to know **which `$types.<Package>.<Type>` exist** on the branch — or **an enum's member names** — without fetching full custom-type bodies or parsing the large `appContext` blob, use **`dxs configuration nomenclature`**. It returns the platform's flat custom-type registry (the lightest of the three custom-type discovery paths):
+
+```bash
+dxs configuration nomenclature -b <branchId>
+```
+
+Each item is `{ key, name, constantValues }`:
+
+- `key` / `name` — the fully-qualified reference `<Package>.<Type>` (interfaces `i_*`, enums `e_*`).
+- `constantValues` — an enum's member names; **empty `[]` for interfaces**.
+
+Built-in filters (applied client-side, so no jq needed):
+
+```bash
+# Every enum in one package, with its members
+dxs configuration nomenclature -b <branchId> --package Cartonization --kind enum
+# Find a type without knowing its package (substring match on the key)
+dxs configuration nomenclature -b <branchId> --search e_stage
+# All interfaces only
+dxs configuration nomenclature -b <branchId> --kind interface
+```
+
+`--package <Pkg>` filters to one package, `--kind [all|enum|interface]` filters by kind (enum = has members), and `--search <text>` is a case-insensitive substring match on the key. The result is a standard list envelope under `custom_types` with a `count` in `metadata`.
+
+**Pick the right custom-type discovery tool:**
+
+| Need | Tool |
+|---|---|
+| Fast "does this type / enum member exist?" across all packages (smallest payload) | **`dxs configuration nomenclature`** (above) |
+| The **full** interface/enum body — field shapes, descriptions | `dxs configuration get customtype <ref>` / `list customtype` |
+| The in-scope IntelliSense surface for authoring backend code | `dxs … context` → `appContext` (see above) |
+
+Under the hood `nomenclature` wraps the customtype-specific endpoint `/applications/<branchId>/customtypeconfigurations/nomenclature` — distinct from the `…/customtypeconfigurations` CRUD routes and the `…/contexts` route.
 
 ## What NOT to Do
 

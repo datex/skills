@@ -95,7 +95,8 @@ If `schema-explorer` is unavailable for some reason, fall back to `dxs schema de
 
 When the question is "what values does enum X accept?" or "what are the possible values of field Y?":
 
-- Fetch the relevant `*-customType` config from the branch: `dxs source explore config <enum_referenceName> --branch <id>` (or list candidates with `dxs source explore configs --type customtype --search <name>`).
+- **Fastest for "just the member names":** `dxs configuration nomenclature -b <id>` (optionally `--search <name>` or `--package <Pkg> --kind enum`) returns every `<Package>.<Type>` with its enum members in `constantValues`, in one compact call (no per-type fetch). See [../datex-studio-shared/context-navigation.md#discovering-custom-types-and-enum-members](../datex-studio-shared/context-navigation.md#discovering-custom-types-and-enum-members).
+- **When you need the full definition** (descriptions, value mappings, interface field shapes): fetch the `*-customType` config from the branch — `dxs source explore config <enum_referenceName> --branch <id>` (or list candidates with `dxs source explore configs --type customtype --search <name>`).
 - Look for the enum definition there — that is the source of truth.
 - Do **not** rely solely on summaries in `CLAUDE.md` or skill references — those may be stale.
 - If the type is referenced from a flow's parameter, trace the reference back to its `customType` config (`dxs source explore trace <flow_ref> --branch <id>` surfaces the type references).

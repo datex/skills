@@ -61,7 +61,10 @@ The dxs CLI normalizes type names to lowercase, no hyphens. Reference table:
 | action (footprintFlow) | 18 | `footprintflow` |
 | footprintDatasource | 19 | `footprintdatasource` |
 | customType (interface/enum) | 22 | `customtype` |
+| footprintWorkflow | 23 | `footprintworkflow` |
 | backendTest | 24 | `backendtest` |
+
+> See [`../footprint-workflows/`](../footprint-workflows/SKILL.md) for the `footprintworkflow` type — a TypeScript implementation bound to a named Footprint platform workflow extension point.
 
 ## Consumers
 
