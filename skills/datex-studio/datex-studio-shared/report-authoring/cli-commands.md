@@ -433,12 +433,15 @@ Set with `--sizing`:
 
 ```bash
 dxs report dataset add <file> --name ds_shipment \
+  --config ds_shipment.json \
   --field Id --field LookupCode --field Status \
   --field "Account.Name" \
   --field "OrderDate[Date|YYYY-MM-DDTHH:mm:ss.fffffff]"
 ```
 
-Creates the DataSet with proper Name/DataField mapping (dots → underscores, date annotations stripped from Name), `CommandText = $.{name}.result.*`, and sensitivity properties.
+Creates the DataSet with proper Name/DataField mapping (dots → underscores, date annotations stripped from Name), `CommandText = $.{name}.result` or `$.{name}.result.*`, and sensitivity properties.
+
+**Always pass `--config`** with the datasource JSON file. The command reads `resultIsCollection` and automatically sets the correct CommandText (`.*` suffix for collections, no suffix for single). Without `--config`, you must manually pass `--is-collection` for collection datasources — omitting it silently produces an empty report.
 
 ### Add fields to existing dataset
 
