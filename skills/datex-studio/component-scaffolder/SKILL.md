@@ -8,10 +8,10 @@ description: |
   authoring their own type. After creating the minimal-valid skeleton
   on the branch via dxs, hands off to
   the matching creator (action-creator, function-creator, grid-creator,
-  hub-creator, form-creator, editor-creator, selector-creator,
+  hub-creator, form-creator, editor-creator, embed-creator, selector-creator,
   storage-creator, type-definition-creator, backend-test-creator,
   datasource-creator) for body authoring. Triggers: "scaffold a new
-  component", "create a new grid/hub/form/editor/selector/storage/
+  component", "create a new grid/hub/form/editor/embed/selector/storage/
   interface/enum/backendTest/action/function/datasource", "starter
   <type> file", "new <type> from scratch".
 depends:
@@ -20,6 +20,7 @@ depends:
   - backend-test-creator
   - datasource-creator
   - editor-creator
+  - embed-creator
   - form-creator
   - function-creator
   - grid-creator
@@ -49,8 +50,8 @@ Creator skills (action-creator, function-creator, grid-creator, etc.) own author
 ## Workflow
 
 1. **Gather the three required inputs:**
-   - **Type** — one of: `action`, `function`, `interface`, `enum`, `grid`, `hub`, `form`, `editor`, `selector`, `storage`, `backendTest`, `datasource` (OData or flow query type, platform variant), `footprintDatasource` (OData or flow query type, Footprint variant). If the caller said "datasource" without qualifying the variant, ask which variant they want (platform `-datasource` vs Footprint `-footprintDatasource`) — they're a different `configurationTypeId` and a different component variant. See [datasource-creator/references/datasources.md](../datasource-creator/references/datasources.md) for the full taxonomy.
-   - **Name** — the component reference name (without file suffix). Carry the type indicator on the name itself (`_storage`, `_hub`, `_form`, `_editor`, `_grid`, `_dd` for selectors, `_action`, `_flow` for functions, `i_` prefix for interfaces, `e_` prefix for enums) per [../datex-studio-conventions/naming-conventions.md](../datex-studio-conventions/naming-conventions.md).
+   - **Type** — one of: `action`, `function`, `interface`, `enum`, `grid`, `hub`, `form`, `editor`, `embed`, `selector`, `storage`, `backendTest`, `datasource` (OData or flow query type, platform variant), `footprintDatasource` (OData or flow query type, Footprint variant). If the caller said "datasource" without qualifying the variant, ask which variant they want (platform `-datasource` vs Footprint `-footprintDatasource`) — they're a different `configurationTypeId` and a different component variant. See [datasource-creator/references/datasources.md](../datasource-creator/references/datasources.md) for the full taxonomy.
+   - **Name** — the component reference name (without file suffix). Carry the type indicator on the name itself (`_storage`, `_hub`, `_form`, `_editor`, `_embed`, `_grid`, `_dd` for selectors, `_action`, `_flow` for functions, `i_` prefix for interfaces, `e_` prefix for enums) per [../datex-studio-conventions/naming-conventions.md](../datex-studio-conventions/naming-conventions.md).
    - **Description** — non-null, non-empty, **≤100 characters**. This is a hard SQL column cap on the Footprint side — imports fail with a SQL truncation error if exceeded. Ask the caller for one if not provided; do not proceed without a description.
 
 2. **Look up the dispatch row** in the table below for the requested type. That gives you the suffix, `configurationTypeId`, the reference doc with the canonical skeleton, and the creator skill to delegate to next.
@@ -59,7 +60,7 @@ Creator skills (action-creator, function-creator, grid-creator, etc.) own author
 
 4. **Apply the skeleton:**
    - `referenceName` → the component name. (Exception: actions — `referenceName` ends in `_action` while the file suffix is `-footprintFlow.json`. The creator-name pairing is intentional; see [action-creator/references/actions.md](../action-creator/references/actions.md).)
-   - `title` → same as `referenceName` (matches the filename stem).
+   - `title` → for **backend types** (function, action, datasource, footprintDatasource, interface, enum, storage, backendTest) the title never reaches a screen, so set it equal to `referenceName`. For **user-facing types** (form, editor, hub, grid, embed, and standalone selectors) the `title` renders as a header / dialog title / tab label, so it must be a distinct sentence-case display name — a `title` byte-identical to `referenceName` is a naming violation per [../datex-studio-conventions/naming-conventions.md → Display Names for User-Facing Components](../datex-studio-conventions/naming-conventions.md#display-names-for-user-facing-components). Derive one from the name (e.g. `custom_example_map_embed` → `Example map`) or ask the caller.
    - `description` → the caller-supplied description (≤100 chars).
    - `accessModifier` → ask the caller; default to `"public"` if they don't have a preference.
    - `configurationTypeId` → the numeric ID from the dispatch table. Copy it from a working component of the same type if you have any doubt — wrong cti is a Validate-clean / Preview-broken failure mode (see [../datex-studio-conventions/file-format.md](../datex-studio-conventions/file-format.md)).
@@ -92,6 +93,7 @@ Creator skills (action-creator, function-creator, grid-creator, etc.) own author
 | `hub` | `-hub` | 2 | [hub-creator/references/hubs.md](../hub-creator/references/hubs.md) | `hub-creator` |
 | `form` | `-form` | 5 | [form-creator/references/forms.md](../form-creator/references/forms.md) | `form-creator` |
 | `editor` | `-editor` | 4 | [editor-creator/references/editors.md](../editor-creator/references/editors.md) | `editor-creator` |
+| `embed` | `-embed` | 20 | [embed-creator/references/embeds.md](../embed-creator/references/embeds.md) | `embed-creator` |
 | `selector` | `-selector` | 7 | [selector-creator/references/selectors.md](../selector-creator/references/selectors.md) | `selector-creator` |
 | `storage` | `-storage` | 17 | [storage-creator/references/storage.md](../storage-creator/references/storage.md) | `storage-creator` |
 | `backendTest` | `-backendTest` | 24 | [backend-test-creator/references/backend-tests.md](../backend-test-creator/references/backend-tests.md) | `backend-test-creator` |
@@ -109,7 +111,7 @@ Notes on the table:
 
 - **Skeletons come from the reference docs.** Always read the matching `references/<type>.md` before building the body. Do not fabricate JSON structure from memory. The reference doc is authoritative for skeleton shape and skeleton defaults.
 - **The branch is the source of truth.** The skeleton reaches the branch via `dxs configuration upsert`; any local `body.json` is temp scratch, never the system of record. Check existence with `dxs configuration get`, not by inspecting local file paths.
-- **`referenceName` and `title` must equal the filename stem exactly.** The only exception is actions, whose `referenceName` ends in `_action` while the file suffix is `-footprintFlow.json` — this is the documented convention, not a typo.
+- **`referenceName` must equal the filename stem exactly.** The only exception is actions, whose `referenceName` ends in `_action` while the file suffix is `-footprintFlow.json` — this is the documented convention, not a typo. **`title`** equals `referenceName` for backend types, but user-facing types (form, editor, hub, grid, embed, standalone selector) require a distinct sentence-case display `title` — see step 4 and [../datex-studio-conventions/naming-conventions.md](../datex-studio-conventions/naming-conventions.md#display-names-for-user-facing-components).
 - **Description is mandatory and ≤100 characters.** Per the SQL column cap. Do not proceed without one. Do not silently truncate — confirm with the caller.
 - **`configurationTypeId` matters at codegen time even though Studio's Validate doesn't enforce it.** Wrong cti → Preview cascade failures rooted in files that never touched the broken component. Always copy from a working component of the same type, or from the dispatch table above. See [../datex-studio-conventions/file-format.md](../datex-studio-conventions/file-format.md) for the failure-mode discussion.
 - **Minimum valid only.** No placeholder properties, filters, columns, or code beyond what the skeleton requires for Validate to pass. The creator skill owns body authoring; this skill creates an empty-but-valid component on the branch and hands off.

@@ -38,6 +38,7 @@ Every component JSON carries a numeric `configurationTypeId` identifying its com
 | 17 | Storage | `-storage.json` |
 | 18 | Action (top-level) | `-footprintFlow.json` |
 | 19 | Footprint-datasource | `-footprintDatasource.json` |
+| 20 | Embed | `-embed.json` |
 | 22 | Custom type (interface or enum) | `-customType.json` |
 | 23 | Footprint-workflow | `-footprintWorkflow.json` |
 | 24 | Backend-test | `-backendTest.json` |

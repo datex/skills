@@ -15,6 +15,7 @@ Every component's name carries a type indicator that makes its kind legible at a
 | Hub | `<name>_hub` | `invoicing_rules_hub-hub.json` |
 | Form | `<name>_form` | `invoicing_rules_configuration_form-form.json` |
 | Editor | `<name>_editor` | `auto_invoicing_rule_editor-editor.json` |
+| Embed | `<name>_embed` | `custom_example_map_embed-embed.json` |
 | Grid | `<name>_grid` | `invoicing_rules_grid-grid.json` |
 | Interface (customType) | `i_<name>` | `i_auto_invoice_rule-customType.json` |
 | Enum (customType) | `e_<name>` | `e_allocation_base_strategy-customType.json` |
@@ -76,6 +77,7 @@ User-facing components must carry a user-friendly display `title` distinct from 
 | Editor | yes (page title, lock dialog, Import-modal `Name *`) | **yes** |
 | Hub | yes (page title, breadcrumb) | **yes** |
 | Grid | yes (when surfaced as a hub tab or dialog) | **yes** |
+| Embed | yes (dialog title, flyout heading) | **yes** |
 | Selector | indirectly (control's placeholder when used standalone) | yes if standalone; doesn't matter in field-bound use |
 | Function | no — internal callable | no |
 | Action | no — internal callable | no |

@@ -15,6 +15,7 @@ depends:
   - datex-studio-conventions
   - datex-studio-runtime
   - editor-creator
+  - embed-creator
   - grid-creator
   - selector-creator
   - hub-creator
@@ -38,6 +39,7 @@ Author or modify a Datex Studio form (configurationTypeId=5) on a branch — an 
 - [../datex-studio-runtime/runtime-globals.md](../datex-studio-runtime/runtime-globals.md) — platform-injected globals available in form code (`$form`, `$flows`, `$shell`, `$utils`, ...)
 - [../datex-studio-runtime/calling-conventions.md](../datex-studio-runtime/calling-conventions.md) — UI-tier calling rules (call functions, never actions; CRUD via `$apis.<Package>.FootprintApi.extendedActions.<action_name>`)
 - [../editor-creator/references/editors.md](../editor-creator/references/editors.md) — sibling component for entity-bound view/edit (the form-vs-editor decision)
+- [../embed-creator/references/embeds.md](../embed-creator/references/embeds.md) — sibling; for iframe/URL/HTML-string rendering with no field controls (the form-vs-embed decision)
 - [../grid-creator/references/grids.md](../grid-creator/references/grids.md) — typical host for forms via row-action / toolbar-button flows
 - [../selector-creator/references/selectors.md](../selector-creator/references/selectors.md) — dropdown / autocomplete fields mount selectors
 - [../component-wiring-check/references/component-wiring.md](../component-wiring-check/references/component-wiring.md) — host reference contracts, vars-must-be-declared rule, moduleId rule
