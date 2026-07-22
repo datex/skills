@@ -18,6 +18,24 @@ branch (or hand back to the user), then resume with `--select` of the remaining 
 The user lacks package-publish rights. Nothing after the failing node ran. Resolve access, then
 `dxs source cascade run --plan plan.json --select <remaining uids…>`.
 
+## Publish call times out on a slow build (handled automatically — do NOT abort or re-run)
+Publishing can block on a build: in **local dev the API runs codegen + `ng build` inline**, which
+often outlasts a normal HTTP timeout. `cascade run` handles this itself, so a `DXS-API-TIMEOUT`
+during publish is **not** a failure to react to:
+- The publish call already uses a longer, dedicated timeout — the `publish_timeout` setting
+  (default 300s).
+- If it still times out, `cascade run` **confirms the version exists server-side** (the version
+  record is committed before the build runs) and continues, feeding that version forward to
+  dependents. The node comes back flagged `confirmedAfterTimeout: true` and is narrated as
+  `✓ <pkg> → <version> (publish call timed out; version confirmed on server — build may still be running)`.
+  **Treat this as success** — the version published; only its container image may still be building.
+- Only if no matching version is found after the timeout does the run stop with a real error. Then
+  resume the remaining nodes with `--select` once resolved.
+
+So on a timeout: do nothing special — let the run finish. Do **not** re-run the whole cascade (that
+would try to republish already-published nodes). For a genuinely slow machine, raise the ceiling
+once with `dxs config set publish_timeout <seconds>`.
+
 ## Lock contention on `appConfig`
 Another branch/user holds the lock. Use `dxs source locks --repo <id>` to find the holder; resolve,
 then re-run the affected node via `--select`.

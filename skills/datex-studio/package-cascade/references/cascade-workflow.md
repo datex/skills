@@ -67,7 +67,10 @@ dxs source cascade run --plan plan.json --release-notes "<notes>"       # attach
 ```
 `--release-notes` applies the **same** text to every node republished in that run — it is not
 per-node (see below for per-node notes). Narrate progress from the CLI's per-node output
-(`✓ <package> → <version>`).
+(`✓ <package> → <version>`). A node may come back flagged `confirmedAfterTimeout: true` — the
+publish HTTP call timed out on a slow local build but `cascade run` confirmed the version landed and
+continued. This is a **success**, not an error (the build may still be finishing); do not re-run. See
+[troubleshooting.md](troubleshooting.md) → "Publish call times out on a slow build".
 
 **Richer commits/release notes (known limitation):** `cascade run` performs the whole
 create → re-pin → commit → publish loop itself, forking each node's feature branch directly off
