@@ -5,10 +5,25 @@ Exact `dxs` commands for each phase. Assumes the origin package is already publi
 ## Phase 0 — Establish origin + target org (input = a package name)
 1. Resolve the package name the user gave → its `uniqueIdentifier`:
    ```bash
-   dxs -O json source repo search "<name>"   # returns uniqueIdentifier; matches repo name/description
+   dxs -O json marketplace search "<name>" --type componentmodule   # returns uniqueIdentifier
    ```
-   `repo search` returns component packages (ComponentModule), not just apps. If more than one repo
-   matches, show them and let the user pick the right `uniqueIdentifier`.
+   Use `marketplace search` / `marketplace list` here, **not** `source repo search`: the cascade origin
+   is an already-published package, and only the marketplace surface returns packages visible to the
+   caller across orgs. A customer re-pinning a **referenced Datex package** would not find it via
+   `repo search` (that lists only the caller's own-org repos). `--type componentmodule` maps to
+   `MarketPlaceApplicationType` (6), NOT the `applicationDefinitionTypeId` value `3` the plan uses; the CLI
+   does the name→id mapping, and the two enums overlap, so never hand-pass raw numbers. If more than one package matches, show them and let the user pick
+   the right `uniqueIdentifier`. If a Datex package returns nothing, it isn't public or granted to the
+   target org yet — resolve that first, or the re-pin cannot resolve its version.
+
+   **Pass the resolved `uniqueIdentifier` to `-p` verbatim — never the display name the user typed.** The
+   uniqueIdentifier is a normalized form of the name with spaces and underscores stripped (display name
+   `pkg_cascade_mid` → uid `pkgcascademid`); `cascade plan` matches it by **exact string equality**, so a
+   display name — even one that already looks like an identifier (e.g. `pkg_cascade_leaf`) — matches no
+   published package and returns an empty plan with no error, reading as "nothing to do." Do **not** skip
+   this resolution just because the name the user gave looks id-shaped. Sanity-check the resolved id before
+   planning: `dxs -O json source referenced-from <uid> --org <orgId>` should list the expected consumers; an
+   empty result here means the id (or org) is wrong, not that nothing depends on the package.
 2. Establish the origin's newly-published `versionName`. The user published the origin themselves,
    so **take the version from them** — do not look it up. If they are unsure, they must find the
    version they just published before continuing.

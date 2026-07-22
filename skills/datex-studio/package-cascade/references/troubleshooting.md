@@ -34,11 +34,20 @@ Completed nodes are already committed + published (their versions are final). Re
 from the server and fed forward, a fresh `cascade plan` + `cascade run` also converges (already-
 current pins are detected by `reference set` as no-ops).
 
-## Plan is empty or missing packages you expected
-Most often the wrong target org (or none) was passed in Phase 1. `--org <id>` scopes the traversal
-to a single tenant; consumers owned by other orgs are excluded by design. Re-check the org you
-resolved in Phase 0 (`dxs -O json organization list` / `organization mine`) and re-run `cascade
-plan` with the right `--org`. Omitting `--org` traverses every tenant — usually not what you want.
+## Plan is empty or missing packages you expected (reads as "up to date" / nothing to do)
+Two common causes — check in this order:
+
+1. **Wrong origin `uniqueIdentifier` (the display name was passed to `-p`).** `-p` must be the package's
+   resolved `uniqueIdentifier`, not its display name. The uniqueIdentifier strips spaces/underscores from the
+   name (display `pkg_cascade_mid` → uid `pkgcascademid`), and `cascade plan` matches it by **exact string
+   equality** — so a display name such as `pkg_cascade_leaf` matches no published package and yields an empty
+   plan with no error, indistinguishable from "no consumers." Re-resolve via
+   `dxs -O json marketplace search "<name>" --type componentmodule` and confirm the id finds consumers with
+   `dxs -O json source referenced-from <uid> --org <orgId>` before re-planning.
+2. **Wrong target org (or none).** `--org <id>` scopes the traversal to a single tenant; consumers owned by
+   other orgs are excluded by design. Re-check the org you resolved in Phase 0 (`dxs -O json organization
+   list` / `organization mine`) and re-run `cascade plan` with the right `--org`. Omitting `--org` traverses
+   every tenant — usually not what you want.
 
 ## A stale application needs updating
 Applications are never auto-published. For each entry in `staleApplications`, update it separately
