@@ -4,8 +4,9 @@
 The cascade runs within ONE tenant — the org whose packages get re-pinned and republished. Resolve
 it before planning with `dxs -O json organization list`:
 
-- **One org returned** → use it and say nothing. A non-Datex user only ever sees their own tenant,
-  so there is nothing to choose.
+- **One org returned** → use it and say nothing — **unless the user named a different org** than the one
+  visible (then see "Target org you're not logged into" below). A non-Datex user only ever sees their own
+  tenant, so there is normally nothing to choose.
 - **Several returned** (Datex members see all tenants) → offer three shapes:
   - **Use current** — the active identity's org (`dxs -O json organization mine`). Default; pre-select it.
   - **Pick from the list** — present each org as `name (id)` and let the user choose one.
@@ -17,6 +18,24 @@ it before planning with `dxs -O json organization list`:
 Pass the resolved id to Phase 1 as `--org <id>`. Publishing the planned packages needs rights in
 that org: a Datex member can publish across every tenant, a tenant user only within their own —
 which is exactly why a non-Datex user has just one org to sync and never needs to choose.
+
+## Target org you're not logged into (Phase 0)
+The org the user names may not be one the active identity can access — `organization list`/`show`/`search`
+only surface the current identity's tenant(s), yet `cascade plan` is read-only and cross-tenant, so it
+plans fine from the wrong identity and the failure only bites at `cascade run` (404 on `mainApplicationId`).
+Do NOT silently fall back to a visible org, and do NOT plan-and-fail. Confirm, then switch identity, with
+two interactive prompts (AskUserQuestion):
+
+1. **Confirm the target** — "Org `<id>` (`<name>`) is not one your current identity can access. Is it
+   really the target?" Options: yes / it's a different org / cancel.
+2. **Confirm the switch** — "Running there means switching identity to that tenant via an interactive
+   device-code login you complete in a browser. Switch?" Options: yes / no.
+
+On yes to both, log into the target tenant — prefer `dxs auth login --tenant-id <tenantId>` (the tenantId
+is on the origin package's `marketplace search` metadata); `dxs auth switch <name>` is the wrong tool (it
+only resolves already-visible orgs and fails `DXS-AUTH-013`). **Relay the device code + URL and wait** — you
+cannot complete the browser step for the user. Then `dxs auth status` to confirm the target org is active,
+and re-plan under the new identity before running. See cascade-workflow.md Phase 0 step 3a.
 
 ## Presenting the plan (Phase 2)
 Render an indented tree rooted at the origin, annotated with the pin change and execution level.

@@ -51,8 +51,10 @@ appConfig, stop: that work belongs in `dxs source reference set`.
 Phase 0  Establish origin+org  — user names the package; resolve its uniqueIdentifier (dxs marketplace
          search "<name>" --type componentmodule, or marketplace list --type componentmodule to browse) and
          pass the RESOLVED uid to -p, never the display name the user typed (see safety gates); take the
-         newest published version from the user; pick the target org (auto when the user sees only one);
-         CONFIRM (a wrong version poisons every pin, a wrong org syncs the wrong tenant).
+         newest published version from the user; pick the target org (auto only when the user sees exactly
+         one AND didn't name a different one — if they name an org you're not logged into, confirm + switch
+         identity via dxs auth login, see references); CONFIRM (a wrong version poisons every pin, a wrong
+         org syncs the wrong tenant).
 Phase 1  Plan                  — dxs -O json source cascade plan -p <uid> -v <version> --org <orgId>
 Phase 2  Present & select      — render the tree; ask ALL / subset / review-only (see
          references/interaction-patterns.md); a cycle or conflict = hard stop.
@@ -73,6 +75,7 @@ Follow **[references/cascade-workflow.md](references/cascade-workflow.md)** for 
 - **Confirm the origin package + version + target org** before planning (Phase 0). A wrong version poisons every pin; a wrong org syncs the wrong tenant.
 - **`-p` is the resolved `uniqueIdentifier`, never the display name.** The uniqueIdentifier strips spaces/underscores from the name (display `pkg_cascade_mid` → uid `pkgcascademid`) and `cascade plan` matches it by exact equality — so a display name, even one that already looks id-shaped (e.g. `pkg_cascade_leaf`), matches no package and returns a silently empty plan that reads as "nothing to do." Pass the exact string `marketplace search` returned; sanity-check with `dxs source referenced-from <uid> --org <id>`.
 - **Cascade is single-tenant** — Phase 1 passes `--org <id>` so only the target org's packages are planned. Consumers in other tenants are excluded (and could not be republished anyway; publishing is gated to the owning org).
+- **The target org may be one you're not logged into.** `organization list` shows only the active identity's tenants, and `cascade plan` traverses cross-tenant read-only, so a plan can succeed against an org you cannot publish to — the failure surfaces only at `run` (404 on `mainApplicationId`). If the user names an org that isn't visible, do not silently fall back to a visible org and do not plan-and-fail: **confirm the target, confirm the switch, then `dxs auth login --tenant-id <tenantId>`** into that tenant (interactive device-code login the user completes in a browser) before running. See [references/cascade-workflow.md](references/cascade-workflow.md) Phase 0 step 3a and [references/interaction-patterns.md](references/interaction-patterns.md) → "Target org you're not logged into".
 - **Never assume a branch/repo ID** — the plan carries each node's Main branch id; surface it, don't guess.
 - **Cycle or version conflict = hard stop.** `cascade plan` sets `cycleDetected`; `reference set` aborts on conflict. Report and do not force.
 - **Explicit go/no-go** after presenting the plan — nothing mutates before the user picks (Phase 2).

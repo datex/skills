@@ -33,10 +33,35 @@ Exact `dxs` commands for each phase. Assumes the origin package is already publi
    ```bash
    dxs -O json organization list
    ```
-   - Exactly **one** org returned (normal for a non-Datex user — the API only returns their own
-     tenant) → use it silently, no prompt.
+   - Exactly **one** org returned **and the user did not name a different one** → use it silently, no prompt.
    - **More than one** (Datex members see every tenant) → run the org-selection prompt in
      [interaction-patterns.md](interaction-patterns.md) → "Choosing the target organization".
+   - **The user named an org that is NOT in the list** (e.g. "sync the Datex org" while your identity
+     only sees your own tenant) → you are **not logged into the target**. Do **not** silently fall back
+     to a visible org, and do **not** just plan-and-fail. Go to step 3a.
+3a. **Target org you're not logged into → confirm + switch identity.** `organization list`/`show`/`search`
+   only surface orgs the *active identity* can see, and `cascade plan` is read-only and traverses
+   cross-tenant, so it will happily plan an org you cannot write to — the failure surfaces only at
+   `cascade run` (a 404 on the node's `mainApplicationId`). When the named target isn't visible:
+   1. **Identify** it: `dxs -O json organization show <id>` returns 404, `organization search "<name>"`
+      is empty, or a run 404s on `createFeatureBranch`. (`dxs auth switch <name>` also fails
+      `DXS-AUTH-013: Organization '<name>' not found` — `switch` only resolves orgs the current identity
+      already knows, so it is the wrong tool here.)
+   2. **Confirm the target and the switch** with the user via two interactive prompts — see
+      [interaction-patterns.md](interaction-patterns.md) → "Target org you're not logged into". Never
+      switch identity without an explicit go-ahead.
+   3. **Log into the target tenant** (device-code flow — **interactive, the user completes it in a
+      browser**; you cannot finish it for them, so surface the code + URL and wait):
+      ```bash
+      dxs auth login --tenant-id <tenantId>   # reliable — bypasses org-name resolution. The tenantId is on
+                                              # the origin package's marketplace metadata: `dxs -O json
+                                              # marketplace search "<name>" --type componentmodule` → tenantId
+      dxs auth login <OrgName>                # documented alt (auth login --help); may not resolve for an
+                                              # org your identity can't see, so prefer --tenant-id
+      ```
+   4. **Verify** before proceeding: `dxs auth status` shows the target org active and
+      `dxs organization show <id>` now returns (it 404'd before). Then **re-plan under the new identity**
+      (Phase 1) and continue — the plan is stable, but re-planning confirms write access.
 4. **Confirm with the user**: "origin = `<uniqueIdentifier>` @ `<versionName>`, syncing packages in
    org `<orgName>` (id `<orgId>`) — correct?" A wrong version poisons every downstream pin and a
    wrong org syncs the wrong tenant, so this is a gate. If the origin has no published version,

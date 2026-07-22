@@ -18,6 +18,17 @@ branch (or hand back to the user), then resume with `--select` of the remaining 
 The user lacks package-publish rights. Nothing after the failing node ran. Resolve access, then
 `dxs source cascade run --plan plan.json --select <remaining uids…>`.
 
+## `cascade run` 404s immediately (`createFeatureBranch` / "There is no application with id <n>")
+You are **not logged into the target org**. `cascade plan` is read-only and traverses cross-tenant, so it
+plans fine from any identity, but the write side (`createFeatureBranch` → re-pin → publish) is gated to the
+owning tenant and 404s on the node's `mainApplicationId` under the wrong identity. **Nothing was mutated**
+(the 404 is on branch creation itself — no branch left behind). Fix: confirm the target with the user, then
+switch identity into that tenant with `dxs auth login --tenant-id <tenantId>` (the tenantId is on the origin
+package's `marketplace search` metadata). Do **not** use `dxs auth switch <name>` — it only resolves orgs the
+current identity already sees and fails `DXS-AUTH-013: Organization '<name>' not found`. After
+`dxs auth status` confirms the target org is active, re-plan and re-run. See interaction-patterns.md →
+"Target org you're not logged into".
+
 ## Publish call times out on a slow build (handled automatically — do NOT abort or re-run)
 Publishing can block on a build: in **local dev the API runs codegen + `ng build` inline**, which
 often outlasts a normal HTTP timeout. `cascade run` handles this itself, so a `DXS-API-TIMEOUT`
