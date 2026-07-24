@@ -26,6 +26,7 @@ depends:
   - type-definition-creator
   - function-creator
   - datasource-creator
+  - custom-angular-component-creator
   - component-wiring-check
 ---
 
@@ -36,6 +37,8 @@ Audit a single Datex Studio component file against its type-specific authoring r
 > **See also:** `grid-validator` — grid files (`*-grid.json`) carry several gotchas the generic dispatcher does not catch (envelope-vs-body shape, text-display coercion, five-location invariant). For grids, prefer `grid-validator` and treat this skill as a fall-back if `grid-validator` is unavailable.
 >
 > **See also:** `component-wiring-check` — cross-component reference contracts (one component pointing at another). This validator only audits a single file in isolation; it flags obvious wiring drift it can see in that one file (e.g. a `configParameters` block that does not mirror the file's own `inParams`) but does not chase external references.
+>
+> **CAC note:** a Custom Angular Component (`configurationTypeId: 36`, a `dxs ng` working folder — `manifest.json` + `app.<ref>.component.ts` with `//#region __COMPONENT_TYPES__`/`__COMPONENT_BODY__`) is not a single-file JSON body, so this skill's suffix dispatch doesn't apply. Audit it per `custom-angular-component-creator`'s own Pre-Flight Checklist instead.
 
 ## References
 
@@ -47,6 +50,7 @@ Audit a single Datex Studio component file against its type-specific authoring r
 ## Dependencies
 
 - **Creator skills** (`action-creator`, `function-creator`, `grid-creator`, `hub-creator`, `form-creator`, `editor-creator`, `selector-creator`, `storage-creator`, `type-definition-creator`, `backend-test-creator`, `datasource-creator`) — each one's `references/<type>.md` document is the rulebook this validator dispatches into by file suffix. Update them and this validator picks up the new rules automatically.
+- **`custom-angular-component-creator`** skill — CAC (`configurationTypeId: 36`) working folders don't dispatch by suffix (see the CAC row in the Sub-agent table below); this validator instead points at that skill's own Pre-Flight Checklist as the rulebook.
 - **`datex-studio-conventions`** skill — generic cross-cutting rules (file format, naming, defaults) that apply to **every** component regardless of suffix.
 - **`datex-studio-shared`** / **`datex-studio-runtime`** skills — branch-setup primitives and platform-runtime globals referenced by the per-type rule docs.
 - **`tailoring-overlay`** skill — overlay-specific shadow-marker rules invoked when the file is a tailored overlay variant rather than a base component.
@@ -100,6 +104,7 @@ You validate a single Datex Studio component file against its type's authoring r
    | `*-backendTest.json` | `../backend-test-creator/references/backend-tests.md` |
    | `*-datasource.json` | `../datasource-creator/references/odata-datasources.md` (and `flow-datasources.md` if the body shape is flow-backed) |
    | `*-footprintDatasource.json` | `../datasource-creator/references/odata-datasources.md`, `../datasource-creator/references/flow-datasources.md` |
+   | CAC working folder (`manifest.json` + `app.<ref>.component.ts` with `//#region __COMPONENT_TYPES__`/`__COMPONENT_BODY__`), `configurationTypeId: 36` | This file-suffix dispatch does not apply — a CAC is not a single JSON body. Audit per `../custom-angular-component-creator/SKILL.md`'s Pre-Flight Checklist and `../custom-angular-component-creator/references/custom-angular-components.md` instead of a suffix-matched rule doc. |
 
    If the suffix does not match anything in the table, reply `Cannot validate: unknown component suffix '<suffix>'. Supported: <list>.` and stop. If the file is recognized as a tailored overlay, also load `../tailoring-overlay/` rules.
 
