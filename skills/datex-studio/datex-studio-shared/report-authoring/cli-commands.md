@@ -576,7 +576,7 @@ dxs report validate-arjs bol.rdlx-json --timeout 60
 | `--timeout` | Seconds to wait for ARJS rendering (default: 30) |
 
 **Requires:**
-- `agent-browser`: `npm install -g @anthropic-ai/agent-browser && agent-browser install`
+- `agent-browser`: `npm install -g agent-browser && agent-browser install`
 - `@mescius/activereportsjs`: `npm install` (in `src/dxs/web/frontend/`)
 
 **Catches:** expression evaluation errors (`=Fields!BadField.Value`), datasource binding failures, layout rendering errors, font loading failures, and ARJS internal warnings about unsupported features.

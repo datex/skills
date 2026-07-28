@@ -166,7 +166,6 @@ dxs ng preview <folder>              # serve locally + screenshot -> <folder>/re
 dxs ng preview <folder> -o out.png   # custom output path
 dxs ng preview <folder> --refresh -b <branch>   # after a manifest/IO change
 dxs ng preview <folder> --clean      # kill a stuck server and rebuild
-dxs ng preview <folder> --timeout 180  # allow a slower first compile
 ```
 
 `preview` copies `mocks/` into the harness assets, runs `npm install` once, warms `ng serve`, and drives a headless browser to screenshot the component. Read the PNG, compare to the target, edit, re-run — the loop is the acceptance test for bespoke UI. Type/template errors surface in the render (the real component compiles).

@@ -9,9 +9,10 @@ description: |
   Covers: the canonical `dxs configuration` round-trip (get → extract `.json` →
   edit → upsert) and its silent-wipe guard, branch & connection selection,
   Studio lifecycle, designer context navigation, flow code patterns
-  (`$utils.isDefined()`, OData pagination), and RDLX-JSON report authoring
+  (`$utils.isDefined()`, OData pagination), RDLX-JSON report authoring
   (design standards, CLI commands, dataset rules, sample data, deploy patterns,
-  troubleshooting).
+  troubleshooting), and the Fluent 2 app design system (theme tokens, component
+  class names, traps) for hand-authored UI.
 depends:
   - function-creator
 ---
@@ -35,6 +36,15 @@ If a user asks a Datex Studio question that isn't already scoped to a more speci
 - [studio-management.md](studio-management.md) — Studio lifecycle: check status, start in background with readiness verification, clean up.
 - [context-navigation.md](context-navigation.md) — How to retrieve and read `dxs -O json … context` responses (backend vs. frontend symbol filtering), plus the `nomenclature` registry for discovering custom types and enum members (`$types.<Package>.*`).
 - [flow-code-patterns.md](flow-code-patterns.md) — `$utils.isDefined()`, date defaulting, `$shell.Reports.open{ref}()`, and the OData pagination / 5000-record cap pattern.
+
+### Datex app design system (`design-system/`)
+
+The Fluent 2 UI design system for **hand-authored** UI — most importantly a Custom Angular Component (see `custom-angular-component-creator`), which doesn't get Datex styling for free. A vendored verbatim mirror of the Claude Design "Datex Studio App" system; see the folder README for provenance + how to refresh.
+
+- [design-system/README.md](design-system/README.md) — what's here, provenance, and refresh steps.
+- [design-system/02-tokens.md](design-system/02-tokens.md) — theme tokens (use `var(--…)`, never a hex), status colors, typography, spacing, icon fonts.
+- [design-system/03-components.md](design-system/03-components.md) — the real `datex-*` class names to compose (buttons, fields/forms, grids, cards, widgets, toolbars, tabs).
+- [design-system/06-traps.md](design-system/06-traps.md) — compiled-CSS gotchas that contradict intuition. Plus [01-principles](design-system/01-principles.md), [04-patterns](design-system/04-patterns.md), [05-voice-and-copy](design-system/05-voice-and-copy.md).
 
 ### RDLX-JSON report authoring (`report-authoring/`)
 

@@ -37,10 +37,22 @@ composed together. Composition happens through embedded platform components
 (component references: selectors first) and `$shell` dialog openers, not CAC-in-CAC.
 If a design feels too big for one component, trim the design, not the component count.
 
+## Using a CAC as tab content
+
+A CAC can be a tab's content in a **hub, editor, card, or dashboard** — the same slot that hosts
+grids and forms. In the container's tab designer, pick **Custom Angular Component** as the tab
+content type, reference the pushed CAC, and bind its `@Input`s through the tab's parameters (the
+CAC's `inParams`/`outParams` are what the tab wires to). The platform generates a tab-content
+contract onto every CAC, which **reserves three member names** — never declare an outParam,
+`@Output`, or body method named `refresh`, `$refreshEvent`, or `outParamsChange`. To re-load the
+CAC when the hub refreshes, implement `refresh()` in the body region; otherwise the generated
+default re-runs `ngOnInit()`.
+
 ## References
 
 - [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) — Branch/connection selection (shared across skills). **Never assume a branch ID.**
 - [references/custom-angular-components.md](references/custom-angular-components.md) — Authoritative CAC reference: the two author regions, the light-harness / preview model, the injected `$`-context, mock data, `manifest.json` shape, prerequisites, timings, and gotchas
+- [../datex-studio-shared/design-system/README.md](../datex-studio-shared/design-system/README.md) — **Datex design system** (Fluent 2): theme tokens, the real `datex-*` component class names, patterns, and compiled-CSS traps. A CAC gets **no** styling for free — read this and apply it so hand-authored UI looks native.
 - [../datex-studio-runtime/runtime-globals.md](../datex-studio-runtime/runtime-globals.md) — the platform `$`-globals the component's constructor receives (`$datasources`, `$flows`, `$shell`, `$utils`, `$settings`, …)
 - [../datex-studio-runtime/calling-conventions.md](../datex-studio-runtime/calling-conventions.md) — UI-tier calling rules for code the component runs (call flows/datasources, not raw HTTP)
 - [../datex-studio-conventions/naming-conventions.md](../datex-studio-conventions/naming-conventions.md) — reference-name / display-name rules (the name you pass to `dxs ng create` is PascalCase; the reference name is camelCase)
@@ -69,7 +81,7 @@ If the API is down, `create` / `data generate` / `preview` / `push` all fail wit
 | `dxs ng create <Name> -b <branch> [-d <dir>]` | yes | **no** | Build a starter config → server generates the **light harness** for the branch → materialize `<name>/angularapp/…` + `manifest.json` + `mocks/` locally. Nothing is created in Studio. |
 | `dxs ng pull <name> -b <branch> [-d <dir>]` | yes | no | Same materialization for an **existing** CAC (the edit-existing entry point). |
 | `dxs ng data generate <folder> -b <branch>` | yes | no | Seed `<folder>/mocks/harness-mocks.json` with typed placeholders for the `$datasources`/`$flows` the component uses. |
-| `dxs ng preview <folder> [-o out.png] [--refresh] [--clean] [--timeout N]` | **no** (local) | no | Serve the harness locally and screenshot the component → `<folder>/render.png`. `--refresh -b <branch>` re-fetches the harness after a manifest/IO change; `--clean` resets a stuck server. |
+| `dxs ng preview <folder> [-o out.png] [--refresh] [--clean]` | **no** (local) | no | Serve the harness locally and screenshot the component → `<folder>/render.png`. `--refresh -b <branch>` re-fetches the harness after a manifest/IO change; `--clean` resets a stuck server. |
 | `dxs ng push <folder> -b <branch>` | yes | **yes** | Extract the two regions + `manifest.json` → upsert type-36. **First push creates the component in Studio**; the server validates on upsert (hard gate). |
 | `dxs ng list -b <branch>` | yes | no | List the branch's type-36 components. |
 
@@ -154,6 +166,8 @@ You edit **only** the two author regions inside `<name>/angularapp/src/app/app.<
 
 **Never** change the wrapper `class` line, the `@Component` decorator, the constructor, or the `//#region … //#endregion` sentinel lines — `push` extracts your work from **between** the sentinels, so damaging them breaks extraction. The constructor already injects the real context (`$datasources`, `$flows`, `$shell`, `$utils`, `$settings`, `$reports`, `$localization`, `$operations`, `$userSettings`, `$frontendFlows`) with real branch types, so body code uses `this.$datasources.…` etc. — never raw `HttpClient`. `SharedModule` is imported, so Angular directives (`*ngFor`, `*ngIf`, `[ngClass]`, `[style.*]`) and Material/AG-Grid/ApexCharts are available in the template.
 
+**Style to the Datex design system** — a CAC gets **no** styling for free, so it looks foreign unless you apply it. The non-negotiables: **mirror, don't invent** (copy the closest existing component's markup + classes); **use `var(--…)` theme tokens, never a hard-coded hex** (a hex breaks dark mode and the token the filled-control system pivots on); **compose the real `datex-*` class names** (`datex-button primary`, `field-container`, `grid-table-*`, `card datex-card`, `widget-container`, …) rather than bespoke CSS; **Fluent icons only on `<i>`**; sentence case, one primary button on screen. For the token variables, the full component class list, and the compiled-CSS traps, read [../datex-studio-shared/design-system/](../datex-studio-shared/design-system/README.md) (start with `02-tokens`, `03-components`, `06-traps`).
+
 If the component reads real data, run `dxs ng data generate <folder> -b <branch>` to seed `mocks/harness-mocks.json`, then fill in realistic values so the preview renders with representative data. Invoke `schema-explorer` first if you're unsure the datasource/entity exists; invoke `datasource-creator` if it needs to be authored.
 
 A manifest **IO** change (new `@Input`/`@Output`) needs codegen wiring — edit `manifest.json`, then re-preview with `--refresh -b <branch>`; the regenerated harness types `this.inParams.<name>` and emits through `this.<output>`. Region/template/style edits stay fully local (no `--refresh`).
@@ -168,7 +182,7 @@ A manifest **IO** change (new `@Input`/`@Output`) needs codegen wiring — edit 
 dxs ng preview <folder>          # -> <folder>/render.png
 ```
 
-Read `render.png`, compare it to the target, edit the regions/template/styles, and re-run `preview`. This is the core loop and where an agent earns its keep: **read the PNG, diff it against the target screenshot, adjust, repeat** until it matches. Type/template errors surface here too (the harness compiles the real component). Timings (local): first `preview` after `create` is a one-time `npm install` (minutes) + a ~15-46s compile; every `preview` after that is ~10s, and an edit hot-reloads in ~4s. Use `--timeout 180` if the first compile is slow; `--clean` if the server wedges.
+Read `render.png`, compare it to the target, edit the regions/template/styles, and re-run `preview`. This is the core loop and where an agent earns its keep: **read the PNG, diff it against the target screenshot, adjust, repeat** until it matches. Type/template errors surface here too (the harness compiles the real component). Timings (local): first `preview` after `create` is a one-time `npm install` (minutes) + a ~15-46s compile; every `preview` after that is ~10s, and an edit hot-reloads in ~4s. The cold-compile wait is handled internally (no timeout knob); use `--clean` if the server wedges.
 
 `preview` captures the component's **default** rendered state — it doesn't click. For a mode/variant switched by in-component UI (rather than an `@Input`), temporarily set that default (or drive it from an `@Input`/mock) to screenshot each variant.
 
@@ -210,7 +224,7 @@ A materialized working folder weighs ~700 MB, ~85% of it `angularapp/node_module
 | Hand-authoring a JSON body and `dxs configuration upsert customangularcomponent` | CACs are authored through `dxs ng` (regions + harness + preview), not a JSON round-trip. Use `dxs ng create` / `preview` / `push`. |
 | Editing outside the two regions (touching the wrapper class, `@Component`, constructor, or the `//#region` sentinels) | `push` extracts your code from **between** the sentinels. Edits elsewhere are lost on push or break extraction. Keep to `__COMPONENT_TYPES__`, `__COMPONENT_BODY__`, `.html`, `.scss`. |
 | Installing `@anthropic-ai/agent-browser` (404) | The package is the **unscoped** `agent-browser`: `npm i -g agent-browser && agent-browser install`. |
-| `preview` reports `ng serve did not become ready` | Usually just the first cold compile exceeding `--timeout`; raise it (`--timeout 180`). `--clean` resets a stuck server. This IS a real compile problem if it persists — inspect the ng build. |
+| `preview` reports `ng serve did not become ready` | Usually just the first cold compile running long (the wait is a fixed internal default); re-run and `--clean` to reset a stuck server. This IS a real compile problem if it persists — inspect the ng build. |
 | `preview` fails with `DXS-RPT-043` (`agent-browser 'wait' timed out`) — assuming the component is broken | A screenshot timeout ≠ a render failure: the component usually compiled + served fine (contrast `ng serve did not become ready`, which is the compile failure). A warm serve can also be stale. Re-run with `--clean`, then verify the real render by opening the `.dxs-serve.lock` port with `agent-browser` and checking `app-<ref>` has content — don't chase phantom code bugs. |
 | Expecting to preview/open OTHER components (or `$shell` dialogs to them) | The harness makes only YOUR candidate a real component; `$shell.open<X>Dialog(...)` to other components are compilable stubs that won't open in preview. `$datasources`/`$flows` (real branch) and your own UI are fully live. |
 | Expecting the component to appear in Studio after `create` / `preview` | `create`/`pull`/`data generate`/`preview` are all transient. Only `push` writes to Studio (first push creates). |
@@ -230,5 +244,6 @@ A materialized working folder weighs ~700 MB, ~85% of it `angularapp/node_module
 | Seeding a mock value for a `$frontendFlows` ref and expecting the preview to use it | `$frontendFlows` run as real, computed client-side code in the harness — never mocked. The preview always shows the flow's actual computed result; a mock entry for a frontendFlow key is inert. |
 | A full-page/dashboard CAC's `render.png` looks cut off partway down | The platform shell forces `html, body { overflow: hidden }`, so `preview`'s screenshot is capped to one viewport (commonly ~569px) — it can't see past your own inner `overflow-y: auto` container no matter how tall the content is. This is a platform-shell constraint, not a bug in your layout. To verify content beyond the first viewport, drive `agent-browser` directly against the harness's served port with a taller viewport instead of relying on `render.png` alone. |
 | Using `dxs source explore configs`/`trace` to confirm a CAC exists or to trace its references | Neither command indexes type-36 components — there's no CAC/customangularcomponent category in their type filters or output. Verify presence with `dxs ng list -b <branch>`, and trace declared datasource/flow/componentRefs via `dxs configuration get customangularcomponent <id> -b <branch>` or by reading the manifest/harness source directly. |
+| Naming a CAC outParam or body method `refresh` / `$refreshEvent` / `outParamsChange` | Reserved — the platform generates these on every CAC (the tab-content contract that lets a CAC be a hub/editor/card/dashboard tab). A collision is a duplicate-member compile error. To customize refresh, implement `refresh()` in the body region (it replaces the default, which re-runs `ngOnInit`); never redeclare the two `@Output`s. |
 
 **A CAC's value is bespoke visuals — treat the preview screenshot as the acceptance test, and converge it to the target before pushing.**
