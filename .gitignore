@@ -3,3 +3,10 @@ node_modules
 .vscode
 reports/
 datasource-creator-workspace/
+
+# macOS
+.DS_Store
+
+# Packaging / build artifacts
+*.zip
+target
