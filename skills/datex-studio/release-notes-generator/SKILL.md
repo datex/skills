@@ -64,6 +64,10 @@ Two resolution wrinkles to handle before Phase 1:
   - Service Packs: `dxs source servicepack list --repo <id>` to find the SP group, then `dxs source branch list --repo <id> --group-id <sp_group> --status published -n 0`
   - (`branch search` matches the branch *name*, not `versionName` — don't use it.)
 
+  The same Default-group blind spot applies to **dependencies**, where
+  `release-tree` hits it automatically rather than you hitting it by hand — see
+  *Phase 1b* for the recovery loop.
+
 ## Workflow
 
 ```
@@ -71,6 +75,11 @@ Two resolution wrinkles to handle before Phase 1:
 dxs source release-tree --from <root_old> --to <root_to>   (--recursive if nested)
   → root + every changed dependency, each resolved to from/to branch IDs
     (cross-org), plus added / removed packages
+        |
+[Phase 1b: Recover unresolved deps]   summary.resolve_failed must reach 0
+Service-Pack-pinned versions never resolve from the Default group:
+  dxs source servicepack list --repo <repo_id>
+  dxs source branch list --repo <repo_id> --group-id <sp_group> --status published -n 0
         |
 [Phase 2: Commits per package]
 For root + each changed dependency (parallel):
@@ -116,7 +125,9 @@ This single call replaces the old "compare the main app, then recursively
   release. These have no commit delta to mine; record them directly in Phase 5
   (a newly-included package is a feature; a removed one, a potential flag).
 - **`summary`** — counts (`dependencies_total`, `resolved_ok`, `resolve_failed`,
-  `added_count`, `removed_count`).
+  `added_count`, `removed_count`), plus `max_depth_reached` and `recursive`.
+  With `--recursive`, compare `max_depth_reached` against `--max-depth` (default
+  10) — if they're equal the walk may have been truncated.
 
 > **Why not `compare`/`deps-diff` for enumeration?** On the resolved-version
 > diff they are correct only on dxs ≥ 0.4.9; older builds report **zero** changed
@@ -124,6 +135,38 @@ This single call replaces the old "compare the main app, then recursively
 > AppConfig payload) — so a run would conclude "nothing changed" and skip the
 > 80%+ of substance that lives in dependencies. `release-tree` is the
 > authoritative enumerator and also hands you the branch IDs to drill.
+
+### Phase 1b: Recover every `resolve_failed` dependency (NOT optional)
+
+**`summary.resolve_failed` must be 0 before you proceed to Phase 2.** An
+unresolved dependency has no branch IDs, so it cannot be compared or diffed —
+it drops out of the notes silently, which is the exact failure this skill exists
+to prevent. Treat a non-zero count as a blocker, not a warning.
+
+The most common cause is a **Service-Pack-pinned dependency**. `release-tree`
+resolves a `versionName` to a branch ID by looking **only in the repo's Default
+application group** (group type 1, which by definition excludes Service Packs).
+A dependency pinned to an SP release — versionName containing `.SP.`, e.g.
+`20260423.145611.SP.20260604.154933` — is therefore *never* found, and lands in
+`resolve_failed` with a `resolve_error` of `from_version …/to_version … not
+found in published releases`.
+
+Read each failed entry's `resolve_error` and recover by cause:
+
+| `resolve_error` says | Cause | Recovery |
+|---|---|---|
+| `… not found in published releases` | Version lives in a Service Pack group (or was unpublished) | `dxs source servicepack list --repo <repo_id>` → for each SP group id: `dxs source branch list --repo <repo_id> --group-id <gid> --status published -n 0` → match `versionName` to the entry's `from_version` / `to_version` |
+| `no repository for uniqueIdentifier …` | Package's org isn't in the repo index | `dxs source repo list --org-name <CODE>` to locate the repo, then resolve its versions as above |
+
+Feed the recovered branch IDs into Phase 2 exactly as if `release-tree` had
+returned them. If a dependency still won't resolve after both paths, **say so
+explicitly in the notes** ("could not analyze `<package>` `<from>` → `<to>`")
+rather than omitting it — an unanalyzed package is a known gap, not an absence
+of change.
+
+> Service Packs are the norm for customer applications, which are frequently
+> hotfixed off a published release rather than tracking the default line. For a
+> customer app, expect `resolve_failed > 0` and budget for this step.
 
 ### Phase 2: Commits per package
 
@@ -424,6 +467,7 @@ dxs source diff --from 64919 --to 67159 \
 | Concluding "nothing changed" because the root app had few/no commits | A thin wrapper's release *is* its dependency bumps — run Phases 2–4 over every dependency release-tree enumerated |
 | Hunting for a per-commit `release_notes` / SideKick description | It doesn't exist in any shipped dxs — the *what* comes from the work item and the diff |
 | For a customer app, only resolving Datex-org packages | release-tree resolves cross-org; the customer's own `*-` packages count too |
+| Proceeding to Phase 2 with `summary.resolve_failed > 0` | Those packages silently vanish from the notes — recover each one per Phase 1b before mining commits |
 | Using commit titles as feature titles | Use the linked work item's title; commit titles are often rushed |
 | Building the DevOps link from the internal id / `_apis/` URL | Use `external_id` and the `_workitems/edit/` browser path |
 | Repeating the same feature under multiple dependencies | Deduplicate by work item ID when composing |
