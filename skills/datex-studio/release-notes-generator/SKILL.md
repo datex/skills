@@ -75,7 +75,7 @@ dxs source release-tree --from <root_old> --to <root_to>   (--recursive if neste
 [Phase 2: Commits per package]
 For root + each changed dependency (parallel):
   dxs source compare --from <pkg_old> --to <pkg_new> --exclude-sync
-  → committed_branches (id, title, release_notes, author, date, changes), workitem_ids
+  → committed_branches (id, title, author, date, changes), workitem_ids
         |
 [Phase 3: Work Items per commit]
   dxs source workitems --branch <commit_branch_id> --description
@@ -138,13 +138,8 @@ From `branch_comparison` you get, per package:
 
 - **`committed_branches`** — each merged feature branch:
   - `id` — branch id of the commit (use it for Phase 3 work items)
-  - `title` — short commit headline
-  - `release_notes` — verbose, engineering-oriented description of the change,
-    produced by SideKick at commit time alongside the short title. This is the
-    primary commit-level account of *what* the commit did and the main textual
-    input for the Phase 5 narrative. If null (older commits with no SideKick
-    output, or a SideKick outage at commit time), use the short `title` as the
-    headline and rely on the Phase 4 diff for the body.
+  - `title` — short commit headline. A headline only — never the body of a
+    release note entry; the work item (Phase 3) and diff (Phase 4) carry that.
   - `author` — who committed
   - `date`
   - `changes` — config-level changes (`reference_name`, `type`, `modification`
@@ -156,6 +151,13 @@ From `branch_comparison` you get, per package:
 the real work in those is captured because the dependency is its own package in
 the worklist. A thin root app may legitimately return **zero** committed
 branches — that's not an error, its release is the dependency bumps.
+
+> **There is no per-commit `release_notes` field.** A commit carries only the
+> five keys above. A verbose SideKick-authored commit description exists on an
+> unmerged dxs branch (`feature/commit-message-suggestion-release-notes`) and
+> has never shipped — don't look for it, and don't treat its absence as a
+> degraded run. Until it merges, *what the commit did* comes from the work item
+> and the diff, not from commit prose.
 
 ### Phase 3: Work Items per Commit
 
@@ -176,20 +178,19 @@ release note. They contain:
 - `description` — full requirements, steps to reproduce, mockups, acceptance
   criteria
 
-If a commit has **no linked work items**, flag it as "Missing traceability"
-and fall back to the commit's `release_notes` (Phase 2) for the body. Use
-the commit ID and `title` as the entry headline. Never silently drop these.
+If a commit has **no linked work items**, flag it as "Missing traceability" and
+reconstruct the body from the Phase 4 diff — that is the only remaining account
+of what the commit did. Use the commit ID and `title` as the entry headline.
+Never silently drop these.
 
-> Three inputs, three roles:
-> - **`release_notes` on each commit (Phase 2)** — the *what*. Engineering-
->   oriented narrative of the change, produced at commit time. Primary input
->   for the change description in the notes.
+> Two inputs, two roles:
 > - **Work items (Phase 3)** — the *why*. Business intent, requirements,
->   acceptance criteria.
+>   acceptance criteria. Primary input for the description in the notes.
 > - **Diffs (Phase 4)** — the *how*. The code itself, the final source of
 >   truth when the prose disagrees with what was actually committed.
 >
-> Commit titles are just headlines; they're not a primary input.
+> Commit titles are just headlines; they're not a primary input. There is no
+> third, commit-level prose input — see the Phase 2 note.
 
 ### Phase 4: Source Diffs
 
@@ -421,7 +422,7 @@ dxs source diff --from 64919 --to 67159 \
 |---------|-----|
 | Enumerating dependencies with `compare`/`deps-diff` | Blind on dxs < 0.4.9 (reports 0 changes) — use `source release-tree` |
 | Concluding "nothing changed" because the root app had few/no commits | A thin wrapper's release *is* its dependency bumps — run Phases 2–4 over every dependency release-tree enumerated |
-| Reconstructing what each commit did from titles + diffs alone | The `release_notes` field on each commit (Phase 2) is SideKick's engineering-oriented description of the change — use it as the primary input for the per-commit narrative |
+| Hunting for a per-commit `release_notes` / SideKick description | It doesn't exist in any shipped dxs — the *what* comes from the work item and the diff |
 | For a customer app, only resolving Datex-org packages | release-tree resolves cross-org; the customer's own `*-` packages count too |
 | Using commit titles as feature titles | Use the linked work item's title; commit titles are often rushed |
 | Building the DevOps link from the internal id / `_apis/` URL | Use `external_id` and the `_workitems/edit/` browser path |
