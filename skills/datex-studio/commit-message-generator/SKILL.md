@@ -7,7 +7,9 @@ description: |
   Trigger for: "generate a commit message for branch X", "write a commit
   message", "draft a commit for this branch", "what should the commit say",
   "suggest a commit message", "does this commit reference a ticket", "traceability
-  check". For reviewing the branch's code quality, use `branch-code-reviewer` instead.
+  check". Runs interactively or unattended — one-shot mode, signalled in the prompt,
+  never asks and delivers through a named tool. For reviewing the branch's code
+  quality, use `branch-code-reviewer` instead.
 depends:
   - datex-studio-shared
 ---
@@ -35,11 +37,77 @@ That traceability check is a first-class phase, not a formatting detail — see
 - Target environment (defaults to `prod`; pass `--target qa` or `--target dev` only
   if the user explicitly says so)
 
+## Execution modes
+
+This skill runs in two modes. **Default to interactive.** Switch to one-shot only
+on an explicit signal in the prompt — wording like "one-shot mode", "this request
+comes from an automated system", "no user is present", or an instruction to
+deliver the result through a named tool.
+
+|  | **Interactive** | **One-shot** |
+|--|-----------------|--------------|
+| A user is present | Yes | No |
+| Output channels | The message **and** a summary to the user | The message only |
+| When something is ambiguous | Ask | Decide per the rules below, never ask |
+
+The difference that matters is **channels, not quality**. Interactively you have
+two: the commit message, and a conversational summary carrying everything the
+message shouldn't. One-shot has one. So observations that would have gone to the
+user must either be promoted into the message or lost — and losing them is the
+one outcome that turns a compliance check into theatre.
+
+### One-shot rules
+
+1. **Never ask. Never block.** Always produce a message. There is nobody to
+   answer, so a question is a silent failure.
+2. **Promote user-facing observations into the message** as `⚠` lines in the
+   Description — ticket already closed, ticket claims sibling branches, resolved
+   title not matching `commitTitle`, message is retroactive. Interactively these
+   stay in the summary; one-shot they go in the message or nowhere.
+3. **Be conservative about references.** Never cite a reference that would have
+   needed confirmation. Specifically:
+   - Reverse-edge or ticket-number lookup returning **2+ candidates** →
+     `UNVERIFIED`. Do not pick one. Name the candidates in the ⚠ line, emit no
+     `Ref:` lines.
+   - Keyword-search hits, which interactively you'd propose for confirmation →
+     **do not adopt**. Verdict is `MISSING`; name the near-misses in the ⚠ line
+     so a human can finish the job.
+   - Adopt only self-asserting references: an explicit ID or deep link in the
+     prompt or commit fields, or a **single** reverse-edge hit.
+
+   A wrong link committed unattended is worse than an honest `MISSING` — it
+   launders a guess into an audit trail nobody will re-check.
+4. **Branch ID must come from the prompt.** The Branch ID Policy's "always ask"
+   cannot apply. If no branch ID is supplied, emit nothing and report that the
+   request was unusable — do not guess one from context.
+5. **Deliver through the tool the prompt names** (e.g. `SaveCommitMessage`). If
+   the named tool isn't available in the session, fall back to returning the
+   message as your final output and say the tool was missing — never drop the
+   result on the floor.
+
+### Keeping ⚠ lines readable
+
+Promotion can stack warnings, and the Description is the one section a developer
+actually reads. Keep it useful:
+
+- **Cap at 3 `⚠` lines.** Past that, keep the three that most affect trust in the
+  reference and fold the rest into one line.
+- **Order by consequence:** traceability defects first (missing / unverified /
+  divergent reference), then branch-state warnings (empty, retroactive), then
+  the code-review line.
+- Merge naturally related observations rather than emitting near-duplicates —
+  "ticket is closed and also claims branch 83001" is one line, not two.
+
 ## Workflow
 
 ```
+[Phase 0: Mode]
+Interactive (default) or one-shot? One-shot = explicit signal in the prompt.
+One-shot: never ask, never block, promote observations into the message,
+be conservative about references, deliver via the named tool.
+        |
 [Phase 1: Setup]
-Get branch ID from user (branch-setup.md rules)
+Get branch ID from user (branch-setup.md rules; one-shot: from the prompt)
 Confirm target environment (default: prod)
         |
 [Phase 2: Gather]
@@ -65,6 +133,9 @@ do NOT list the issues in the commit message; note that a review is recommended 
 [Phase 5: Draft Message]
 Build the title + body per the "Output Format" section, including the Ref: lines.
         |
+[Phase 5b: Deliver]  ← one-shot only
+Call the delivery tool the prompt named (e.g. SaveCommitMessage).
+        |
 [Phase 6: (optional) Persist to knowledge base]
 If CreateKnowledgeNode is available in this session, save the message as an Article
 under CommitMessages/<Org>/<App>/<BranchId>_<yyyyMMdd>_<hhmm>.md. Otherwise print
@@ -77,9 +148,13 @@ Return the message to the user.
 
 ### Phase 1: Setup
 
+0. Determine the mode (see "Execution modes"). Everything below assumes
+   interactive unless the prompt signalled one-shot.
 1. Get the branch ID from the user. Follow the Branch ID Policy in
    [branch-setup.md](../datex-studio-shared/branch-setup.md) — ask, never assume, even if a
    branch ID appeared earlier in the session.
+   **One-shot:** take the branch ID from the prompt. If none was supplied, stop
+   and report the request as unusable — never infer one.
 2. Determine the target environment. Default to `prod` unless the user said
    otherwise. `dxs` accepts `--target prod|qa|dev`; if unspecified, `prod` is used.
 
@@ -140,6 +215,11 @@ reads as if the work were still pending.
 
 If the user confirms they want it anyway, proceed normally and note in your
 summary (not in the message) that it is retroactive.
+
+**One-shot:** there is nobody to ask, so proceed — but say so in the message.
+Add the retroactive ⚠ line (see Output Format) carrying the existing
+`commitTitle` and `commitDate`, so the receiving system can tell this describes
+work already committed rather than work awaiting a commit.
 
 Purposes:
 
@@ -224,11 +304,15 @@ adapters, and command syntax are in
    Zero hits proves nothing (the field is hand-maintained and sparse) — fall
    through. Details and the slash-anchoring rule are in
    [references/traceability.md](references/traceability.md).
+   **One-shot:** 2+ hits → `UNVERIFIED`, name the candidates, emit no `Ref:`.
 3. **Search** — only if 1 and 2 came up empty: up to ~2 CRM keyword searches
    using the commit title. (`dxs devops search` is an unimplemented stub — do
    not use it, and never read its empty result as "no work item exists".)
    Propose hits to the user for confirmation; never adopt a search result
    silently.
+   **One-shot:** never adopt a search hit — there is no confirmation available.
+   Verdict is `MISSING`; name the near-misses in the ⚠ line so a human can
+   finish the job.
 4. **Resolve** — fetch the record through its provider adapter. Keep the
    descriptive fields (`msdyn_descriptionplaintext`, case `description`, ADO
    `description`): they state what was *asked for*, which sharpens Phase 4.
@@ -307,6 +391,23 @@ blank lines:
 See "Output Format" below for the exact shape. Wrap each section at a
 reasonable line width.
 
+### Phase 5b (one-shot only): Deliver
+
+In one-shot mode the message has to reach the requesting system — returning it
+as prose is not delivery.
+
+1. Call the tool the prompt names (e.g. `SaveCommitMessage`). Map the three
+   sections onto its parameters. If it takes a single body, pass the message
+   whole, blank-line separators intact — a downstream parser splits on them.
+2. If the named tool is **not available** in the session, do not silently drop
+   the result: return the full message as your final output and state plainly
+   that the delivery tool was missing, so the caller can tell delivery failed
+   rather than generation.
+3. Return the message in your final output as well as calling the tool. It costs
+   nothing and makes failures diagnosable from the transcript.
+
+Skip this phase entirely in interactive mode.
+
 ### Phase 6 (optional): Persist to Knowledge Base
 
 Check whether the `CreateKnowledgeNode` tool is available in this session. If
@@ -353,6 +454,16 @@ this same paragraph and in this order:
     "⚠ Branch contains no changes — <n> config(s) are checked out but identical
      to base. The work described by the referenced ticket does not appear to
      have been saved."
+
+  One-shot only — promoted from what would have been the chat summary. Use only
+  in one-shot mode; interactively these belong in your summary:
+    "⚠ Referenced ticket is <state> — verify it is the right reference."
+    "⚠ Ticket reference is ambiguous — <n> candidates matched (<ids or
+     subjects>); none adopted. Add an explicit link before committing."
+    "⚠ No ticket reference found; closest matches were <candidates>. Not adopted
+     without confirmation — add a link before committing."
+    "⚠ This message is retroactive — the branch was already committed on <date>
+     as \"<existing commitTitle>\"."
   Ref: lines, when a reference resolved — two lines per reference:
     "Ref: <record type> — <resolved title>"
     "<full deep link, bare and unwrapped>">
@@ -458,6 +569,35 @@ Note this uses the "no changes" ⚠ line, **not** the divergence line — the ti
 reference is correct, the work is simply absent. No code-review line either:
 there are no diffs to review.
 
+**Example (one-shot — observations promoted into the message):**
+
+The same branch as the traced example above, but generated unattended. The
+closed-ticket and sibling-branch notes would have gone to the user in chat;
+one-shot they go here or nowhere.
+
+```
+⚠ feat(pallet-build): accept tote ID alongside cart and job IDs
+
+Extends pallet build with serials so a tote barcode works anywhere a cart or
+job number does, moving toward a single barcode carrying the whole flow.
+⚠ Referenced ticket is Inactive (closed) and also claims branch 83001 — verify
+it is the right reference.
+⚠ Recommend running a code review before merging — widening the job lookup in
+reset_pickJob_fields makes its silent multi-match early-return more reachable.
+Ref: Project Task — Update to use tote ID instead of job ID
+https://datexcorp.crm.dynamics.com/main.aspx?appid=ee829a66-fb63-ea11-a811-000d3a37800e&pagetype=entityrecord&etn=msdyn_projecttask&id=3e6b6a20-b38b-4265-b34a-8578f7f53329
+
+Updates 3 configs: two flows (get_orderJob_by_cart, reset_pickJob_fields) and
+one hub (pallet_build_with_serials_hub). No configs added or deleted.
+
+Both flows widen their jobs_header predicates to match on toteId in addition to
+jobId and cartId, and reset_pickJob_fields now normalizes its inparam to the
+real jobId so downstream lookups are unaffected by which barcode was scanned.
+```
+
+Note the two closed/sibling observations merged into **one** ⚠ line rather than
+two, and traceability ordered ahead of the code-review line.
+
 **Example (untraced branch — `MISSING` verdict):**
 
 ```
@@ -508,7 +648,11 @@ mode instead of choosing a flow.
 
 | Mistake | Fix |
 |---------|-----|
-| Assuming a branch ID from earlier in the session | Follow the Branch ID Policy — ask explicitly |
+| Assuming a branch ID from earlier in the session | Follow the Branch ID Policy — ask explicitly (one-shot: take it from the prompt, never infer) |
+| Asking a question in one-shot mode | Nobody will answer; a question is a silent failure. Decide per the one-shot rules |
+| Losing summary observations in one-shot | Promote them to ⚠ lines — one-shot has no second channel |
+| Adopting a search hit unattended | One-shot never adopts what would have needed confirmation; verdict is MISSING with the near-misses named |
+| Generating in one-shot but not calling the delivery tool | Returning prose is not delivery; call the named tool, and say so if it's unavailable |
 | Drafting a message for a commit snapshot or release | Run the Phase 2 guard — check `isFeatureBranch` / `isCommit` before analyzing |
 | Treating a row in `all_changes` as proof of work | Check `has_changes` per entry; `false` means the config is identical to base |
 | Reading `changes_by_type` | It is always empty, even on branches with real updates — use `all_changes` |

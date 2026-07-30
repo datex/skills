@@ -390,7 +390,9 @@ where they go:
   buried in a chat summary they'll never see. Use the divergence template in
   SKILL.md's Output Format.
 
-**Into your summary to the user only:**
+**Into your summary to the user only — or, in one-shot mode, promoted into the
+message as ⚠ lines, since there is no summary channel (see "Execution modes" in
+SKILL.md):**
 
 - Referenced record is already `Inactive` / `Resolved` / `Closed`
 - The reverse-edge lookup returned a *different* task than the one the branch
