@@ -385,8 +385,11 @@ blank lines:
    this paragraph, since a blank line before `Ref:` would push it into Release
    Notes and out of view.
 3. **Release Notes** — everything from the third paragraph onward. The
-   detailed body. Never shown to the developer; consumed only by downstream
-   release-note tooling.
+   detailed body. In the interactive path this is never shown to the developer
+   and is consumed only by downstream release-note tooling. In one-shot
+   delivery there is no separate parameter for it, so it rides inside the
+   tool's `description` field — write it as something a human could reasonably
+   read, not as tooling-only scratch.
 
 See "Output Format" below for the exact shape. Wrap each section at a
 reasonable line width.
@@ -396,15 +399,36 @@ reasonable line width.
 In one-shot mode the message has to reach the requesting system — returning it
 as prose is not delivery.
 
-1. Call the tool the prompt names (e.g. `SaveCommitMessage`). Map the three
-   sections onto its parameters. If it takes a single body, pass the message
-   whole, blank-line separators intact — a downstream parser splits on them.
-2. If the named tool is **not available** in the session, do not silently drop
-   the result: return the full message as your final output and state plainly
-   that the delivery tool was missing, so the caller can tell delivery failed
-   rather than generation.
-3. Return the message in your final output as well as calling the tool. It costs
-   nothing and makes failures diagnosable from the transcript.
+Call the tool the prompt names. The known delivery tool is `SaveCommitMessage`:
+
+| Parameter | Type | What to pass |
+|-----------|------|--------------|
+| `branch_id` | integer | The branch ID — as a **number, not a string** |
+| `title` | string | The Title line, including the `⚠` prefix when one applies |
+| `description` | string | The **whole message** — Title, blank line, Description paragraph, blank line, Release Notes |
+| `environment` | enum | `production` \| `qa` \| `dev` — **not** the CLI's `prod` |
+
+All four are required; `environment` has a default but must still be sent.
+
+Three things to get right:
+
+1. **`description` is the full message, not just the middle section.** Its
+   contract is "first line concise, then a blank line, then additional
+   information" — the standard subject-plus-body shape. So the Title line is
+   repeated: once in `title`, and again as the first line of `description`.
+   That duplication is intended; don't strip it.
+2. **The three sections collapse into two fields.** There is no separate
+   release-notes parameter, so Release Notes rides inside `description` after
+   the Description paragraph. Keep the blank-line separators exactly — they are
+   what lets anything downstream split the sections back apart.
+3. **Map the environment name.** `dxs` uses `--target prod`; this tool wants
+   `production`. `qa` and `dev` match. Sending `prod` fails schema validation.
+
+If the named tool is **not available** in the session, do not silently drop the
+result: return the full message as your final output and state plainly that the
+delivery tool was missing, so the caller can tell delivery failed rather than
+generation. Return the message in your final output as well as calling the tool
+— it costs nothing and makes failures diagnosable from the transcript.
 
 Skip this phase entirely in interactive mode.
 
@@ -598,6 +622,21 @@ real jobId so downstream lookups are unaffected by which barcode was scanned.
 Note the two closed/sibling observations merged into **one** ⚠ line rather than
 two, and traceability ordered ahead of the code-review line.
 
+Delivered via `SaveCommitMessage`, that message maps to:
+
+```json
+{
+  "branch_id": 82931,
+  "title": "⚠ feat(pallet-build): accept tote ID alongside cart and job IDs",
+  "description": "⚠ feat(pallet-build): accept tote ID alongside cart and job IDs\n\nExtends pallet build with serials so a tote barcode works anywhere a cart or\njob number does, moving toward a single barcode carrying the whole flow.\n⚠ Referenced ticket is Inactive (closed) and also claims branch 83001 — verify\nit is the right reference.\n⚠ Recommend running a code review before merging — widening the job lookup in\nreset_pickJob_fields makes its silent multi-match early-return more reachable.\nRef: Project Task — Update to use tote ID instead of job ID\nhttps://datexcorp.crm.dynamics.com/main.aspx?...&etn=msdyn_projecttask&id=3e6b6a20-b38b-4265-b34a-8578f7f53329\n\nUpdates 3 configs: two flows (get_orderJob_by_cart, reset_pickJob_fields) and\none hub (pallet_build_with_serials_hub). No configs added or deleted.\n\nBoth flows widen their jobs_header predicates to match on toteId in addition to\njobId and cartId, and reset_pickJob_fields now normalizes its inparam to the\nreal jobId so downstream lookups are unaffected by which barcode was scanned.",
+  "environment": "production"
+}
+```
+
+`branch_id` is a number. The title appears twice — once as `title`, once as the
+first line of `description`. All three sections are inside `description`,
+separated by the blank lines that let them be split apart again.
+
 **Example (untraced branch — `MISSING` verdict):**
 
 ```
@@ -653,6 +692,9 @@ mode instead of choosing a flow.
 | Losing summary observations in one-shot | Promote them to ⚠ lines — one-shot has no second channel |
 | Adopting a search hit unattended | One-shot never adopts what would have needed confirmation; verdict is MISSING with the near-misses named |
 | Generating in one-shot but not calling the delivery tool | Returning prose is not delivery; call the named tool, and say so if it's unavailable |
+| Sending `environment: "prod"` to `SaveCommitMessage` | The tool's enum is `production` \| `qa` \| `dev`; only `dxs --target` uses `prod` |
+| Passing only the middle section as `description` | `description` is the **full** message — title, blank line, body. The repeated title is intended |
+| Dropping Release Notes because the tool has no field for it | It rides inside `description` after the Description paragraph, blank lines intact |
 | Drafting a message for a commit snapshot or release | Run the Phase 2 guard — check `isFeatureBranch` / `isCommit` before analyzing |
 | Treating a row in `all_changes` as proof of work | Check `has_changes` per entry; `false` means the config is identical to base |
 | Reading `changes_by_type` | It is always empty, even on branches with real updates — use `all_changes` |
