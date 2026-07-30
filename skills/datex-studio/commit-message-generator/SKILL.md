@@ -404,7 +404,7 @@ Call the tool the prompt names. The known delivery tool is `SaveCommitMessage`:
 | Parameter | Type | What to pass |
 |-----------|------|--------------|
 | `branch_id` | integer | The branch ID — as a **number, not a string** |
-| `title` | string | The Title line, including the `⚠` prefix when one applies |
+| `title` | string | The Title line, **including the `⚠` prefix** when one applies |
 | `description` | string | The **whole message** — Title, blank line, Description paragraph, blank line, Release Notes |
 | `environment` | enum | `production` \| `qa` \| `dev` — **not** the CLI's `prod` |
 
@@ -423,6 +423,11 @@ Three things to get right:
    what lets anything downstream split the sections back apart.
 3. **Map the environment name.** `dxs` uses `--target prod`; this tool wants
    `production`. `qa` and `dev` match. Sending `prod` fails schema validation.
+
+**Keep the `⚠` prefix on `title`.** This is a settled decision, not an oversight
+— do not strip it for being non-ASCII or for fear of how a downstream UI renders
+it. The prefix is the signal that something needs a human's attention, and a
+title that silently loses it is worse than one that renders imperfectly.
 
 If the named tool is **not available** in the session, do not silently drop the
 result: return the full message as your final output and state plainly that the
