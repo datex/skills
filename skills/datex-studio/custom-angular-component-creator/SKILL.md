@@ -43,10 +43,13 @@ A CAC can be a tab's content in a **hub, editor, card, or dashboard** — the sa
 grids and forms. In the container's tab designer, pick **Custom Angular Component** as the tab
 content type, reference the pushed CAC, and bind its `@Input`s through the tab's parameters (the
 CAC's `inParams`/`outParams` are what the tab wires to). The platform generates a tab-content
-contract onto every CAC, which **reserves three member names** — never declare an outParam,
-`@Output`, or body method named `refresh`, `$refreshEvent`, or `outParamsChange`. To re-load the
-CAC when the hub refreshes, implement `refresh()` in the body region; otherwise the generated
-default re-runs `ngOnInit()`.
+contract onto every CAC, which **reserves three member names** — `refresh`, `$refreshEvent`, and
+`outParamsChange`. Never declare an outParam or `@Output` with any of these names, and never
+redeclare the two generated `@Output`s (`$refreshEvent`, `outParamsChange`) in the body — a
+collision is a duplicate-member compile error. The one exception is a body **`refresh()`
+method**, the sanctioned override: to re-load the CAC when the container refreshes, implement
+`refresh()` in the body region and it replaces the generated default (which re-runs
+`ngOnInit()`).
 
 ## References
 
@@ -246,6 +249,6 @@ A materialized working folder weighs ~700 MB, ~85% of it `angularapp/node_module
 | Seeding a mock value for a `$frontendFlows` ref and expecting the preview to use it | `$frontendFlows` run as real, computed client-side code in the harness — never mocked. The preview always shows the flow's actual computed result; a mock entry for a frontendFlow key is inert. |
 | A full-page/dashboard CAC's `render.png` looks cut off partway down | The platform shell forces `html, body { overflow: hidden }`, so `preview`'s screenshot is capped to one viewport (commonly ~569px) — it can't see past your own inner `overflow-y: auto` container no matter how tall the content is. This is a platform-shell constraint, not a bug in your layout. To verify content beyond the first viewport, drive `agent-browser` directly against the harness's served port with a taller viewport instead of relying on `render.png` alone. |
 | Using `dxs source explore configs`/`trace` to confirm a CAC exists or to trace its references | Neither command indexes type-36 components — there's no CAC/customangularcomponent category in their type filters or output. Verify presence with `dxs ng list -b <branch>`, and trace declared datasource/flow/componentRefs via `dxs configuration get customangularcomponent <id> -b <branch>` or by reading the manifest/harness source directly. |
-| Naming a CAC outParam or body method `refresh` / `$refreshEvent` / `outParamsChange` | Reserved — the platform generates these on every CAC (the tab-content contract that lets a CAC be a hub/editor/card/dashboard tab). A collision is a duplicate-member compile error. To customize refresh, implement `refresh()` in the body region (it replaces the default, which re-runs `ngOnInit`); never redeclare the two `@Output`s. |
+| Declaring an outParam or `@Output` named `refresh` / `$refreshEvent` / `outParamsChange`, or redeclaring the two generated `@Output`s in the body | Reserved — the platform generates these on every CAC (the tab-content contract that lets a CAC be a hub/editor/card/dashboard tab); a collision is a duplicate-member compile error. The exception is a body `refresh()` method — the sanctioned override; it replaces the generated default (which re-runs `ngOnInit`). |
 
 **A CAC's value is bespoke visuals — treat the preview screenshot as the acceptance test, and converge it to the target before pushing.**

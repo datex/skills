@@ -36,9 +36,9 @@ Cross-skill content used to live in a plain `shared/` directory. `npx skills` on
 
 ## Skill catalog
 
-**38 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
+**39 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
 
-### Datex Studio — Component creators (15)
+### Datex Studio — Component creators (16)
 
 Skills for authoring NEW component configurations on a branch. Each owns the rules and lifecycle for one component type.
 
@@ -46,6 +46,7 @@ Skills for authoring NEW component configurations on a branch. Each owns the rul
 |---|---|---|
 | [`action-creator`](skills/datex-studio/action-creator/SKILL.md) | Server-tier transactional flows (`*-footprintFlow.json`) | 18 |
 | [`backend-test-creator`](skills/datex-studio/backend-test-creator/SKILL.md) | Mocha test suites (`*-backendTest.json`) | 24 |
+| [`custom-angular-component-creator`](skills/datex-studio/custom-angular-component-creator/SKILL.md) | Custom Angular Components — bespoke coded UI via the `dxs ng` create → preview → push loop (a working folder, not a `*.json` body) | 36 |
 | [`datasource-creator`](skills/datex-studio/datasource-creator/SKILL.md) | OData and flow datasources (`*-datasource.json`, `*-footprintDatasource.json`) | 6 / 19 |
 | [`editor-creator`](skills/datex-studio/editor-creator/SKILL.md) | Single-entity view/edit screens (`*-editor.json`) | 4 |
 | [`embed-creator`](skills/datex-studio/embed-creator/SKILL.md) | Iframe-hosting external URL / HTML-string embeds (`*-embed.json`) | 20 |
@@ -91,7 +92,7 @@ Reference-only library skills. **Not invoked directly.** Other skills link into 
 
 | Skill | Content |
 |---|---|
-| [`datex-studio-shared`](skills/datex-studio/datex-studio-shared/SKILL.md) | Branch & connection setup, Studio lifecycle, context navigation, flow code patterns, RDLX-JSON report authoring |
+| [`datex-studio-shared`](skills/datex-studio/datex-studio-shared/SKILL.md) | Branch & connection setup, Studio lifecycle, context navigation, flow code patterns, RDLX-JSON report authoring, vendored Datex app design system (Fluent 2) |
 | [`datex-studio-conventions`](skills/datex-studio/datex-studio-conventions/SKILL.md) | File format invariants, naming conventions, defaults |
 | [`datex-studio-runtime`](skills/datex-studio/datex-studio-runtime/SKILL.md) | Runtime globals, three-tier execution model, control-type catalog |
 
@@ -134,3 +135,4 @@ Component types the platform supports but that no skill or reference doc covers 
 
 - dashboards, widgets, notifications, workflows, events, layouts — and other platform config types not yet given a skill. The authoritative set of config types the CLI recognizes is `ConfigurationEndpoints.KNOWN_TYPES` in the dxs CLI.
 - Reports and API endpoints appeared on the original backlog but are now covered by `report-creator` and `endpoint-creator`.
+- Custom Angular Components (type 36) are now covered by `custom-angular-component-creator`.

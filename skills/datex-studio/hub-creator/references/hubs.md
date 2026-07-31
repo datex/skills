@@ -1,6 +1,6 @@
 # Hubs
 
-Hubs mount grids, forms, and editors inside their tabs and dialogs — see also [`grids.md`](../../grid-creator/references/grids.md), [`forms.md`](../../form-creator/references/forms.md), [`editors.md`](../../editor-creator/references/editors.md).
+Hubs mount grids, forms, editors, and custom Angular components (CACs) inside their tabs and dialogs — see also [`grids.md`](../../grid-creator/references/grids.md), [`forms.md`](../../form-creator/references/forms.md), [`editors.md`](../../editor-creator/references/editors.md), [`custom-angular-components.md`](../../custom-angular-component-creator/references/custom-angular-components.md).
 
 A **hub** is a top-level UI container: a screen with input filters, grouping options, and one or more tabs that host grids or other UI components. Hubs are the primary way features surface themselves in the platform UI — each major workflow typically has a hub as its landing page.
 

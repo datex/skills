@@ -2,6 +2,8 @@
 
 A **Custom Angular Component** (CAC, `configurationTypeId: 36`) is an **author-written standalone Angular component** that runs inside the generated Datex Studio app with the platform context injected. It is the escape hatch for UI that the declarative components (grid, form, hub, selector, editor) can't express — bespoke charts, dashboards, visualizations, and custom layouts. Unlike every other component type, a CAC is not a declarative JSON body: you write the actual `component.ts` / `.html` / `.scss`. Author it with the **`dxs ng`** command family and the screenshot-driven preview loop (see the parent [SKILL.md](../SKILL.md)). This doc is the authoring reference; for the platform `$`-globals see [../../datex-studio-runtime/runtime-globals.md](../../datex-studio-runtime/runtime-globals.md).
 
+> _Template note:_ this doc deviates from [docs/component-doc-template.md](../../../../docs/component-doc-template.md) — the template's JSON-body sections (Minimal Valid Skeleton, Required Top-Level Fields) are N/A because a CAC is a `dxs ng` working folder, not a single JSON body; `manifest.json` and the two author regions play those roles here.
+
 ## Purpose & When to Use
 
 Reach for a CAC when the requirement is genuinely custom UI: a chart/visualization, a dashboard tile arrangement, a bespoke interaction, or a layout no declarative component produces. If the requirement is a tabular list use a **grid**; a single-entity view/edit use an **editor**; transient input a **form**; a dropdown a **selector**; a container a **hub**. A CAC is more powerful and more expensive to maintain than any of those — choose it only when the declarative components can't do the job.
@@ -248,14 +250,7 @@ A missing datasource makes `this.$datasources.ds_orders` a **compile error** —
 
 ## Pre-Flight Checklist
 
-1. **Branch confirmed with the user** (never assumed); prerequisites up (API in Dev, auth, `agent-browser`).
-2. **Only the two regions + `.html` + `.scss` edited** — wrapper/`@Component`/constructor/sentinels untouched.
-3. **Data via `$datasources`/`$flows`**, not raw HTTP; UI actions via `$shell`/`$flows`.
-4. **Mocks seeded and filled** if the component reads data, so the preview is representative.
-5. **`manifest.json` IO changes followed by `preview --refresh -b <branch>`.**
-6. **The preview PNG matches the target** and shows no compile/template errors.
-7. **`displayName` ≤ 100 chars** (it becomes the config `title`/`description`).
-8. **Verified after `push`** — `dxs ng list -b <branch>` shows it; optionally `pull … -d ./roundtrip` round-trips. Note: `dxs source explore configs`/`trace` do not index type-36 CACs (no CAC/customangularcomponent category in either command) — don't rely on them for presence or reference-trace checks; use `dxs ng list` and `dxs configuration get customangularcomponent <id> -b <branch>` instead.
+The checklist lives in one place so it can't drift: run [../SKILL.md → Pre-Flight Checklist](../SKILL.md#pre-flight-checklist) before `push`. (Verification caveats — e.g. `dxs source explore configs`/`trace` not indexing type-36 — are in the parent skill's Common Mistakes table.)
 
 ## Cross-References
 
@@ -265,4 +260,3 @@ A missing datasource makes `this.$datasources.ds_orders` a **compile error** —
 - [../../datex-studio-runtime/calling-conventions.md](../../datex-studio-runtime/calling-conventions.md) — UI-tier calling rules (flows/datasources, not raw HTTP).
 - [../../datasource-creator/references/datasources.md](../../datasource-creator/references/datasources.md) — authoring the datasources/flows a CAC reads.
 - [../../datex-studio-conventions/naming-conventions.md](../../datex-studio-conventions/naming-conventions.md) — reference-name / display-name rules.
-```
