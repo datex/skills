@@ -76,11 +76,22 @@ consumers in other tenants are excluded (they could not be republished anyway �
 gated to the owning org). Read `plan.json`. If `cycleDetected` is `true`, STOP and report the cycle
 (see troubleshooting).
 
+The `-O json` output wraps the plan under a `cascade_plan` envelope key. Keep the redirected file
+as-is — Phase 3's `--plan` accepts the wrapped file directly (`cascade run` unwraps the envelope
+itself). Unwrap only when *reading* plan fields, e.g. `jq .cascade_plan.levels plan.json` (the
+unwrapped shape is documented in [plan-schema.md](plan-schema.md)).
+
 ## Phase 2 — Present & select
 Render the plan as a tree and ask ALL / subset / review-only — see
 [interaction-patterns.md](interaction-patterns.md). The plan shape is documented in
 [plan-schema.md](plan-schema.md). If the user picks a subset, pass `--select` per chosen
-package in Phase 3; warn that deselecting an intermediate package prunes its dependents.
+package in Phase 3 — but note the CLI does **not** prune dependents for you. Deselecting a
+package while leaving one of its dependents selected makes `cascade run` fail when it reaches
+that dependent (its dependency's new version is unknown) — and by then nodes on earlier levels
+have already published. So when the user deselects an intermediate package, **you drop every
+node that depends on it (directly or transitively) from `--select` as well**, by following the
+`updates` edges in the plan the CLI produced, and tell the user which nodes were pruned and why
+(see [interaction-patterns.md](interaction-patterns.md) → "The pick prompt").
 
 ## Phase 3 — Execute (bottom-up)
 Default (let the CLI run the mechanical loop, feeding each publish's version forward):

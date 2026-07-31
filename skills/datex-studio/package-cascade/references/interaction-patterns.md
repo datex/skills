@@ -60,9 +60,13 @@ Offer three shapes:
 - **Pick a subset** — multi-select by `uniqueIdentifier`; pass each as `--select`.
 - **Review only** — stop after showing the plan.
 
-If a subset deselects a package that others depend on, explain the prune: "skipping Module2 means
-Module0 has nothing to update and will also be skipped." (`cascade run` will error if an
-intermediate dependency's new version is unknown — deselecting mid-chain is not supported.)
+If the subset deselects a package that others depend on, **prune those dependents from the
+selection yourself** — the CLI does not: passing a dependent whose deselected dependency has no
+new version makes `cascade run` fail when it reaches that node, *after* earlier levels have
+already published. Compute the dependents by following the `updates` edges in the plan (the CLI
+built that graph; you are only filtering the selection), drop them from `--select`, and explain
+the prune before running: "skipping Module2 means Module0 cannot be re-pinned to a new Module2
+version, so it is skipped too."
 
 ## Progress narration (Phase 3)
 One concise line per completed node with the resulting version and an `n of N` counter, e.g.

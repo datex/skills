@@ -1,6 +1,10 @@
 # Cascade Plan Schema
 
-Output of `dxs -O json source cascade plan …` (unwrap the `cascade_plan` envelope key).
+Output of `dxs -O json source cascade plan …`. The `-O json` output wraps the shape below under
+a `cascade_plan` envelope key; the schema documented here is the **unwrapped** value (read fields
+via `jq .cascade_plan…`). No unwrapping is needed for execution — `cascade run --plan` accepts
+the wrapped file exactly as redirected (it strips the envelope itself, and takes a bare plan
+object too).
 
 ```jsonc
 {

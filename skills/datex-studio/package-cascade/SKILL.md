@@ -40,8 +40,9 @@ caller analysis (use `impact-analysis`), or forward dependency inspection (`dxs 
 ## Division of labour (do not cross this line)
 The **CLI owns all determinism**: graph traversal, topological ordering, the transitive-reference
 rebuild, and conflict/cycle detection live in `dxs source cascade plan` and `dxs source reference
-set`. This **skill owns interaction**: present the plan, ask all-or-subset, drive execution,
-report. **Never hand-edit AppConfig JSON, never compute the update order yourself, never reason
+set`. This **skill owns interaction**: present the plan, ask all-or-subset (including pruning the
+dependents of a deselected package from `--select`, walking the plan's own `updates` edges — the
+CLI runs exactly what you select and errors mid-run otherwise), drive execution, report. **Never hand-edit AppConfig JSON, never compute the update order yourself, never reason
 about the transitive closure in prose** — delegate to `dxs`. If you reach for `jq` on an
 appConfig, stop: that work belongs in `dxs source reference set`.
 

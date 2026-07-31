@@ -36,9 +36,9 @@ Cross-skill content used to live in a plain `shared/` directory. `npx skills` on
 
 ## Skill catalog
 
-**39 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities, workflow orchestration). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
+**40 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities, workflow orchestration). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
 
-### Datex Studio — Component creators (15)
+### Datex Studio â€” Component creators (16)
 
 Skills for authoring NEW component configurations on a branch. Each owns the rules and lifecycle for one component type.
 
@@ -46,6 +46,7 @@ Skills for authoring NEW component configurations on a branch. Each owns the rul
 |---|---|---|
 | [`action-creator`](skills/datex-studio/action-creator/SKILL.md) | Server-tier transactional flows (`*-footprintFlow.json`) | 18 |
 | [`backend-test-creator`](skills/datex-studio/backend-test-creator/SKILL.md) | Mocha test suites (`*-backendTest.json`) | 24 |
+| [`custom-angular-component-creator`](skills/datex-studio/custom-angular-component-creator/SKILL.md) | Custom Angular Components â€” bespoke coded UI via the `dxs ng` create â†’ preview â†’ push loop (a working folder, not a `*.json` body) | 36 |
 | [`datasource-creator`](skills/datex-studio/datasource-creator/SKILL.md) | OData and flow datasources (`*-datasource.json`, `*-footprintDatasource.json`) | 6 / 19 |
 | [`editor-creator`](skills/datex-studio/editor-creator/SKILL.md) | Single-entity view/edit screens (`*-editor.json`) | 4 |
 | [`embed-creator`](skills/datex-studio/embed-creator/SKILL.md) | Iframe-hosting external URL / HTML-string embeds (`*-embed.json`) | 20 |
@@ -53,14 +54,14 @@ Skills for authoring NEW component configurations on a branch. Each owns the rul
 | [`footprint-workflows`](skills/datex-studio/footprint-workflows/SKILL.md) | TypeScript implementations bound to Footprint platform workflow slots (`*-footprintWorkflow.json`) | 23 |
 | [`form-creator`](skills/datex-studio/form-creator/SKILL.md) | Transient-input forms and dialog openers (`*-form.json`) | 5 |
 | [`function-creator`](skills/datex-studio/function-creator/SKILL.md) | Backend functions / flows (`*-flow.json`) | 9 |
-| [`grid-creator`](skills/datex-studio/grid-creator/SKILL.md) | Data grids — densest creator (`*-grid.json`) | 3 |
+| [`grid-creator`](skills/datex-studio/grid-creator/SKILL.md) | Data grids â€” densest creator (`*-grid.json`) | 3 |
 | [`hub-creator`](skills/datex-studio/hub-creator/SKILL.md) | Filter-driven hub containers (`*-hub.json`) | 2 |
-| [`report-creator`](skills/datex-studio/report-creator/SKILL.md) | RDLX-JSON reports (Active Reports JS) | — |
+| [`report-creator`](skills/datex-studio/report-creator/SKILL.md) | RDLX-JSON reports (Active Reports JS) | â€” |
 | [`selector-creator`](skills/datex-studio/selector-creator/SKILL.md) | Datasource-backed dropdowns / autocompletes (`*-selector.json`) | 7 |
 | [`storage-creator`](skills/datex-studio/storage-creator/SKILL.md) | Cloud-persisted Mongo storage (`*-storage.json`) | 17 |
 | [`type-definition-creator`](skills/datex-studio/type-definition-creator/SKILL.md) | Interfaces (`i_*`) and enums (`e_*`) (`*-customType.json`) | 22 |
 
-### Datex Studio — Component editors (2)
+### Datex Studio â€” Component editors (2)
 
 Modifying EXISTING component configurations.
 
@@ -69,13 +70,13 @@ Modifying EXISTING component configurations.
 | [`hub-editor`](skills/datex-studio/hub-editor/SKILL.md) | Toolbar buttons and click flows on an existing hub |
 | [`report-editor`](skills/datex-studio/report-editor/SKILL.md) | 5-category triage (label/style, rearrange, add column, datasource gap, new section) |
 
-### Datex Studio — Tailoring (1)
+### Datex Studio â€” Tailoring (1)
 
 | Skill | Purpose |
 |---|---|
-| [`tailoring-overlay`](skills/datex-studio/tailoring-overlay/SKILL.md) | Extend a core-library component via `baseConfiguration` overlay; flatten tailored ? standalone custom |
+| [`tailoring-overlay`](skills/datex-studio/tailoring-overlay/SKILL.md) | Extend a core-library component via `baseConfiguration` overlay; flatten tailored â†’ standalone custom |
 
-### Datex Studio — Validators (3)
+### Datex Studio â€” Validators (3)
 
 Audit-only skills (no mutations). Invoked as the final gate after authoring/modifying.
 
@@ -85,17 +86,17 @@ Audit-only skills (no mutations). Invoked as the final gate after authoring/modi
 | [`grid-validator`](skills/datex-studio/grid-validator/SKILL.md) | Grid-specific gotchas (envelope, text-display coercion, dynamic-filter five-location sync) |
 | [`project-validator`](skills/datex-studio/project-validator/SKILL.md) | Project-wide lint across 5 cross-component check categories |
 
-### Datex Studio — Shared / library skills (3)
+### Datex Studio â€” Shared / library skills (3)
 
 Reference-only library skills. **Not invoked directly.** Other skills link into the files they contain.
 
 | Skill | Content |
 |---|---|
-| [`datex-studio-shared`](skills/datex-studio/datex-studio-shared/SKILL.md) | Branch & connection setup, Studio lifecycle, context navigation, flow code patterns, RDLX-JSON report authoring |
+| [`datex-studio-shared`](skills/datex-studio/datex-studio-shared/SKILL.md) | Branch & connection setup, Studio lifecycle, context navigation, flow code patterns, RDLX-JSON report authoring, vendored Datex app design system (Fluent 2) |
 | [`datex-studio-conventions`](skills/datex-studio/datex-studio-conventions/SKILL.md) | File format invariants, naming conventions, defaults |
 | [`datex-studio-runtime`](skills/datex-studio/datex-studio-runtime/SKILL.md) | Runtime globals, three-tier execution model, control-type catalog |
 
-### Datex Studio — Utilities (14)
+### Datex Studio â€” Utilities (14)
 
 Workflow helpers consumed by creator skills or invoked standalone.
 
@@ -104,7 +105,7 @@ Workflow helpers consumed by creator skills or invoked standalone.
 | [`branch-code-reviewer`](skills/datex-studio/branch-code-reviewer/SKILL.md) | Branch-level code review with severity tags ([ISSUE]/[WARNING]/[INFO]/[OK]) |
 | [`codebase-research`](skills/datex-studio/codebase-research/SKILL.md) | Read-only codebase investigation with Datex Studio-specific patterns |
 | [`commit-message-generator`](skills/datex-studio/commit-message-generator/SKILL.md) | Draft 3-part Datex commit messages |
-| [`component-scaffolder`](skills/datex-studio/component-scaffolder/SKILL.md) | Type ? folder/suffix/configurationTypeId/skeleton/creator dispatch |
+| [`component-scaffolder`](skills/datex-studio/component-scaffolder/SKILL.md) | Type â†’ folder/suffix/configurationTypeId/skeleton/creator dispatch |
 | [`component-wiring-check`](skills/datex-studio/component-wiring-check/SKILL.md) | Audit the three silent-failure traps (moduleId, configParameters mirror, vars declaration) |
 | [`db-query`](skills/datex-studio/db-query/SKILL.md) | `$db` predicate DSL + flow-db-datasource patterns |
 | [`devops-requirements`](skills/datex-studio/devops-requirements/SKILL.md) | Extract requirements from Azure DevOps work items |
@@ -116,29 +117,30 @@ Workflow helpers consumed by creator skills or invoked standalone.
 | [`requirements-gathering`](skills/datex-studio/requirements-gathering/SKILL.md) | Standardized requirements brief from any source |
 | [`schema-explorer`](skills/datex-studio/schema-explorer/SKILL.md) | OData schema discovery and field-mapping table builder |
 
-### Datex Studio — Workflow orchestration (1)
+### Datex Studio â€” Workflow orchestration (1)
 
 Cross-cutting workflow skills that orchestrate multiple `dxs` command families instead of authoring a single component type.
 
 | Skill | Purpose |
 |---|---|
-| [`package-cascade`](skills/datex-studio/package-cascade/SKILL.md) | Propagate a published package change up the dependency graph — re-pin and republish every consuming package, bottom-up, stopping at applications (reported as stale) |
+| [`package-cascade`](skills/datex-studio/package-cascade/SKILL.md) | Propagate a published package change up the dependency graph â€” re-pin and republish every consuming package, bottom-up, stopping at applications (reported as stale) |
 
 ### Footprint (3 skills, out of scope for the Mitch merge)
 
 | Skill | Status |
 |---|---|
-| [`building-waves`](skills/footprint/building-waves/SKILL.md) | Empty stub — placeholder |
+| [`building-waves`](skills/footprint/building-waves/SKILL.md) | Empty stub â€” placeholder |
 | [`footprint-entity-expert`](skills/footprint/footprint-entity-expert/SKILL.md) | Footprint WMS entity navigation, filter conventions, weight/unit math |
-| [`slotting`](skills/footprint/slotting/SKILL.md) | Empty stub — placeholder |
+| [`slotting`](skills/footprint/slotting/SKILL.md) | Empty stub â€” placeholder |
 
 ## Recent history
 
-The Datex Studio skill set was substantially expanded by the **Mitch skills merge**: 20 net-new skills added (12 component creators, 2 validators, 1 post-edit verification, 3 command-replacement skills, 2 shared/library siblings to `datex-studio-shared`) plus targeted absorption of Mitch's domain depth into 4 existing Datex skills (`datasource-creator`, `function-creator`, `impact-analysis`, `hub-editor` ? `hub-creator` cross-link).
+The Datex Studio skill set was substantially expanded by the **Mitch skills merge**: 20 net-new skills added (12 component creators, 2 validators, 1 post-edit verification, 3 command-replacement skills, 2 shared/library siblings to `datex-studio-shared`) plus targeted absorption of Mitch's domain depth into 4 existing Datex skills (`datasource-creator`, `function-creator`, `impact-analysis`, `hub-editor` â†” `hub-creator` cross-link).
 
 ## Not yet covered (roadmap)
 
 Component types the platform supports but that no skill or reference doc covers yet. When feature work first touches one, add a skill and a reference doc following [docs/component-doc-template.md](docs/component-doc-template.md).
 
-- dashboards, widgets, notifications, workflows, events, layouts — and other platform config types not yet given a skill. The authoritative set of config types the CLI recognizes is `ConfigurationEndpoints.KNOWN_TYPES` in the dxs CLI.
+- dashboards, widgets, notifications, workflows, events, layouts â€” and other platform config types not yet given a skill. The authoritative set of config types the CLI recognizes is `ConfigurationEndpoints.KNOWN_TYPES` in the dxs CLI.
 - Reports and API endpoints appeared on the original backlog but are now covered by `report-creator` and `endpoint-creator`.
+- Custom Angular Components (type 36) are now covered by `custom-angular-component-creator`.
