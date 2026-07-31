@@ -101,12 +101,18 @@ One task may legitimately claim several branches — the observed format is
 That is normal; note the sibling branches to the user rather than treating it as
 a conflict.
 
+**Keep the edge alive.** This lookup only works because someone recorded the
+branch URL on the task, and the field is sparse precisely because that was manual.
+When a branch resolves to a Project Task, the skill stamps the URL back
+automatically — see Phase 5c in SKILL.md. Every stamped task makes the *next*
+branch resolvable by the authoritative path instead of by keyword guesswork.
+
 **Project Tasks only.** `incident` has no `cr0c5_commit` field (querying it
 returns `Could not find a property named 'cr0c5_commit'`), so there is no
 reverse edge for Cases. Azure DevOps work items carry the equivalent in
-`acceptance_criteria` as `BRANCH: <studio url>`, but with no working ADO search
-(see below) it can only be read from a work item you already have, never
-searched.
+`acceptance_criteria` as `BRANCH: <studio url>`. There is no way to *search* that
+field, but `dxs devops search` can now find the work item by title, after which
+`acceptance_criteria` can be read from it.
 
 ### Deep-link anatomy (the established convention)
 
@@ -165,13 +171,17 @@ dxs crm odata msdyn_projecttasks \
 # CRM Cases by title
 dxs crm case search "net weight" --status active --limit 10
 
-# Azure DevOps: NO title search exists. `dxs devops search` is a stub — it returns
-# {"message": "Work item search is not yet implemented"} with success: true, so it
-# looks like a search that found nothing. Do not use it and do not read "no results"
-# as "no matching work item". ADO can only be resolved from a known ID.
+# Azure DevOps work items by title
+dxs devops search "net weight" --org datexCorporation --limit 25
+dxs devops search "net weight" --org datexCorporation --description   # with body text
 ```
 
-Cap it at ~2 searches (CRM only, per the above). If they return nothing, or return a spray of
+`devops search` returns `workitems[]` with `metadata.count` / `total_count`. It is
+a real search as of datex/datex-studio-cli#72 — an empty result now genuinely means
+no work item matched, not that nothing ran. (It was previously a stub returning
+`success: true` without searching; guidance saying to avoid it is obsolete.)
+
+Cap it at ~3 searches across CRM and ADO. If they return nothing, or return a spray of
 plausible-but-unconvincing hits, ask the user once; if they don't have a ticket,
 record `MISSING` and move on. Do not chain further searches hoping to get lucky —
 a wrong ticket reference is worse than an honest ⚠.
@@ -216,38 +226,41 @@ other work.
 
 ### Adapter: CRM Support Case (`incident`)
 
-**Ticket numbers are not unique — `case get` will silently return the wrong case.**
-65 of 31,522 ticket numbers in this tenant are shared by two records. `dxs crm case
-get` returns a single-record envelope with no indication a second matched, so it can
-hand you a resolved, unrelated case while the check still reports `COMPLIANT`.
-Observed: `C260710_0017` is both "Missing Attachment" (Resolved, Crane Worldwide)
-and "FootPrint Next Gen - Errors when Picking" (Active, JCS Global).
-
-So resolve in this order:
+**Ticket numbers are not unique — `case get` returns every match.** 65 of 31,522
+ticket numbers in this tenant are shared by two records. `C260710_0017` is both
+"Missing Attachment" (Resolved, Crane Worldwide) and "FootPrint Next Gen - Errors
+when Picking" (Active, JCS Global).
 
 ```bash
-# 1. Holding a GUID (from a deep link)? Use it — GUIDs are unambiguous.
-dxs crm odata incidents \
-  -f "incidentid eq <GUID>" \
-  -s "incidentid,ticketnumber,title,description,statecode"
-
-# 2. Holding only a ticket number? Enumerate first and check the count.
-dxs crm odata incidents \
-  -f "ticketnumber eq 'C260612_0005'" \
-  -s "incidentid,ticketnumber,title,statecode,createdon"
-
-# 3. Exactly one hit → re-fetch it by GUID via `case get` for readable output.
 dxs crm case get C260612_0005                      # markdown body, lookups resolved
 dxs crm case get C260612_0005 --include-activity   # when you need the discussion
+
+dxs crm odata incidents \
+  -f "incidentid eq <GUID>" \
+  -s "incidentid,ticketnumber,title,description,statecode"   # by GUID from a deep link
 ```
 
-If step 2 returns **more than one row**, do not guess. Compare each candidate's
-`title` against the branch's `commitTitle` and pick the match; if that is not
-decisive, ask the user which case is intended. Never let a multi-hit resolve
-silently — a confidently wrong `Ref:` is the worst output this check can produce.
+**The envelope is `cases` — an array — always, even for a single match**, with the
+match count in `metadata.count`. Read `cases[]`, not `case`; anything reaching for
+a single object breaks.
 
-**Always cross-check the resolved title against the commit title** even on a single
-hit. It costs nothing and is the only thing that catches this class of error.
+Check the count before using a result:
+
+| `metadata.count` | Do |
+|------------------|-----|
+| 1 | Use it. Still cross-check the title against `commitTitle`. |
+| 2+ | Compare each candidate's `title` against `commitTitle` and take the match. If that isn't decisive, ask the user — one-shot: `UNVERIFIED`, name the candidates, emit no `Ref:`. |
+| 0 | Nothing matched that ticket number. |
+
+Never let a multi-hit resolve silently — a confidently wrong `Ref:` is the worst
+output this check can produce. **Cross-check the resolved title against the commit
+title even on a single hit**; it costs nothing and catches wrong links arriving by
+other routes.
+
+> Fixed in datex/datex-studio-cli#71. `case get` used to return one record with no
+> sign a second matched, which silently produced wrong references — the array
+> envelope is that fix. Guidance telling you to enumerate via `odata` first is
+> obsolete.
 
 Context: `title`, `description`, `status`, `customer`. Prefer `case get` for the
 body — raw `odata` returns `description` as a wall of `<div class="ck-content" …>`
@@ -411,8 +424,8 @@ correct link. Divergence is different in kind: it says the link itself may be wr
 | Mistake | Fix |
 |---------|-----|
 | Treating a regex match as compliance | Resolve the record; `PR-999999_999` matches the shape and exists nowhere |
-| Trusting `dxs crm case get` on a ticket number | Ticket numbers are not unique — enumerate with `odata` first and cross-check the title against `commitTitle` |
-| Reading `dxs devops search`'s empty result as "no work item" | It's an unimplemented stub that reports `success: true` — it never searched |
+| Trusting a single case on a ticket number | Ticket numbers are not unique — read every entry in `cases[]` and cross-check the title against the commit title |
+| Reading `cases` as a single object | `dxs crm case get` always returns an array; check `metadata.count` and disambiguate 2+ against `commitTitle` |
 | Emitting a URL with `&amp;` instead of `&` | Deep links must be raw and clickable; HTML-escaping breaks them |
 | Blocking output until a ticket is supplied | This check warns, never blocks — always emit the message |
 | Inventing a plausible ticket ID or link | Only reference records you actually resolved, or the user supplied |

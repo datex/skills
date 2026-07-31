@@ -22,6 +22,11 @@ branch server-side via `dxs` — it does not run `git commit`; Datex Studio has
 its own commit flow and the message produced here is intended to be pasted into
 the branch's commit UI (or into whatever downstream delivery the user chose).
 
+It makes **one** write, and only one: when a branch resolves to a Project Task,
+it stamps the branch URL onto that task's `cr0c5_commit` field so the link is
+discoverable from both ends (Phase 5c). Nothing else is mutated — not the branch,
+not any configuration, not the repo.
+
 Every message must carry a pointer to the work item that justified the change.
 That traceability check is a first-class phase, not a formatting detail — see
 [references/traceability.md](references/traceability.md).
@@ -135,6 +140,9 @@ Build the title + body per the "Output Format" section, including the Ref: lines
         |
 [Phase 5b: Deliver]  ← one-shot only
 Call the delivery tool the prompt named (e.g. SaveCommitMessage).
+        |
+[Phase 5c: Stamp reverse edge]  ← both modes, only when a Project Task resolved
+dxs crm commit-ref append <task> <branch-url> --label <app>  (idempotent)
         |
 [Phase 6: (optional) Persist to knowledge base]
 If CreateKnowledgeNode is available in this session, save the message as an Article
@@ -306,8 +314,7 @@ adapters, and command syntax are in
    [references/traceability.md](references/traceability.md).
    **One-shot:** 2+ hits → `UNVERIFIED`, name the candidates, emit no `Ref:`.
 3. **Search** — only if 1 and 2 came up empty: up to ~2 CRM keyword searches
-   using the commit title. (`dxs devops search` is an unimplemented stub — do
-   not use it, and never read its empty result as "no work item exists".)
+   using the commit title, plus `dxs devops search` for ADO work items.
    Propose hits to the user for confirmation; never adopt a search result
    silently.
    **One-shot:** never adopt a search hit — there is no confirmation available.
@@ -436,6 +443,46 @@ generation. Return the message in your final output as well as calling the tool
 — it costs nothing and makes failures diagnosable from the transcript.
 
 Skip this phase entirely in interactive mode.
+
+### Phase 5c: Stamp the reverse edge (both modes)
+
+When Phase 3 resolved a **Project Task**, write this branch's Studio URL into that
+task's `cr0c5_commit` so the link is discoverable from the ticket side too. This
+is what makes the reverse-edge lookup in Phase 3 work for the *next* branch —
+today that field is populated on only ~145 tasks because it is maintained by hand.
+
+```bash
+dxs crm commit-ref append <TASK_GUID> \
+  "https://wavelength.host/studio/application/<BRANCH_ID>/home" \
+  --label <ApplicationDefinitionName>
+```
+
+This runs automatically, in **both** interactive and one-shot mode, whenever:
+
+- the verdict is **`COMPLIANT`** — never stamp a guess, so never on `UNVERIFIED`
+  or `MISSING`; **and**
+- the resolved record is a **Project Task**. Cases, Project Requests, Internal
+  Datex Tickets and ADO work items have no `cr0c5_commit` field — skip them.
+
+Details that matter:
+
+- **It is idempotent.** If the URL is already present the command writes nothing
+  and returns `changed: false` with `reason: "value already present"`. Re-running
+  the skill on a branch is safe. **Do not pass `--allow-duplicate`** — that
+  defeats the guard and grows the field without limit.
+- **`--label` is the application definition name** (`referenceName` from
+  `branch show`, e.g. `FootprintManager`). It matches the convention already in
+  the field, where a label line sits above the URL.
+- **A failed write does not invalidate the message.** Report the failure and
+  carry on — the commit message is the deliverable; the stamp is a side effect.
+- **Report the outcome** (`changed: true` / `false`) in your interactive summary.
+  In one-shot, mention it only if the write failed — a successful stamp is not
+  worth a ⚠ line.
+
+> **Why this is safe unattended.** One-shot only adopts self-asserting references
+> — an explicit ID or link, or a single reverse-edge hit — so it can never stamp a
+> task it merely guessed at from a keyword search. The write inherits the
+> conservative-resolution rule rather than needing its own.
 
 ### Phase 6 (optional): Persist to Knowledge Base
 
@@ -685,8 +732,11 @@ mode instead of choosing a flow.
 - **Author attribution** — the branch's author is in the `branch show` output;
   you do not add an author line in the message (Datex Studio records the
   author on the branch itself).
-- **Never run `git commit`** — this skill only produces text. Datex Studio
-  commits happen in the platform UI, not via `git`.
+- **Never run `git commit`** — Datex Studio commits happen in the platform UI,
+  not via `git`. The skill's only write is the `cr0c5_commit` traceability stamp
+  in Phase 5c; it never modifies the branch, its configurations, or the repo.
+- **Never pass `--allow-duplicate`** to `commit-ref append` — the duplicate guard
+  is what makes re-running the skill on a branch safe.
 
 ## Common Mistakes
 
@@ -707,7 +757,8 @@ mode instead of choosing a flow.
 | Reporting backward dependency moves as a sync | Backward = base advanced since the branch was cut; that's drift, keep it out |
 | Describing the ticket when the diffs say something else | The message always describes the diffs; add the ⚠ divergence line to connect them |
 | Burying a ticket/diff mismatch in the chat summary | Divergence goes in the message — the commit's reader is who catches a wrong link |
-| Running `git commit` or editing repo state | This skill is read-only; it produces text only |
+| Running `git commit` or editing repo state | The only sanctioned write is the Phase 5c `cr0c5_commit` stamp; the branch and repo are never touched |
+| Stamping `cr0c5_commit` on an UNVERIFIED or MISSING verdict | Only stamp a resolved Project Task — never write a guess into a ticket |
 | Enumerating review findings in the commit body | List only the theme; delegate detail to `branch-code-reviewer` and just flag with ⚠ |
 | Treating a regex match as a valid ticket reference | Resolve the record through its adapter — shape-valid IDs can point at nothing |
 | Refusing to output a message because no ticket was found | The check warns, never blocks; emit with the ⚠ traceability line |
