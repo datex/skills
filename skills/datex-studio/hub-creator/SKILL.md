@@ -25,7 +25,7 @@ depends:
 
 # Hub Creator
 
-Author a NEW Datex Studio hub configuration (configurationTypeId=2) on a branch — top-level UI containers with filters, grouping options, tabs that mount grids/editors/forms, toolbar buttons, and click flows.
+Author a NEW Datex Studio hub configuration (configurationTypeId=2) on a branch — top-level UI containers with filters, grouping options, tabs that mount grids/editors/forms/custom Angular components, toolbar buttons, and click flows.
 
 > **See also:** `hub-editor` — modifying an EXISTING hub's toolbar/flows on a branch (this skill is for authoring NEW hubs).
 

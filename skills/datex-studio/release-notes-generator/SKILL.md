@@ -1,15 +1,17 @@
 ---
 name: release-notes-generator
 description: |
-  Use when generating release notes between two Datex Studio branches. Compares
-  a baseline (older) branch against a target (newer) branch, mines commits and
-  linked DevOps work items, reads config diffs, and drills into updated
-  dependencies to produce Technical and Customer release notes. Trigger for:
-  "generate release notes from X to Y", "write release notes between <old> and
-  <new>", "release notes for <app> between branches A and B", "compare releases
-  X and Y and summarize". For time-range-based anchor picking ("weekly notes",
-  "what shipped last week"), use `prospective-release-notes` — it resolves the
-  two branch IDs and then invokes this skill.
+  Use when generating release notes between two Datex Studio releases. Enumerates
+  the changed-dependency worklist with `dxs source release-tree`, mines each
+  package's commits and linked DevOps work items, reads config diffs, and produces
+  Technical and Customer release notes. Works for Datex products and for customer
+  applications (which reference both the shared Datex catalog and their own org's
+  packages). Trigger for: "generate release notes from X to Y", "write release
+  notes between <old> and <new>", "release notes for <app> between branches A and
+  B", "compare releases X and Y and summarize". For time-range-based anchor
+  picking ("weekly notes", "what shipped last week"), use
+  `prospective-release-notes` — it resolves the two branch IDs and then invokes
+  this skill.
 depends:
   - datex-studio-shared
 ---
@@ -26,72 +28,210 @@ actually changed). Produces both a Technical and a Customer variant.
 
 ## Prerequisites
 
-- **`--from` branch ID** — the older release (baseline)
-- **`--to` branch ID** — the newer release (target)
+- **`--from` branch ID** — the older release (baseline) of the **root application**
+- **`--to` branch ID** — the newer release (target) of the root application
+- **dxs ≥ 0.4.9** — needs `source release-tree` and cross-org dependency
+  resolution. Older builds' `deps-diff`/`compare` silently report **zero**
+  dependency changes (they compared a field the AppConfig payload dropped) and
+  cannot resolve a customer app's own-org packages. If `dxs source release-tree
+  --help` fails, stop and say so — don't fall back to the blind path.
 
-Both are needed up front. If the user only provided one (or neither), ask for
-the missing IDs before doing any work — the Branch ID Policy applies (never
-assume).
+Both branch IDs are needed up front. If the user gave a **version name** instead
+(or a date, or only one), resolve it first — see *Resolving the root app &
+versions* below. The Branch ID Policy applies: never assume an ID.
+
+## Resolving the root app & versions
+
+The "root application" is whatever the user is releasing — and it is **not
+always a Datex product**. A customer's deployed app (e.g. Tobin's `Footprint`,
+`tob-footprint`) is typically a thin aggregator: it has **few or zero direct
+commits of its own**, and its release *is* the set of dependency version bumps.
+That's expected — the substance lives in the dependencies, which `release-tree`
+enumerates.
+
+Two resolution wrinkles to handle before Phase 1:
+
+- **Cross-org packages.** A customer app references both the shared **Datex
+  catalog** (org 1) and packages from its **own organization** (e.g. `tob-*`).
+  `release-tree` auto-detects the root app's org (via
+  `applicationDefinitionId → repo → organization`) and indexes both, so the
+  customer's own packages resolve. Without that (older dxs), they vanish
+  silently. Find a customer's app: `dxs source repo list --org-name <CODE>`.
+- **Version names, incl. Service Packs.** If given a version name, resolve it to
+  a branch ID. The default-group listing **excludes Service Packs**, so a
+  versionName like `20260423.145611.SP.20260604.154933` won't appear there:
+  - default releases: `dxs source branch list --repo <id> --default-group --status published -n 0` → match `versionName`
+  - Service Packs: `dxs source servicepack list --repo <id>` to find the SP group, then `dxs source branch list --repo <id> --group-id <sp_group> --status published -n 0`
+  - (`branch search` matches the branch *name*, not `versionName` — don't use it.)
+
+  The same Default-group blind spot applies to **dependencies**, where
+  `release-tree` hits it automatically rather than you hitting it by hand — see
+  *Phase 1b* for the recovery loop.
 
 ## Workflow
 
 ```
-[Phase 1: Compare]
-dxs source compare --from <old> --to <new>
-  → releases (intermediate), committed_branches, dependency_changes
+[Phase 1: Enumerate]
+dxs source release-tree --from <root_old> --to <root_to>   (--recursive if nested)
+  → root + every changed dependency, each resolved to from/to branch IDs
+    (cross-org), plus added / removed packages
         |
-[Phase 2: Work Items per Commit]
-For each interesting commit (parallel):
+[Phase 1b: Recover unresolved deps]   summary.resolve_failed must reach 0
+Service-Pack-pinned versions never resolve from the Default group:
+  dxs source servicepack list --repo <repo_id>
+  dxs source branch list --repo <repo_id> --group-id <sp_group> --status published -n 0
+  (with --recursive: re-walk each recovered dep — its sub-tree was skipped too)
+        |
+[Phase 2: Commits per package]
+For root + each changed dependency (parallel):
+  dxs source compare --from <pkg_old> --to <pkg_new> --exclude-sync
+  → committed_branches (id, title, author, date, changes), workitem_ids
+        |
+[Phase 3: Work Items per commit]
   dxs source workitems --branch <commit_branch_id> --description
         |
-[Phase 3: Source Diffs]
+[Phase 4: Source Diffs]
 For each created/meaningfully-modified/bug-fix config:
-  dxs source diff --from <old> --to <new> --config <ref_name>
-        |
-[Phase 4: Drill Dependencies]
-For each dependency_changes entry:
-  dxs source compare --from <dep_old> --to <dep_new>
-  Repeat Phases 2-3 recursively on the dependency's commits
+  dxs source diff --from <pkg_old> --to <pkg_new> --config <ref_name>
         |
 [Phase 5: Write Notes]
 Compose two variants per the Output Formats below:
   • Technical — for developers/support
   • Customer — for end users / operations
-Deduplicate work items that appear in multiple dependencies.
+Deduplicate work items that appear in multiple dependencies. Note added/removed
+packages (a newly-included package is a feature; a removed one, a flag).
 ```
 
 ## Phase Details
 
-### Phase 1: Compare
+### Phase 1: Enumerate (release-tree)
 
 ```bash
-dxs source compare --from <old_branch_id> --to <new_branch_id>
+dxs source release-tree --from <root_old_branch_id> --to <root_to_branch_id>
+# add --recursive only if dependencies have their own changed sub-dependencies;
+# a flat aggregator (the common case) is complete in one pass.
 ```
 
-The response contains three arrays that drive the rest of the workflow:
+This single call replaces the old "compare the main app, then recursively
+`compare`-drill each dependency" dance. It returns:
 
-- **`releases`** — intermediate published releases between the two branches.
-  Use this for the summary header (release count, date span).
-- **`committed_branches`** — each merged feature branch, with:
-  - `id` — branch id of the commit
-  - `title` — short commit headline (one-liner)
-  - `release_notes` — verbose, engineering-oriented description of the
-    change, produced by SideKick at commit time alongside the short title.
-    This is the primary commit-level account of *what* the commit did and
-    the main textual input for the Phase 5 narrative. If null (older commits
-    with no SideKick output, or a SideKick outage at commit time), use the
-    short `title` as the headline and rely on the Phase 3 diff for the body.
+- **`root`** — the application being released (`reference_name`, branch IDs).
+  Often a thin wrapper with no direct commits of its own.
+- **`dependencies`** — every changed dependency, each already resolved to
+  `repo_id`, `from_branch_id`, `to_branch_id` (the IDs you need to drill it),
+  plus `from_version` / `to_version`. Resolved **cross-org**, so a customer
+  app's own packages (e.g. `tob-reports`) are included, not just the Datex
+  catalog. Any dependency that couldn't be resolved carries a `resolve_error`.
+- **`added`** / **`removed`** — packages newly included in, or dropped from, the
+  release. These have no commit delta to mine; record them directly in Phase 5
+  (a newly-included package is a feature; a removed one, a potential flag).
+- **`summary`** — counts (`dependencies_total`, `resolved_ok`, `resolve_failed`,
+  `added_count`, `removed_count`), plus `max_depth_reached` and `recursive`.
+  With `--recursive`, compare `max_depth_reached` against `--max-depth` (default
+  10) — if they're equal the walk may have been truncated.
+
+> **Why not `compare`/`deps-diff` for enumeration?** On the resolved-version
+> diff they are correct only on dxs ≥ 0.4.9; older builds report **zero** changed
+> dependencies (they compared `marketPlaceApplicationVersionId`, dropped from the
+> AppConfig payload) — so a run would conclude "nothing changed" and skip the
+> 80%+ of substance that lives in dependencies. `release-tree` is the
+> authoritative enumerator and also hands you the branch IDs to drill.
+
+### Phase 1b: Recover every `resolve_failed` dependency (NOT optional)
+
+**`summary.resolve_failed` must reach 0 before you proceed to Phase 2 — or every
+remaining failure must be named in the notes as an unanalyzed gap (see the end of
+this section).** An unresolved dependency is missing at least one branch ID, so
+it cannot be compared or diffed — it drops out of the notes silently, which is
+the exact failure this skill exists to prevent. Treat a non-zero count as a
+blocker, not a warning.
+
+`resolve_error` is a `; `-joined list of what failed, so read *which* side it
+names: an entry can fail on `to_version` alone and still carry a perfectly good
+`from_branch_id`. Recover only the missing side; don't discard an ID you already
+have.
+
+The most common cause is a **Service-Pack-pinned dependency**. `release-tree`
+resolves a `versionName` to a branch ID by looking **only in the repo's Default
+application group** (group type 1, which by definition excludes Service Packs).
+A dependency pinned to an SP release — versionName containing `.SP.`, e.g.
+`20260423.145611.SP.20260604.154933` — is therefore *never* found, and lands in
+`resolve_failed` with a `resolve_error` of `from_version …/to_version … not
+found in published releases`.
+
+Read each failed entry's `resolve_error` and recover by cause:
+
+| `resolve_error` says | Cause | Recovery |
+|---|---|---|
+| `… not found in published releases` | Version lives in a Service Pack group (or was unpublished) | `dxs source servicepack list --repo <repo_id>` → for each SP group id: `dxs source branch list --repo <repo_id> --group-id <gid> --status published -n 0` → match `versionName` to the entry's `from_version` / `to_version` |
+| `no repository for uniqueIdentifier …` | Package's org isn't in the repo index (the entry has no `repo_id`) | Get the org code from the dependency's `reference_name` prefix (`tob-reports` → `TOB`) — the error itself carries only a uniqueIdentifier. `dxs source repo list --org-name <CODE>` to find the `repo_id`, then resolve its versions starting with the **default** group: `dxs source branch list --repo <repo_id> --default-group --status published -n 0`; fall back to the SP path above only if the version isn't there |
+
+(`release-tree` auto-detects only the *root* app's org and has no flag to index
+another, so that second row is a manual lookup by design, not a missing option.)
+
+Feed the recovered branch IDs into Phase 2 exactly as if `release-tree` had
+returned them.
+
+**If the Phase 1 run used `--recursive`, also re-walk each recovered
+dependency.** An unresolved dependency is never enqueued for the next depth
+level — the walk skips anything missing a branch ID — so its own changed
+sub-dependencies were never enumerated either. Recovering the branch IDs fixes
+the package itself but leaves everything beneath it invisible, which is the same
+silent miss in miniature:
+
+```bash
+dxs source release-tree --from <recovered_from> --to <recovered_to> --recursive
+```
+
+Merge that output into the worklist — dedupe on `unique_identifier` +
+`from_version` + `to_version` (the same key the walk uses internally), and carry
+its `added` / `removed` into Phase 5 too. Then run Phase 1b again on its
+`summary.resolve_failed`: a recovered sub-tree can contain SP-pinned dependencies
+of its own.
+
+If a dependency still won't resolve after both paths, **say so explicitly in the
+notes** ("could not analyze `<package>` `<from>` → `<to>`") rather than omitting
+it — an unanalyzed package is a known gap, not an absence of change.
+
+> Service Packs are the norm for customer applications, which are frequently
+> hotfixed off a published release rather than tracking the default line. For a
+> customer app, expect `resolve_failed > 0` and budget for this step.
+
+### Phase 2: Commits per package
+
+For the root **and** each changed dependency from Phase 1, list its commits
+(parallel — this is the per-package fan-out):
+
+```bash
+dxs source compare --from <pkg_from_branch_id> --to <pkg_to_branch_id> --exclude-sync
+```
+
+From `branch_comparison` you get, per package:
+
+- **`committed_branches`** — each merged feature branch:
+  - `id` — branch id of the commit (use it for Phase 3 work items)
+  - `title` — short commit headline. A headline only — never the body of a
+    release note entry; the work item (Phase 3) and diff (Phase 4) carry that.
   - `author` — who committed
-  - `changes` — array of config-level changes (`reference_name`, `type`,
-    `modification` of `add`/`update`/`delete`)
-- **`dependency_changes`** — which component packages (Waves, Carts, etc.)
-  were updated, with old/new branch IDs for drilling.
+  - `date`
+  - `changes` — config-level changes (`reference_name`, `type`, `modification`
+    of `add`/`update`/`delete`)
+- **`workitem_ids`** — linked DevOps work items for the whole package window.
+- **`releases`** / `release_count` — intermediate releases (for the header).
 
-**Commits WITH changes** are direct code/config changes to this module.
-**Commits WITHOUT changes** are sync commits pulling in dependency updates —
-the real work lives in the dependencies (Phase 4).
+`--exclude-sync` drops sync-only commits (which merely pull dependency updates);
+the real work in those is captured because the dependency is its own package in
+the worklist. A thin root app may legitimately return **zero** committed
+branches — that's not an error, its release is the dependency bumps.
 
-### Phase 2: Work Items per Commit
+> **There is no per-commit `release_notes` field.** A commit carries only the
+> five keys above. A verbose SideKick-authored commit description exists on an
+> unmerged dxs branch (`feature/commit-message-suggestion-release-notes`) and
+> has never shipped — don't look for it, and don't treat its absence as a
+> degraded run. Until it merges, *what the commit did* comes from the work item
+> and the diff, not from commit prose.
+
+### Phase 3: Work Items per Commit
 
 For each commit whose `changes` array is non-trivial (or every commit, when
 scope allows), fetch the linked work items:
@@ -110,27 +250,27 @@ release note. They contain:
 - `description` — full requirements, steps to reproduce, mockups, acceptance
   criteria
 
-If a commit has **no linked work items**, flag it as "Missing traceability"
-and fall back to the commit's `release_notes` (Phase 1) for the body. Use
-the commit ID and `title` as the entry headline. Never silently drop these.
+If a commit has **no linked work items**, flag it as "Missing traceability" and
+reconstruct the body from the Phase 4 diff — that is the only remaining account
+of what the commit did. Use the commit ID and `title` as the entry headline.
+Never silently drop these.
 
-> Three inputs, three roles:
-> - **`release_notes` on each commit (Phase 1)** — the *what*. Engineering-
->   oriented narrative of the change, produced at commit time. Primary input
->   for the change description in the notes.
-> - **Work items (Phase 2)** — the *why*. Business intent, requirements,
->   acceptance criteria.
-> - **Diffs (Phase 3)** — the *how*. The code itself, the final source of
+> Two inputs, two roles:
+> - **Work items (Phase 3)** — the *why*. Business intent, requirements,
+>   acceptance criteria. Primary input for the description in the notes.
+> - **Diffs (Phase 4)** — the *how*. The code itself, the final source of
 >   truth when the prose disagrees with what was actually committed.
 >
-> Commit titles are just headlines; they're not a primary input.
+> Commit titles are just headlines; they're not a primary input. There is no
+> third, commit-level prose input — see the Phase 2 note.
 
-### Phase 3: Source Diffs
+### Phase 4: Source Diffs
 
-For each interesting config, pull the unified diff:
+For each interesting config, pull the unified diff (using the **owning package's**
+from/to branch IDs from Phase 1):
 
 ```bash
-dxs source diff --from <old_branch_id> --to <new_branch_id> --config <reference_name>
+dxs source diff --from <pkg_from_branch_id> --to <pkg_to_branch_id> --config <reference_name>
 ```
 
 The response tells you:
@@ -168,32 +308,21 @@ The response tells you:
 - `update` — modified. May be significant or trivial; the diff decides.
 - `delete` — removed. Potential breaking change; flag it.
 
-### Phase 4: Drill Into Dependencies (NOT optional)
+### Scale: dependencies are where the features live (NOT optional)
 
-Dependency updates often contain the most significant features and fixes. A
-release with 60+ updated dependencies likely has major changes buried in
-component packages (Waves, Carts, Inventory, FootprintManager, etc.) that
-will be missed if you only look at the main app's commits.
+The root app's own commits are often just sync commits — or none at all. Real
+features like "Wave Planning", "Cart Management", "Order Import" live in the
+component packages (Waves, Carts, Inventory, FootprintManager, …). `release-tree`
+already enumerated and resolved them in Phase 1; the work is to run Phases 2–4
+over **every** one, not just the root. Skipping dependency analysis means missing
+80%+ of the actual changes.
 
-For each entry in `dependency_changes` from Phase 1:
-
-```bash
-# Compare the dependency's baseline vs. target
-dxs source compare --from <dep_old_branch_id> --to <dep_new_branch_id>
-```
-
-Then **repeat Phases 2–3 recursively** on the dependency's commits. When the
-dependency itself has `dependency_changes`, drill again. The recursion bottoms
-out at leaf packages with no further dep updates.
-
-**Use subagents for scale.** Analyzing 60 dependencies sequentially is too
-slow and leads to shortcuts. Spawn parallel Agents (one per dependency) to
-run Phases 2–3; aggregate their outputs when you compose the notes.
-
-> Main app commits are often just "sync" commits that pull in dependency
-> updates. Real features like "Wave Planning", "Cart Management", "Order
-> Import" are implemented in their respective component packages. Skipping
-> dependency analysis means missing 80%+ of the actual changes.
+**Use subagents for scale.** A FootprintManager-class release is 20–60 packages
+and hundreds of commits — too much for one context. Spawn parallel Agents (one
+per package, or per batch of ~5 commits) to run Phases 2–4, then aggregate their
+findings when you compose the notes. For the heavy, deterministic version of this
+fan-out (cheap-model leaf/reduce over a baked worklist), see the v2 architecture
+tracked in `datex/skills#16`.
 
 ### Phase 5: Write Notes
 
@@ -203,9 +332,12 @@ Produce **both** a Technical variant and a Customer variant.
 
 Every feature and bug fix entry MUST include:
 
-1. **Work Item Link** — clickable URL to DevOps.
-   `[#XXXXXX](https://dev.azure.com/DatexCorporation/_apis/wit/workItems/XXXXXX)`
-   If no work item exists, flag as "Missing traceability" and use the commit ID.
+1. **Work Item Link** — clickable URL to DevOps, built from the work item's
+   **`external_id`** (not its internal id):
+   `[#XXXXXX](https://dev.azure.com/DatexCorporation/_workitems/edit/XXXXXX)`
+   (the `_workitems/edit/` browser path, not the `_apis/wit/workItems/` API
+   endpoint). If no work item exists, flag "Missing traceability" and use the
+   commit ID.
 2. **Business Context** — the *why* from the work item description.
 3. **Author Attribution** — who implemented it (from work item or commit).
 4. **Technical Details** — added/modified configs (Technical variant only).
@@ -235,7 +367,7 @@ multiple modules, rather than repeating it per dependency.
 ## New Features
 
 ### <Feature Title from Work Item>
-**Work Item:** [#NNNNNN](…/workItems/NNNNNN)
+**Work Item:** [#NNNNNN](…/_workitems/edit/NNNNNN)
 **Author:** <Name>
 
 <Description from the work item requirements.>
@@ -256,7 +388,7 @@ multiple modules, rather than repeating it per dependency.
 ## Bug Fixes
 
 ### <Bug Title from Work Item>
-**Work Item:** [#NNNNNN](…/workItems/NNNNNN)
+**Work Item:** [#NNNNNN](…/_workitems/edit/NNNNNN)
 **Author:** <Name>
 
 **Problem:** <What users experienced — from work item description.>
@@ -314,15 +446,17 @@ and why it matters. No config names, no branch IDs.>
 ## Tips
 
 1. **The code is the source of truth.** Commit titles and work items are
-   signals — the code has the real context. This is why Phase 3 is mandatory.
+   signals — the code has the real context. This is why the Phase 4 diff is
+   mandatory.
 2. **Every feature branch should have a work item.** If one doesn't, flag
    "Missing traceability"; don't paper over it.
 3. **Diff new configs to understand structure.** A hub's tabs, a flow's logic,
    a grid's columns are all visible in the diff of an `add` config.
 4. **Bug fixes reveal themselves in diffs.** A complex-sounding bug often has
    a one-line fix. Show the actual change in the Technical notes.
-5. **Dependencies are where the features live.** Phase 4 is where 80% of the
-   substance often is. Don't skip it.
+5. **Dependencies are where the features live.** Running Phases 2–4 over every
+   package release-tree enumerates is where 80% of the substance often is —
+   especially for a thin customer wrapper whose own app has no commits.
 6. **Use subagents for scale.** Sequential dependency analysis over 60+
    packages hits time and context limits. Parallel Agents are the fix.
 7. **Aggregate carefully.** Deduplicate work items that appear in multiple
@@ -331,29 +465,23 @@ and why it matters. No config names, no branch IDs.>
 ## Example Session
 
 ```bash
-# Step 1: Compare main app releases
-dxs source compare --from 64920 --to 67162
-# 16 committed_branches, 19 updated dependencies
+# Step 1 (Phase 1): Enumerate the worklist — root + every changed dependency,
+# each resolved to from/to branch IDs, cross-org.
+dxs source release-tree --from 64920 --to 67162
+# root + 19 changed deps (e.g. Waves 64876→67102), 0 resolve_failed, 1 added
 
-# Step 2: Work items for a feature commit
-dxs source workitems --branch 66644 --description
-# Work item #234705 — Mobile Configurator hub
+# Step 2 (Phase 2): Commits for the Waves dependency
+dxs source compare --from 64876 --to 67102 --exclude-sync
+# 12 committed_branches with wave planning work
 
-# Step 3: Structure of the new hub
-dxs source diff --from 64919 --to 67159 --config mobile_configurator_hub
-# Tabs: Warehouses, Owners, Order Classes, Equipment Types
-
-# Step 4: Drill into Waves dependency
-dxs source compare --from 64876 --to 67102
-# 12 commits with wave planning features
-
+# Step 3 (Phase 3): Why — the work item behind a commit
 dxs source workitems --branch 67099 --description
 # Work item #180436 — wave creation requirements
 
+# Step 4 (Phase 4): How — the new flow's code
 dxs source diff --from 64876 --to 67102 --config create_annotation_task_action
-# Shows the new flow's code
 
-# Check a bug fix
+# Bug fix: why then how
 dxs source workitems --branch 66852 --description        # Bug #238852
 dxs source diff --from 64919 --to 67159 \
   --config outbound_orders_eligible_for_return_grid
@@ -364,9 +492,14 @@ dxs source diff --from 64919 --to 67159 \
 
 | Mistake | Fix |
 |---------|-----|
-| Skipping Phase 4 because "the main app only had sync commits" | Those sync commits are the signal that the work is in dependencies — drill |
+| Enumerating dependencies with `compare`/`deps-diff` | Blind on dxs < 0.4.9 (reports 0 changes) — use `source release-tree` |
+| Concluding "nothing changed" because the root app had few/no commits | A thin wrapper's release *is* its dependency bumps — run Phases 2–4 over every dependency release-tree enumerated |
+| Hunting for a per-commit `release_notes` / SideKick description | It doesn't exist in any shipped dxs — the *what* comes from the work item and the diff |
+| For a customer app, only resolving Datex-org packages | release-tree resolves cross-org; the customer's own `*-` packages count too |
+| Proceeding to Phase 2 with `summary.resolve_failed > 0` | Those packages silently vanish from the notes — recover each one per Phase 1b before mining commits |
+| On a `--recursive` run, recovering a dependency's branch IDs but not re-walking it | The walk skipped its sub-tree the moment it failed to resolve — re-run `release-tree --recursive` on the recovered IDs (Phase 1b) |
 | Using commit titles as feature titles | Use the linked work item's title; commit titles are often rushed |
-| Reconstructing what each commit did from titles + diffs alone | The `release_notes` field on each commit (Phase 1) is SideKick's engineering-oriented description of the change — use it as the primary input for the per-commit narrative |
+| Building the DevOps link from the internal id / `_apis/` URL | Use `external_id` and the `_workitems/edit/` browser path |
 | Repeating the same feature under multiple dependencies | Deduplicate by work item ID when composing |
 | Omitting work item links "to keep notes clean" | Links are mandatory; without them notes are untraceable |
 | Customer notes with config names / branch IDs | Strip internal vocabulary — customer variant is prose, not config soup |
