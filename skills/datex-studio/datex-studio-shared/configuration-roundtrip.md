@@ -24,6 +24,27 @@ dxs configuration validate <type> -b <branch> -D body.json
 
 > **Which write verb?** The CLI ships `create` (POST), `update` (lock+PUT), and `upsert` (orchestrated create-or-update). Prefer `upsert` everywhere — it resolves the path by `referenceName` and manages the source-control lock for you, so you don't have to know whether the config already exists. Use the explicit `dxs configuration update <type> <id>` / `dxs configuration create <type>` only when you deliberately want one path.
 
+## Reference names resolve to the branch's own config
+
+`get`, `update`, `delete`, and `upsert` resolve a bare reference name to **this
+branch's own** configuration — never to a config inherited from a **referenced
+package**. This holds on ComponentModule (package) branches too, where the
+branch's own configs live under the module's own reference name.
+
+To deliberately **read** a referenced package's config, address it explicitly as
+`Module/ref`:
+
+```bash
+# Read a hub owned by the referenced package "SharedPkg"
+dxs configuration get hub SharedPkg/hub_home -b <branch>
+```
+
+`Module/ref` is read-only: `update`, `delete`, and `upsert` reject it, because a
+referenced package's config cannot be modified from a consuming branch (edit it
+in its own package instead). If a bare name isn't found on your branch but
+exists in a referenced package, the error names the package and shows the
+`Module/ref` form.
+
 ## The bug this avoids
 
 `dxs configuration get -O envelope.json` writes the full server response shape (id, json, jsonString, version, modifiedDate, …). `dxs configuration upsert -D` expects only the inner `json` body. Piping the envelope directly results in the server silently wiping the configuration's content (Phase 0d smoke test on hub 655 — toolbar/flows/onInitFlowConfig all reset to null).

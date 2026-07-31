@@ -36,7 +36,7 @@ Cross-skill content used to live in a plain `shared/` directory. `npx skills` on
 
 ## Skill catalog
 
-**39 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
+**40 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities, workflow orchestration). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
 
 ### Datex Studio — Component creators (16)
 
@@ -116,6 +116,14 @@ Workflow helpers consumed by creator skills or invoked standalone.
 | [`release-notes-generator`](skills/datex-studio/release-notes-generator/SKILL.md) | 5-phase release notes pipeline (Technical + Customer outputs) |
 | [`requirements-gathering`](skills/datex-studio/requirements-gathering/SKILL.md) | Standardized requirements brief from any source |
 | [`schema-explorer`](skills/datex-studio/schema-explorer/SKILL.md) | OData schema discovery and field-mapping table builder |
+
+### Datex Studio — Workflow orchestration (1)
+
+Cross-cutting workflow skills that orchestrate multiple `dxs` command families instead of authoring a single component type.
+
+| Skill | Purpose |
+|---|---|
+| [`package-cascade`](skills/datex-studio/package-cascade/SKILL.md) | Propagate a published package change up the dependency graph — re-pin and republish every consuming package, bottom-up, stopping at applications (reported as stale) |
 
 ### Footprint (3 skills, out of scope for the Mitch merge)
 
