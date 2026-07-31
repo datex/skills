@@ -108,6 +108,11 @@ one comes from.
   shared platform flows (e.g., `crud_create_flow` from Utilities) or dialogs
   from other modules. These are the seams where breakage is most likely.
 
+While tracing changed configs, watch for references to configs that this
+same branch *deletes*. A changed config whose trace still lists a
+just-deleted datasource or flow is a sign of incomplete cleanup — flag it,
+even though delete-safety itself is handled by `impact-analysis` in Step 4.
+
 **Limitation:** trace shows forward deps only, never reverse. To check whether
 a deleted config is safe to remove, trace the configs that might reference it
 and look for the deleted name in their dependency lists.
@@ -168,6 +173,11 @@ to say, but consider each one before skipping.
 
 - **Work item alignment** — does the change actually address the stated
   bug/feature?
+- **Fix altitude** — is this a root-cause fix, or a workaround at the wrong
+  layer? A UI-level remap (e.g. rewriting a bad `TypeId` in a binding) may
+  mask a data-layer bug that will resurface everywhere else the entity is
+  read. If you can't tell which was intended, raise it in Questions for
+  Developer rather than guessing a severity.
 - **Scope creep** — are there unrelated changes bundled in?
 - **Regression risk** — could this break existing behavior?
 - **Deleted-config safety** — is the deleted config truly unused elsewhere?
@@ -296,6 +306,13 @@ is created but its initial option value is lost with no error shown.
 literal with `$datasource.inParams.custom_field_id`, which is a typed number
 param — low risk.
 
+## Questions for Developer
+1. The TypeId 5→1 remap is applied at the binding level — is this a display
+   fix, or does the API return the wrong TypeId and the data layer needs the
+   fix instead?
+2. `save_result` from creating the initial option value is never checked —
+   is silent failure acceptable here?
+
 ## Verdict
 **Request Changes** — the duplicate error handling will show two dialogs on
 failure. The unchecked `save_result` is a secondary concern worth addressing.
@@ -319,6 +336,11 @@ failure. The unchecked `save_result` is a secondary concern worth addressing.
    configs that might reference the deleted name.
 6. **Whitespace-only diffs are noise.** Call them out as `[INFO]`; don't let
    them dilute the findings section.
+7. **When you can't tell intentional from accidental, ask.** Some findings
+   hinge on intent you can't see in the diff — is the unchecked flow result
+   acceptable? Is the UI-level remap deliberate or a stopgap? Those belong in
+   **Questions for Developer**, not in the findings with a guessed severity.
+   A wrong `[ISSUE]` costs credibility; a sharp question gets an answer.
 
 ## Common Mistakes
 
@@ -330,3 +352,4 @@ failure. The unchecked `save_result` is a secondary concern worth addressing.
 | Deleting a config without checking reverse references | Invoke `impact-analysis` on the deleted reference name; don't emulate with forward-trace |
 | Relying on the diff alone when the change is subtle | Step 5: pull the full config with `dxs source explore config` to see surrounding logic |
 | Enumerating whitespace/formatting noise as findings | Mark once as `[INFO]` (or suppress) — don't pad the report |
+| Assigning a severity to something that hinges on unknowable intent | Move it to Questions for Developer instead of guessing |
