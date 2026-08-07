@@ -122,18 +122,18 @@ const { result } = await $datasources.Acme.fpds_get_widget_info.get({ });
 await $datasources.Acme.ds_widget_options.getByKeys.get({ $keys: KEYS });
 ```
 
-The rule is uniform across both component variants (`-datasource.json` called from functions, `-footprintDatasource.json` called from actions) and across both execution shapes. Flow referenceNames (`getList`, `getByKeys`, `get`) are the only method names on the datasource handle.
+The rule is uniform across both component variants (`-datasource.json` called from functions, `-footprintDatasource.json` called from actions) and across all three execution shapes. Flow referenceNames (`getList`, `getByKeys`, `get`) are the only method names on the datasource handle.
 
 ## Top-Level Datasource Fields
 
-Same for both shapes:
+Fields below apply across all three shapes; shape-dependent values are called out inline:
 
 - `inParams` — only the component-specific inputs (e.g. `full_text_search`, or editor-specific id inputs). The platform-injected params (`$top`, `$skip`, `$keys`) are **not** declared at the top level — they appear only inside the respective flow's `inParams`.
-- `outParams` — `[{ id: "result", type: "object", isCollection: <bool>, objectTypeDef: [...] }]` (same simple descriptor as OData datasources). `isCollection` is `true` for paginated shape, `false` for single-result.
-- `keyDef` — the key field(s) of the result. Mandatory for paginated shape; author's choice for single-result shape (empty array `[]` when omitted).
+- `outParams` — `[{ id: "result", type: "object", isCollection: <bool>, objectTypeDef: [...] }]` (same simple descriptor as OData datasources). `isCollection` is `true` for both collection shapes (unkeyed and keyed), `false` for single-result.
+- `keyDef` — the key field(s) of the result. **Required** (non-empty) for the collection-keyed shape; **must be empty** (`[]`) for the collection-unkeyed shape; author's choice for single-result (empty array `[]` when omitted — see [Keys in Single-Result Shape](#keys-in-single-result-shape)).
 - `queryOptionsObjectTypeDef` — the **entity definition**: the authoritative result shape / output contract (see [The entity definition is the output contract](#the-entity-definition-is-the-output-contract) below). Flow datasources use the fat parameter-descriptor boilerplate here (with `required`/`oneOf`/etc.), unlike OData datasources which use the simple descriptor. Must match the surrounding flow's `outParams[0].objectTypeDef` exactly.
-- `resultIsCollection`: `true` for paginated shape, `false` for single-result. **`hasResult`**: `true`. **`hasKey`**: matches `keyDef` presence.
-- The unused flow slot is `null`: paginated shape sets `getFlow: null`; single-result sets `getListFlow: null` and `getByKeysFlow: null`.
+- `resultIsCollection`: `true` for both collection shapes (unkeyed and keyed), `false` for single-result. **`hasResult`**: `true` in all three shapes. **`hasKey`**: matches `keyDef` presence — always `true` for collection-keyed, always `false` for collection-unkeyed, author's choice for single-result.
+- The unused flow slot(s) are `null`: both collection shapes set `getFlow: null`; the collection-unkeyed shape additionally leaves `getByKeysFlow: null` (only `getListFlow` is populated); single-result sets `getListFlow: null` and `getByKeysFlow: null`.
 - `onInitFlow: null` unless initialization logic is needed.
 - All OData-specific fields (`paths`, `queryOptions`, `outputResultAsSingleObject`, `allSelectedIs*`, `dynamicOrderBys`, `dynamicFilters`, `linkedDatasources`, `customColumns`) are `null`.
 - `apiSettingName`: `null` for `-datasource.json`, `"FootprintApi"` for `-footprintDatasource.json`.
@@ -196,7 +196,11 @@ A common use case is exposing a custom enum type as a dropdown datasource. The p
 
 ## Canonical Skeletons
 
-Two skeletons below — one for each execution shape. Single-line minified JSON in practice; shown expanded here for readability.
+Two skeletons below, covering the collection-keyed shape (the "Paginated Shape" skeleton, which
+also covers key lookup) and the single-result shape. The collection-unkeyed shape is not shown
+as its own skeleton — it is a small variant of the paginated skeleton (see the note after the
+`getByKeysFlow` skeleton for how to derive it). Single-line minified JSON in practice; shown
+expanded here for readability.
 
 All flow-style datasources share a common null-slot layout — the parts that vary per use case are the `code` strings, `inParams` (component-specific inputs), `outParams`/`objectTypeDef` (result shape), `keyDef`, and which flow slot is populated.
 
@@ -320,6 +324,11 @@ All flow-style datasources share a common null-slot layout — the parts that va
   "accessModifier": "public"
 }
 ```
+
+**Deriving the collection-unkeyed shape from this skeleton:** drop the `getByKeysFlow` block
+entirely (set the top-level `getByKeysFlow: null`), set `keyDef: []` and `hasKey: false` on the
+top-level structure, and remove the `getByKeysFlow` skeleton. Everything else — the top-level
+structure and the `getListFlow` skeleton — is unchanged.
 
 ### Single-Result Shape (getFlow)
 
