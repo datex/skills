@@ -194,6 +194,14 @@ mirror drift. Treat its blockers as must-fix.
 
 Before authoring **any** grid, decide what feeds the rows. This decision determines the embedded datasource's `type` (`oDataQuery` vs `flows`) and changes the five-location rule. Get this wrong and you write the whole datasource against the wrong source. Consult [references/grids.md](references/grids.md) (datasource shape and the five-location rule) and the rows-source decision in Phase 2 below before authoring.
 
+**Flow-datasource shape check:** a grid's rows datasource must be the keyed-collection shape —
+`resultIsCollection: true` with **both** `getListFlow` and `getByKeysFlow` populated and a
+non-empty `keyDef`. A flow datasource with only `getListFlow` cannot back a grid: single-row
+refresh after actions calls `getByKeys`, which won't exist. Read suitability off the
+implemented methods before wiring — see
+[../datasource-creator/references/flow-datasources.md](../datasource-creator/references/flow-datasources.md)
+→ "Reading suitability off an existing flow datasource".
+
 The grid's name is the strongest hint:
 
 - **PascalCase plural** (`TaskStatuses`, `Orders`, `Shipments`, `Warehouses`) — probably an OData entity in the Footprint schema. Invoke `schema-explorer` with `describe entity <Name>` (or `search <Name>`) **before** authoring. If it resolves, build an OData-backed grid against that entity. **Hard rule:** never default to a flow-type datasource for a PascalCase-plural name without first running `schema-explorer`.

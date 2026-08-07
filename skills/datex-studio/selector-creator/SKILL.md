@@ -109,7 +109,9 @@ Consult references/selectors.md:
   - enum dropdown — flow-type backing iterating $types.<Package>.<enum>
     with formatKey helpers, getList/getByKeys parity required
 Backing-datasource source:
-  - existing `-datasource.json` -> wrap it; verify keyDef/outParams
+  - existing `-datasource.json` -> wrap it; verify keyDef/outParams; flow-type
+    backing must be the keyed-collection shape (getListFlow + getByKeysFlow
+    populated, non-empty keyDef) — getList-only cannot resolve selected labels
   - existing `-footprintDatasource.json` (FPDS) -> NOT ALLOWED as backing;
     wrap the FPDS in a flow-type `-datasource.json` that calls through,
     or invoke `datasource-creator` for a fresh one

@@ -113,6 +113,8 @@ Build body.json:
     (configurationTypeId=6, type=flows, accessModifier=private,
     getFlow populated; getListFlow/getByKeysFlow null;
     resultIsCollection=false; outParams[0].isCollection=false)
+  - Flow shape: getFlow populated; getListFlow and getByKeysFlow null
+    (editors call .get() — code left in getListFlow silently breaks hydration)
   - Entity shape mirrored: datasources[0].outParams[0].objectTypeDef
     == datasourceConfig.configOutParameters.result.objectTypeDef
   - onInitFlowConfig (pre-hydration; no $editor.entity reads)

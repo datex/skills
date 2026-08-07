@@ -13,23 +13,52 @@ The flow query type can appear inside either component variant. The structure is
 
 Note the `apiSettingName` difference: flow-type `-datasource.json` sets it to `null` (no OData endpoint to resolve), while flow-type `-footprintDatasource.json` sets it to `"FootprintApi"`. OData-type datasources always use `"FootprintApi"` in both variants.
 
-## Two Execution Shapes
+## Three Execution Shapes
 
-Flow datasources come in two distinct execution shapes. Pick based on how the datasource will be called.
+Flow datasources come in three legitimate shapes. The generated methods (`get` / `getList` /
+`getByKeys`) exist **iff the corresponding flow slot is populated** — nothing derives them from
+the flags — so slot population must match `resultIsCollection` / `keyDef` exactly. The Studio
+designer enforces this imperatively (`createMissingFlows` / `clearUnusedFlows`); configs
+authored outside the designer must get it right by construction. `dxs datasource generate-flow`
+and `dxs datasource validate` lint these rules.
 
-| Shape | `getFlow` | `getListFlow` | `getByKeysFlow` | Typical use |
-|---|---|---|---|---|
-| **Paginated list + key lookup** | `null` | populated | populated | Dropdown selectors, grid datasources — caller needs paginated browsing and key-based round-trips |
-| **Single-result** | populated | `null` | `null` | Editor datasources, computed utilities — caller passes inputs and gets one object back |
+| Shape | `resultIsCollection` | `keyDef` | `getFlow` | `getListFlow` | `getByKeysFlow` | Suitable consumers |
+|---|---|---|---|---|---|---|
+| **Single-result** | `false` | optional (best practice) | populated | `null` | `null` | Editor, form, large-number/gauge widget, `oneToOne` linked DS |
+| **Collection, unkeyed** | `true` | empty | `null` | populated | `null` | Pie-chart widget, `oneToMany` linked DS — **not** grid/selector |
+| **Collection, keyed** | `true` | required (`isKey` on output type) | `null` | populated | populated | Grid, selector, `oneToOneWithMerge` linked DS |
 
-**Shapes are mutually exclusive.** A flow datasource implements **one** shape — either the paginated pair (`getListFlow` + `getByKeysFlow`) or the single-result slot (`getFlow`) alone — never all three. The unused slots are `null`. A file with all three populated is malformed.
+Any other slot combination is malformed: a single-result shape with `getListFlow` or
+`getByKeysFlow` populated, a collection with `getFlow` populated, a collection without
+`getListFlow`, or `getByKeysFlow` without a `keyDef`.
 
-`onInitFlow` is `null` in both shapes unless explicit initialization logic is needed.
+**Why grid/selector require the keyed shape:** both call `getByKeys` at runtime — the grid to
+re-fetch a single row after an action, the selector to resolve the display label of an
+already-selected value. `getByKeys` only exists when the slot is populated and `keyDef` is
+non-empty.
+
+### Reading suitability off an existing flow datasource
+
+When wiring an existing flow datasource into a consumer, read its implemented methods:
+
+- has `get` only → editor / form / single-widget material
+- has `getList` but no `getByKeys` → pie-chart / `oneToMany` material only; **not** grid/selector
+- has `getList` + `getByKeys` (and a `keyDef`) → grid / selector material
+
+`onInitFlow` is `null` in all shapes unless explicit initialization logic is needed.
 
 ### Picking a Shape
 
-- **Paginated + key lookup** is the shape for selector backings and grid datasources. `resultIsCollection: true`, `outParams[0].isCollection: true`. The `getListFlow` receives platform-injected `$top` / `$skip` / `$orderby` / `$filter` params; the `getByKeysFlow` receives `$keys`.
-- **Single-result** is the shape for datasources invoked with a specific set of inputs that produce one output object. `resultIsCollection: false`, `outParams[0].isCollection: false`. No pagination inputs, no `$keys`.
+- **Collection, keyed** is the shape for selector backings and grid datasources.
+  `resultIsCollection: true`, `outParams[0].isCollection: true`. The `getListFlow` receives
+  platform-injected `$top` / `$skip` / `$orderby` / `$filter` params; the `getByKeysFlow`
+  receives `$keys`.
+- **Collection, unkeyed** is the shape for consumers that only ever enumerate — pie-chart
+  widgets and `oneToMany` linked-datasource targets. Same `getListFlow` contract, no
+  `getByKeysFlow`.
+- **Single-result** is the shape for datasources invoked with a specific set of inputs that
+  produce one output object. `resultIsCollection: false`, `outParams[0].isCollection: false`.
+  No pagination inputs, no `$keys`.
 
 ### Keys in Single-Result Shape
 
