@@ -30,6 +30,30 @@ Whenever a CAC displays data, that data comes from a **real, typed datasource** 
 
 In one line: **real typed datasource + mocked data for authoring, real data after push** — applied to every CAC without asking. Sample data lives only in `mocks/harness-mocks.json` (transient, never pushed); the body stays clean with real empty/loading/error states. See [Phase 3](#phase-3-author-the-two-regions) for the mechanics.
 
+## CLI-first — no workarounds (hard rule)
+
+The `dxs` CLI is the **only sanctioned surface** for this skill — every read and write of
+Studio state, and every step of the authoring loop (`create`/`pull`, `data generate`,
+`preview`, `push`), goes through `dxs`. When the CLI falls short, **report the gap as a CLI
+problem to fix**, don't route around it — a workaround that "gets the task done" hides a
+defect every later session will hit again.
+
+- **Derive facts from `dxs`, not side channels.** Field shapes, config contents, schema,
+  branch state all have `dxs` commands. Plain `head`/`grep` over command output is fine;
+  scripted parsing of config JSON (`jq`/`python`) or reading raw platform artifacts is not.
+- **Derive server contracts from CLI-observable evidence.** A `validate`/`upsert` rejection
+  names the expected server type, and an existing valid config on the branch
+  (`dxs configuration get`) shows the accepted shape — that pair is sufficient. Do **not**
+  open the platform source repositories to reverse-engineer contracts.
+- **A needed workaround is a bug report, not a technique.** If the task seems to require
+  killing stray processes, scripting around a CLI output format, driving a tool the CLI
+  already wraps (e.g. screenshotting outside `dxs ng preview`), or hand-editing generated
+  JSON — stop, tell the user what the CLI gap/bug is, and agree on next steps.
+- **Hangs and orphaned processes are reportable defects.** A `dxs` command that blocks the
+  terminal, leaves children holding file locks, or leaks temp state is a CLI lifecycle bug.
+  Record the exact symptom chain (command, error code, leftover process/file) so it gets
+  fixed; unblocking kills are done *after* reporting, never as an unremarked routine.
+
 ## One CAC per screen (hard rule)
 
 A design/screen is authored as **one** CAC — never decomposed into multiple CACs
@@ -84,7 +108,7 @@ If the API is down, `create` / `data generate` / `preview` / `push` all fail wit
 | `dxs ng create <Name> -b <branch> [-d <dir>]` | yes | **no** | Build a starter config → server generates the **light harness** for the branch → materialize `<name>/angularapp/…` + `manifest.json` + `mocks/` locally. Nothing is created in Studio. |
 | `dxs ng pull <name> -b <branch> [-d <dir>]` | yes | no | Same materialization for an **existing** CAC (the edit-existing entry point). |
 | `dxs ng data generate <folder> -b <branch>` | yes | no | Seed `<folder>/mocks/harness-mocks.json` with typed placeholders for the `$datasources`/`$flows` the component uses. |
-| `dxs ng preview <folder> [-o out.png] [--refresh] [--clean]` | **no** (local) | no | Serve the harness locally and screenshot the component → `<folder>/render.png`. `--refresh -b <branch>` re-fetches the harness after a manifest/IO change; `--clean` resets a stuck server. |
+| `dxs ng preview <folder> [-o out.png] [--refresh] [--clean]` | **no** (local) | no | Serve the harness locally and screenshot the component → `<folder>/render.png`. `--refresh -b <branch>` re-fetches the harness after a manifest/IO change; `--clean` resets a stuck server **and** tears down the agent-browser session (daemon, Chrome tree, stale state files). |
 | `dxs ng push <folder> -b <branch>` | yes | **yes** | Extract the two regions + `manifest.json` → upsert type-36. **First push creates the component in Studio**; the server validates on upsert (hard gate). |
 | `dxs ng list -b <branch>` | yes | no | List the branch's type-36 components. |
 
@@ -185,7 +209,7 @@ A manifest **IO** change (new `@Input`/`@Output`) needs codegen wiring — edit 
 dxs ng preview <folder>          # -> <folder>/render.png
 ```
 
-Read `render.png`, compare it to the target, edit the regions/template/styles, and re-run `preview`. This is the core loop and where an agent earns its keep: **read the PNG, diff it against the target screenshot, adjust, repeat** until it matches. Type/template errors surface here too (the harness compiles the real component). Timings (local): first `preview` after `create` is a one-time `npm install` (minutes) + a ~15-46s compile; every `preview` after that is ~10s, and an edit hot-reloads in ~4s. The cold-compile wait is handled internally (no timeout knob); use `--clean` if the server wedges.
+Read `render.png`, compare it to the target, edit the regions/template/styles, and re-run `preview`. This is the core loop and where an agent earns its keep: **read the PNG, diff it against the target screenshot, adjust, repeat** until it matches. Type/template errors surface here too (the harness compiles the real component). Timings (local): first `preview` after `create` is a one-time `npm install` (minutes) + a ~15-46s compile; every `preview` after that is ~10s, and an edit hot-reloads in ~4s. The cold-compile wait is handled internally (no timeout knob); use `--clean` if the server or browser session wedges — it resets both, including stale agent-browser session state from crashed runs.
 
 `preview` captures the component's **default** rendered state — it doesn't click. For a mode/variant switched by in-component UI (rather than an `@Input`), temporarily set that default (or drive it from an `@Input`/mock) to screenshot each variant. For genuine interaction states (click-to-select, toggles, panels), drive `agent-browser` against the served harness instead: read the port from `<folder>/.dxs-serve.lock`, then `agent-browser open http://127.0.0.1:<port>` → `wait '<css>'` → `click '<css>'` → `screenshot out.png` — this verifies the real handler wiring, not a simulated default.
 
@@ -228,7 +252,7 @@ A materialized working folder weighs ~700 MB, ~85% of it `angularapp/node_module
 | Editing outside the two regions (touching the wrapper class, `@Component`, constructor, or the `//#region` sentinels) | `push` extracts your code from **between** the sentinels. Edits elsewhere are lost on push or break extraction. Keep to `__COMPONENT_TYPES__`, `__COMPONENT_BODY__`, `.html`, `.scss`. |
 | Installing `@anthropic-ai/agent-browser` (404) | The package is the **unscoped** `agent-browser`: `npm i -g agent-browser && agent-browser install`. |
 | `preview` reports `ng serve did not become ready` | Usually just the first cold compile running long (the wait is a fixed internal default); re-run and `--clean` to reset a stuck server. This IS a real compile problem if it persists — inspect the ng build. |
-| `preview` fails with `DXS-RPT-043` (`agent-browser 'wait' timed out`) — assuming the component is broken | A screenshot timeout ≠ a render failure: the component usually compiled + served fine (contrast `ng serve did not become ready`, which is the compile failure). A warm serve can also be stale. Re-run with `--clean`, then verify the real render by opening the `.dxs-serve.lock` port with `agent-browser` and checking `app-<ref>` has content — don't chase phantom code bugs. |
+| `preview` fails with `DXS-NG-053` (`agent-browser 'wait' timed out`) — assuming the component is broken | A screenshot timeout ≠ a render failure: the component usually compiled + served fine (contrast `DXS-NG-042` `ng serve did not become ready`, which is the compile failure). A warm serve can also be stale. Re-run with `--clean`, then verify the real render by opening the `.dxs-serve.lock` port with `agent-browser` and checking `app-<ref>` has content — don't chase phantom code bugs. |
 | Expecting to preview/open OTHER components (or `$shell` dialogs to them) | The harness makes only YOUR candidate a real component; `$shell.open<X>Dialog(...)` to other components are compilable stubs that won't open in preview. `$datasources`/`$flows` (real branch) and your own UI are fully live. |
 | Expecting the component to appear in Studio after `create` / `preview` | `create`/`pull`/`data generate`/`preview` are all transient. Only `push` writes to Studio (first push creates). |
 | Reaching for `HttpClient` or `fetch` in the body | Use the injected `$datasources` / `$flows`; they're real, typed, and mockable for preview. Raw HTTP won't have the branch's auth/context. |
