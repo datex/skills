@@ -347,6 +347,13 @@ Follow [deploy-patterns.md](../datex-studio-shared/report-authoring/deploy-patte
 
 **Artifact:** Save preview with `dxs report preview <report>.rdlx-json -o <artifact_dir>/<report-name>-preview.svg`.
 
+### Wrap-up (after the upload is verified)
+
+Once the config is confirmed on the branch:
+
+1. **Files:** follow the Cleanup prompt in [deploy-patterns.md](../datex-studio-shared/report-authoring/deploy-patterns.md#cleanup) — ask the user before deleting session files; never clean up silently. If the user opted into artifact collection in Phase 1, default to keeping the artifacts.
+2. **Processes:** stop what you started, per the Cleanup section in [studio-management.md](../datex-studio-shared/studio-management.md#cleanup) — `dxs studio stop` if you launched Studio in the background (no need to ask; never stop a server the user launched), and check for lingering preview processes (agent-browser session daemons / headless Chrome from `preview-arjs`/`validate-arjs`). A process that refuses to die, or any leftover that blocks the terminal, is a reportable CLI lifecycle defect — record the symptom chain rather than killing blindly.
+
 ## Troubleshooting
 
 See [troubleshooting.md](../datex-studio-shared/report-authoring/troubleshooting.md) for common RDLX-JSON expression issues and layout/CLI mistakes.
