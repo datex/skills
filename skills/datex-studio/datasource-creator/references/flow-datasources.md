@@ -29,7 +29,8 @@ and `dxs datasource validate` lint these rules.
 | **Collection, keyed** | `true` | required (`isKey` on output type) | `null` | populated | populated | Grid, selector, `oneToOneWithMerge` linked DS |
 
 Any other slot combination is malformed: a single-result shape with `getListFlow` or
-`getByKeysFlow` populated, a collection with `getFlow` populated, a collection without
+`getByKeysFlow` populated, a single-result shape with no `getFlow` at all (the config would
+generate no methods), a collection with `getFlow` populated, a collection without
 `getListFlow`, or `getByKeysFlow` without a `keyDef`.
 
 **Why grid/selector require the keyed shape:** both call `getByKeys` at runtime — the grid to
