@@ -200,7 +200,9 @@ non-empty `keyDef`. A flow datasource with only `getListFlow` cannot back a grid
 refresh after actions calls `getByKeys`, which won't exist. Read suitability off the
 implemented methods before wiring — see
 [../datasource-creator/references/flow-datasources.md](../datasource-creator/references/flow-datasources.md)
-→ "Reading suitability off an existing flow datasource".
+→ "Reading suitability off an existing flow datasource". This isn't just a runtime risk —
+the branch's server-side usage gate enforces it at contract-validation time and blocks
+publish if the grid's datasource is missing `getList` or `getByKeys`.
 
 The grid's name is the strongest hint:
 
