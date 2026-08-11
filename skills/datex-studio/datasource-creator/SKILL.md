@@ -381,7 +381,7 @@ For datasources, the primary scope symbols are `$entity`, `$ccentity`, and `$dat
 dxs datasource validate <file.json> --branch <branch_id>
 ```
 
-Validates the datasource config against the branch. **Run for BOTH standalone and owned modes** before proceeding to upsert or report upload. Validation is consumer-aware: the branch also refuses to publish when a component calls a method its bound datasource doesn't implement — grids/selectors require `getList` + `getByKeys`; editors/forms require `get` on a single result — so a shape mismatch is caught here, not at runtime.
+Validates the datasource config against the branch. **Run for BOTH standalone and owned modes** before proceeding to upsert or report upload. This command validates the datasource in isolation — it does **not** catch consumer-shape mismatches, and a mis-shaped datasource with no consumer still validates clean here. The branch's separate server-side usage gate (grid/selector require `getList` + `getByKeys`; editor/form require `get` on a single result) only fires when the *consumer* is validated (`dxs configuration validate <consumer type>`) or at publish — not from this command.
 
 ## Standalone Completion
 
