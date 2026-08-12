@@ -186,7 +186,10 @@ dxs ng preview <folder> --clean      # kill a stuck server + reset the browser s
 |---|---|---|
 | `DXS-NG-045` | folder not materialized (no `angularapp/`) | `dxs ng create` / `dxs ng pull` |
 | `DXS-NG-043` | `npm install` failed in the harness | check Node/npm; `--clean` |
-| `DXS-NG-042` | `ng serve` didn't become ready | re-run; `--clean` if it persists |
+| `DXS-NG-042` | `ng serve` didn't become ready | extend `DXS_NG_SERVE_TIMEOUT`; re-run; `--clean` if it persists (on CLI ≤0.4.13 also caused by a relative folder argument — pass an absolute path) |
+| `DXS-NG-047` | `push` datasource connection preflight failed (datasource missing on branch, or its `apiSettingName` not defined in branch settings) | regenerate the datasource against this branch; wire a connection in Studio; `--skip-connection-check` for mock-only dev |
+| `DXS-NG-048` | `pull` target folder already exists | `preview --refresh` to keep local work, or `pull --force` to take server truth |
+| `DXS-NG-049` | `pull --force` refused/failed to overwrite (not a CAC working copy, or files still locked) | check the target path; close whatever holds files, retry |
 | `DXS-NG-050` | agent-browser not installed | `npm i -g agent-browser && agent-browser install` |
 | `DXS-NG-053` | agent-browser step timed out | see "failed screenshot" above |
 | `DXS-NG-055` | browser build missing/incompatible | `agent-browser install` |
