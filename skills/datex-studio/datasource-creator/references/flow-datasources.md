@@ -20,12 +20,17 @@ Flow datasources come in three legitimate shapes. The generated methods (`get` /
 the flags — so slot population must match `resultIsCollection` / `keyDef` exactly. The Studio
 designer enforces this imperatively (`createMissingFlows` / `clearUnusedFlows`); configs
 authored outside the designer must get it right by construction. `dxs datasource generate-flow`
-and `dxs datasource validate` lint these rules.
+rejects every violation at authoring time; `dxs datasource validate` reports hand-edit
+corruption (`hasKey`↔`keyDef` mismatch, `getByKeysFlow` without `keyDef`, collection slots on
+a single-result config) as errors — which make it exit non-zero — and legacy shapes older CLI
+versions generated (missing `resultIsCollection`, `getFlow` on a collection, a collection
+without `getListFlow`, a keyed collection without `getByKeysFlow`) as advisory warnings, so
+deployed configs keep validating.
 
 | Shape | `resultIsCollection` | `keyDef` | `getFlow` | `getListFlow` | `getByKeysFlow` | Suitable consumers |
 |---|---|---|---|---|---|---|
 | **Single-result** | `false` | optional (best practice) | populated | `null` | `null` | Editor, form, large-number/gauge widget, `oneToOne` linked DS |
-| **Collection, unkeyed** | `true` | empty | `null` | populated | `null` | Pie-chart widget, `oneToMany` linked DS — **not** grid/selector |
+| **Collection, unkeyed** | `true` | empty | `null` | populated | `null` | List, calendar, pie-chart widget, `oneToMany` linked DS — **not** grid/selector |
 | **Collection, keyed** | `true` | required (`isKey` on output type) | `null` | populated | populated | Grid, selector, `oneToOneWithMerge` linked DS |
 
 Any other slot combination is malformed: a single-result shape with `getListFlow` or
@@ -43,8 +48,14 @@ non-empty.
 When wiring an existing flow datasource into a consumer, read its implemented methods:
 
 - has `get` only → editor / form / single-widget material
-- has `getList` but no `getByKeys` → pie-chart / `oneToMany` material only; **not** grid/selector
-- has `getList` + `getByKeys` (and a `keyDef`) → grid / selector material
+- has `getList` but no `getByKeys` → list / calendar / pie-chart / `oneToMany` material; **not**
+  grid/selector
+- has `getList` + `getByKeys` (and a `keyDef`) → grid / selector material, plus everything on the
+  line above — those consumers need only `getList`
+
+List and calendar call `getList` and never `getByKeys`, so they sit with the unkeyed consumers:
+requiring a `keyDef` of them would reject datasources they can use perfectly well. The server-side
+usage gate mirrors this split exactly.
 
 `onInitFlow` is `null` in all shapes unless explicit initialization logic is needed.
 
