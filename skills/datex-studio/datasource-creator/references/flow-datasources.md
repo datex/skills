@@ -23,9 +23,13 @@ authored outside the designer must get it right by construction. `dxs datasource
 rejects every violation at authoring time; `dxs datasource validate` reports hand-edit
 corruption (`hasKey`↔`keyDef` mismatch, `getByKeysFlow` without `keyDef`, collection slots on
 a single-result config) as errors — which make it exit non-zero — and legacy shapes older CLI
-versions generated (missing `resultIsCollection`, `getFlow` on a collection, a collection
-without `getListFlow`, a keyed collection without `getByKeysFlow`) as advisory warnings, so
-deployed configs keep validating.
+versions generated (`getFlow` on a collection, a collection without `getListFlow`, a keyed
+collection without `getByKeysFlow`) as advisory warnings, so deployed configs keep validating.
+A **missing `resultIsCollection`** is an error rather than a warning even though older CLI
+versions produced it: the server refuses to save a flow datasource without the flag
+(`Use in ... is required`), so always stamp it. The same lint runs on the FootprintDatasource
+variant (`-footprintDatasource.json`) too — and there it is the *only* shape check, since the
+server-side usage gate does not reach FPDS references.
 
 | Shape | `resultIsCollection` | `keyDef` | `getFlow` | `getListFlow` | `getByKeysFlow` | Suitable consumers |
 |---|---|---|---|---|---|---|
