@@ -168,6 +168,7 @@ dxs ng preview <folder>              # serve locally + screenshot -> <folder>/re
 dxs ng preview <folder> -o out.png   # custom output path
 dxs ng preview <folder> --refresh -b <branch>   # after a manifest/IO change
 dxs ng preview <folder> --clean      # kill a stuck server + reset the browser session, then rebuild
+dxs ng stop <folder>                 # stop-only disposal: server + browser session + lock (idempotent)
 ```
 
 `preview` copies `mocks/` into the harness assets, runs `npm install` once, warms `ng serve`, and drives a headless browser to screenshot the component. Read the PNG, compare to the target, edit, re-run — the loop is the acceptance test for bespoke UI. Type/template errors surface in the render (the real component compiles).
@@ -196,6 +197,8 @@ dxs ng preview <folder> --clean      # kill a stuck server + reset the browser s
 | `DXS-NG-052` | other agent-browser failure | `--clean`, re-run; report if reproducible |
 
 **Session lifecycle (self-healing):** each preview runs agent-browser in a transient named session (`dxs-ng-preview-<port>`), torn down completely (daemon, Chrome tree, `~/.agent-browser/<session>.*` state files) after every run. The historical Windows named-session launch flake ("Chrome exited early … without writing DevToolsActivePort") is **auto-retried once** after tearing down the wedged session — you only see it if the retry also fails. `--clean` additionally reaps stale `dxs-ng-preview-*` state files left by crashed runs. Net effect: **a wedged preview is reset with `--clean`; manual killing of Chrome/daemon PIDs or hand-deleting `~/.agent-browser` files is never required** — if you find yourself needing that, it's a CLI regression to report (see [SKILL.md → CLI-first — no workarounds](../SKILL.md#cli-first--no-workarounds-hard-rule)).
+
+**Disposal:** the warm dev server survives across previews by design (fast re-previews). When done, `dxs ng stop <folder>` tears down the server (identity-checked PID+image kill), the agent-browser session, and the lock file — idempotent, safe to call unconditionally. `--clean` is the same teardown followed by a fresh serve (reset); `pull --force` runs it implicitly before replacing the working copy. Manual lock-reading / `taskkill` is never required on a CLI that has `stop`.
 
 **Remaining known gap:** leaked `agent-browser-chrome-*` temp profile dirs can still accumulate under `%LOCALAPPDATA%\Temp` — a toolchain gap to report, not to script around.
 
