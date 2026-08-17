@@ -144,6 +144,9 @@ Consult [references/db.md → API Surface](references/db.md#api-surface) and pic
 | Insert one record | `.add(record)` |
 | Insert a batch | `.addMany(records)` |
 | Patch a record by id | `.update(id, patch)` — first argument is the id string directly, **not** a predicate callback |
+| Patch all matching rows | `.updateMany(predicate, patch)` |
+| Atomically claim / test-and-set one row | `.findOneAndModify(predicate, patch, { sort?, select?, returnDocument? })` — the only CAS primitive; **no upsert option**, cannot insert-if-absent (see references/db.md) |
+| Delete one row by id | `.remove(id)` |
 | Delete matching rows | `.removeMany(predicate)` |
 | Count matching rows | `.count()` (terminal — see flow-db-datasources for `getQuery()` factory rule) |
 
@@ -210,6 +213,8 @@ Walk the full checklist in [references/db.md](references/db.md). The fast versio
 | Using `===` / `&&` / `||` inside a `$db` predicate | The DSL doesn't translate native operators — TypeScript accepts them, the query silently misbehaves. Use `.equals(...)` / `.and(...)` / `.or(...)`. |
 | Calling `.update(id, patch)` with a predicate callback as the first argument | The signature takes the id string directly. `.update(guid, { ... })`, not `.update(r => r.id.equals(guid), { ... })`. |
 | Omitting a `required: true` column from a `.update` patch | The platform validates the patch against the full column schema; the call fails even when the existing record has that field populated. Read-then-patch — echo every required field. |
+| Patching a column to `null` to clear it | Null-valued patch keys are **silently dropped** — the column keeps its old value, no error. Write a typed sentinel (e.g. `0` on an epoch-ms column) and map it back to null on read. See [references/db.md](references/db.md#api-surface). |
+| Assuming multi-row writes are atomic | `$db` has no transactions. Order writes so every crash interleaving self-heals (mark losers before atomically flipping the winner via `.findOneAndModify`), and make each write no-op when the row is already in the target state. |
 | Annotating result rows with a strict local type (`id: string`) | `$db` returns every field as `T | undefined`. Strict annotations fail the import. Leave inferred or annotate with optional fields; narrow at access sites with `?.` / `??` / `$utils.isDefined`. |
 | Using `$db` inside an action (`-footprintFlow.json`) | Tier mismatch — `$db` is function-tier only. Wrap the read/write in a function and call it from the action via `$apis.<Package>.FootprintApi.extendedActions.<function>`. |
 | Forgetting a terminal on a `.where(...)` chain | Cursors don't execute until a terminal runs. The line `const cursor = $db.<...>.where(...);` returns the cursor; you still need `.toList()` (or `.count()`, or a mutation). |

@@ -90,7 +90,7 @@ When grouping a report by owner:
 =Fields!Project_Owner_Name.Value                  // Tasks dataset
 ```
 
-The dot-notation in OData becomes underscores in the report DataSet field `Name`. See [../../../datex-studio/shared/report-authoring/dataset-rules.md](../../../datex-studio/shared/report-authoring/dataset-rules.md) for the field-naming convention.
+The dot-notation in OData becomes underscores in the report DataSet field `Name`. See [../../datex-studio-shared/report-authoring/dataset-rules.md](../../../datex-studio/datex-studio-shared/report-authoring/dataset-rules.md) for the field-naming convention.
 
 ## Anti-patterns
 

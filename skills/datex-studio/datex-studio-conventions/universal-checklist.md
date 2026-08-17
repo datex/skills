@@ -10,7 +10,7 @@ Walk these on every component before `dxs configuration upsert`:
 4. **`referenceName` matches the component/file stem** (and `title` typically equals it). See [naming-conventions.md](naming-conventions.md). *Exception:* actions — `referenceName` ends in `_action` while the file suffix is `-footprintFlow.json`.
 5. **`configurationTypeId` is correct for the type.** A wrong cti validates clean but breaks Preview / codegen downstream. See the table in [file-format.md](file-format.md).
 6. **New `inParams` / `outParams` ids are snake_case** (camelCase neighbors are tolerated legacy carry-over). See [naming-conventions.md](naming-conventions.md).
-7. **`id: 0`** for a net-new component (the import / platform assigns the real id).
+7. **`id: 0` or `id: null`** for a net-new component (the import / platform assigns the real id — both values verified accepted on live upserts; the grids skeleton uses `null`, most other skeletons use `0`).
 
 > **Tailored overlays** add shadow-marker rules on top of these — see [`../tailoring-overlay/`](../tailoring-overlay/SKILL.md).
 >

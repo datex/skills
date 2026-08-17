@@ -60,3 +60,13 @@ They live in the **Utilities** package. Call them via `$flows.Utilities.crud_*` 
 - **Delete**: `crud_delete_entity` — `{ entity: string, keys: [{ name, value }] }`
 
 Entity names use the OData collection name (e.g. `'Tasks'`, `'PickSlips'`, `'HardAllocations'`). Keys are typically `[{ name: 'Id', value: 123 }]`.
+
+**There is no batch CRUD primitive.** Utilities exposes only the singular `crud_create_entity` / `crud_update_entity` / `crud_delete_entity` — creating or patching N entities is N dispatches by design. Per-line CRUD loops are a known platform cost, not a defect to "fix" by hunting for a bulk action that doesn't exist; when the volume hurts, restructure (fewer entities, server-side extended actions, or accept the loop).
+
+## Dispatch Cost
+
+Every `$flows` / `$apis...extendedActions` invocation is a **full dispatch** — serialization, routing, and a fresh execution scope — not an in-process function call. Guidance that follows from this (each observed as a real slowdown):
+
+- **Inline pure-arithmetic helpers in hot loops.** A helper action that only computes (unit conversions, factor tables, rounding) costs a dispatch per call; invoked dozens of times per entity it dominates the runtime. Port the arithmetic bit-identically into the caller and keep the helper for low-frequency callers.
+- **Batch lookups per data-set, not per item.** Collect the ids first, make one `in`-style query, index the result in a map — the pattern applies at every tier (see the grid `on_row_data_loaded` N+1 rule in [grids.md](../grid-creator/references/grids.md)).
+- **Hoist row/iteration-invariant work** out of the loop — permission checks, config reads, and reference-data fetches rarely vary per item.

@@ -1,0 +1,82 @@
+{
+  "skill_name": "backend-test-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"backend-test-creator-eval-{timestamp}\" --description \"Temporary branch for backend-test-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "new-suite-two-cases-hooks",
+      "prompt": "On connection 9, branch {branch_id}: create a backend test suite eval_wave_math_test for the function eval_wave_math_flow (if the function isn't on the branch, create it first: in-params a and b, both numbers; out-params sum and product). Two test cases — one verifying the sum, one verifying the product — with shared assertion helpers set up once for the whole suite and per-test state reset between cases.",
+      "expected_output": "A validated and upserted backend test (cti 24) with the four exactly-named hook flows bound by referenceName, both cases in testCaseFlows[], hand-rolled assertion helpers on $test.vars seeded in before_suite, and function-tier calling conventions throughout.",
+      "files": [],
+      "expectations": [
+        "The suite body has configurationTypeId 24 and is pushed via the 'backendtest' CLI type identifier ('dxs configuration ... backendtest ...')",
+        "flows[] contains exactly four hook flows whose referenceNames are exactly before_suite, after_suite, before_each, after_each (no variants like beforeSuite or setup)",
+        "beforeFlowConfig.flowId, afterFlowConfig.flowId, beforeEachFlowConfig.flowId, and afterEachFlowConfig.flowId each resolve by referenceName to one of the four hook flows",
+        "Both test cases are entries in testCaseFlows[] — no test-case code sits in flows[]",
+        "Assertion helpers are defined once in before_suite and stashed on $test.vars — no chai/sinon/expect or Node assert is assumed to exist",
+        "Hook and test-case code uses $test.vars for suite state — never $flow.vars",
+        "Test-case code calls the function under test via $flows.<Package>.eval_wave_math_flow({...}) (function-tier calling convention)",
+        "Assertion failures throw an Error whose message carries expected/actual context — not a bare 'assertion failed'",
+        "referenceName equals title, both end in _test, and the description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate backendtest' run before 'dxs configuration upsert backendtest'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "action-as-test-refactor",
+      "prompt": "On connection 9, branch {branch_id}: we have a legacy action-as-test to retire. Step 1 — create the legacy artifact so we have the real thing to refactor: an action eval_qty_check_test_action whose code defines an inline assertEquals helper, declares an array of 3 cases of {qty, expected}, loops over them calling $flows.Utilities.eval_adjust_qty_action(...) for each, and throws on the first mismatch (create eval_adjust_qty_action as a trivial passthrough action first if it doesn't exist). Step 2 — refactor it into a proper backend test eval_qty_check_test, and deal with the old action the right way.",
+      "expected_output": "The documented action-as-test refactor: a new suite with the loop unrolled into testCaseFlows[], helpers moved to before_suite on $test.vars, action calls rewritten to the FootprintApi.extendedActions bridge, and an impact/caller check before the source action is deleted.",
+      "files": [],
+      "expectations": [
+        "The new backend-test suite is authored and pushed BEFORE any deletion of the source action",
+        "The hand-rolled case loop is rewritten into separate testCaseFlows[] entries (one flow per case, or an explicitly justified per-category layout) — it is not preserved as one giant looping flow",
+        "The inline assertEquals helper is moved into before_suite and stashed on $test.vars",
+        "Calls to the action under test are rewritten from $flows.Utilities.eval_adjust_qty_action(...) to $apis.Utilities.FootprintApi.extendedActions.eval_adjust_qty_action(...) — backend tests run at the function tier, where $flows reaches functions only",
+        "Before deleting (or recommending deletion of) eval_qty_check_test_action, a caller/impact check is performed (impact-analysis or an explicit reverse-trace for callers) — the action is not removed blind",
+        "The suite has the four exactly-named hook flows (before_suite / after_suite / before_each / after_each) bound via the four *FlowConfig.flowId entries",
+        "Test cases live in testCaseFlows[], not flows[]",
+        "referenceName equals title equals eval_qty_check_test (ending in _test), and the description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate backendtest' run before 'dxs configuration upsert backendtest'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "add-case-surgical",
+      "prompt": "On connection 9, branch {branch_id}: the suite eval_wave_math_test needs a third test case covering negative inputs (a=-3, b=5 must give sum 2 and product -15). If the suite isn't on the branch yet, create it first exactly per: the four standard hooks, a $test.vars assert_equals helper seeded in before_suite, and two cases sum_of_positives and product_of_positives that call $flows.Utilities.eval_wave_math_flow. Then add the new case without disturbing anything else.",
+      "expected_output": "A surgical round-trip edit: envelope fetched and inner .json extracted, the new case appended to testCaseFlows[] with the existing cases and hooks preserved verbatim, code strings edited safely, and the suite re-validated before re-upsert.",
+      "files": [],
+      "expectations": [
+        "The modification uses the round-trip: 'dxs configuration get backendtest ... -O envelope.json' then extracts the inner body (jq .json or equivalent) before editing — the envelope is never fed directly to upsert",
+        "The new case is appended to testCaseFlows[] and the existing two test cases plus all four hook flows are preserved unchanged",
+        "The embedded code strings are edited safely (e.g. Python json.load/json.dump preserving the \\r\\n escaping) and the pushed file stays single-line minified",
+        "The new case reuses the existing $test.vars assertion helper rather than redefining helpers or assuming an assertion library",
+        "The new test-case flow's referenceName is snake_case (e.g. negative_inputs) — it becomes the test name in mocha output",
+        "The new case's failure path throws an Error carrying expected/actual context in the message",
+        "The four hook bindings (beforeFlowConfig / afterFlowConfig / beforeEachFlowConfig / afterEachFlowConfig) are left untouched by the edit",
+        "The transcript contains 'dxs configuration validate backendtest' run again before the final 'dxs configuration upsert backendtest'"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "hooks-not-firing-diagnosis",
+      "prompt": "On connection 9, branch {branch_id}: a teammate's suite eval_pick_rules_test 'runs' but the shared helpers are undefined in every test and one test never appears in the mocha output at all. Step 1 — reproduce their suite exactly as described: flows[] contains hook flows named beforeSuite, afterSuite, before_each, and after_each, PLUS a fifth flow check_zone_rule that contains test assertions; beforeFlowConfig.flowId is 'before_suite' and afterFlowConfig.flowId is 'after_suite'; testCaseFlows[] holds a single case check_priority_rule whose code reads $flow.vars.assert_equals. Step 2 — diagnose why the setup never runs and why check_zone_rule is missing from the output, then fix it.",
+      "expected_output": "A diagnosis hitting the documented root causes — hook referenceName drift silently unbinding before/after, a test case parked in flows[] being silently ignored, and $flow.vars not resolving in backend tests — followed by a corrected, validated, re-upserted suite.",
+      "files": [],
+      "expectations": [
+        "The diagnosis identifies the hook referenceName drift (flows named beforeSuite/afterSuite while the flowConfigs point at before_suite/after_suite) as the silent-unbind root cause — the runner binds hooks by referenceName and raises no error on a miss",
+        "The fix renames the hook flows to the exact names before_suite / after_suite / before_each / after_each so all four *FlowConfig.flowId bindings resolve",
+        "The diagnosis identifies check_zone_rule sitting in flows[] as the reason it never appears — anything in flows[] outside the four hooks is silently ignored — and the fix moves it into testCaseFlows[]",
+        "The diagnosis identifies the $flow.vars.assert_equals read as broken — backend tests use the $test runtime global — and the fix replaces it with $test.vars.assert_equals (with the helper seeded in before_suite)",
+        "After the fix, flows[] contains exactly the four hook flows and all test-case code lives in testCaseFlows[]",
+        "The fix uses round-trip discipline on the existing config (get -O envelope, extract inner .json, edit) rather than upserting the envelope or rebuilding blind",
+        "No assertion library is introduced by the fix — helpers remain hand-rolled functions on $test.vars that throw on failure",
+        "The transcript contains 'dxs configuration validate backendtest' run before the corrected 'dxs configuration upsert backendtest'",
+        "The suite's description remains non-empty and at most 100 characters"
+      ]
+    }
+  ]
+}

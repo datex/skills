@@ -113,6 +113,16 @@ Every caller of a function includes every declared `inParam` — unused ones wit
 
 Recurring function shapes: the UI → action wrapper pattern (a function fronts an action call), composition over several datasource reads, `$utils.isDefined` / `isDefinedTrimmed` input guards, and enum-driven branching on `$types.<Package>.<enum>` values. See the `function-creator` SKILL.md workflow for worked examples.
 
+## Code-Body Rules
+
+Three semantics of the flow code body that Studio's Validate does not check — each one ships a broken or silently-wrong flow if missed. They apply to any flow-shaped code body (functions and actions alike); the full rules live in the conventions references linked below.
+
+**Early exit when outParams are declared.** The code body is wrapped by codegen into a method whose return type follows the flow's `outParams` declaration. If the flow declares any outParams, a bare `return;` at the flow's top scope produces a broken function body — use `return $flow.outParams;` for every early exit instead. The asymmetry is one-directional (`return $flow.outParams;` in a void flow is harmless), arrow-function returns inside the body are unaffected, and implicit fall-through at end-of-body is fine. Validate passes the broken form; only the Preview build catches it — audit every top-scope `return;` when authoring. Full rule and table: [`file-format.md` → Flow `return;` Requires Outparams Be Undeclared](../../datex-studio-conventions/file-format.md#flow-return-requires-outparams-be-undeclared).
+
+**`const`/`let` after the final `return` never initialize (TDZ).** The code body is script-level. Helper `function` declarations placed in a post-return `/*** FUNCTIONS ***/` region work because they hoist — but a `const`/`let` placed there never executes, so any hoisted helper that reads it throws `ReferenceError: Cannot access 'X' before initialization` at runtime. Both Studio Validate and `dxs configuration validate` pass, because the reference sits inside a function body. Put lookup tables and other shared values *inside* the function that uses them, or declare them before the first executable statement. Full rule: [`file-format.md` → TypeScript Strictness Inside Flow Code](../../datex-studio-conventions/file-format.md#typescript-strictness-inside-flow-code).
+
+**No state persists across invocations.** Top-scope `let`/`const` in flow code looks module-scoped but is not — the runtime gives every invocation a fresh scope, sequential and parallel calls alike. Counters, caches, and accumulator arrays re-initialize on each call; `let counter = 0; counter++` patterns never see prior calls. State does persist *within* a single invocation (across helper calls in one run), so intra-run accumulators are fine. If a flow shows "stuck counter" or shared-state symptoms across calls, the cause is elsewhere — data, datasource caching, or entity-ID reservation semantics — not module scope.
+
 ## Pre-Flight Checklist
 
 Walk this before push (the `function-creator` SKILL.md carries the authoritative copy):
@@ -123,6 +133,7 @@ Walk this before push (the `function-creator` SKILL.md carries the authoritative
 4. Every `inParams`/`outParams` entry uses the full fat parameter-descriptor boilerplate.
 5. All `$datasources.*` calls target `-datasource.json` (same tier); no cross-tier calls to `-footprintDatasource.json`.
 6. Any callers of this function include a full `configParameters` contract.
+7. Code-body rules hold (see the section above): no bare `return;` at top scope when outParams are declared; no `const`/`let` in the post-return helper region; no reliance on state surviving across invocations.
 
 ## Cross-References
 

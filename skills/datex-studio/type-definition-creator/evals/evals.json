@@ -1,0 +1,78 @@
+{
+  "skill_name": "type-definition-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"type-definition-creator-eval-{timestamp}\" --description \"Temporary branch for type-definition-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "interface-enum-pair",
+      "prompt": "On connection 9, branch {branch_id}: define the shared types for our pick-task payload in the Utilities package. I need a string-valued enum e_eval_pick_status with the values Pending, InProgress, Completed, and Cancelled, plus an interface i_eval_pick_task with properties: task_id (number, required), status (the enum), location_code (string), quantities (array of numbers), and an optional notes (string).",
+      "expected_output": "Two validated and upserted customtype configs (cti 22): an enum with objectTypeDef [] / isStringValue true / ProperCase ids / kebab-case values, and an interface whose complete property descriptors reference the enum by FQN, with no self-reference.",
+      "files": [],
+      "expectations": [
+        "Two customtype bodies are authored: the enum with referenceName e_eval_pick_status and the interface with referenceName i_eval_pick_task, both with configurationTypeId 22 and title equal to referenceName",
+        "The enum body has type \"enum\", objectTypeDef [] (empty array, NOT null), an enumTypeDef array, and isStringValue true",
+        "Enum value-descriptor ids are ProperCase with no spaces (Pending, InProgress, Completed, Cancelled) and values are kebab-case (e.g. in-progress) since the user did not specify a casing",
+        "The interface body has type \"interface\", enumTypeDef null, isStringValue null, and an objectTypeDef array of property descriptors",
+        "Every interface property descriptor carries id, type, isCollection, required, objectType, and isSecured",
+        "The status property references the enum via FQN — {type: \"object\", objectType: \"Utilities.e_eval_pick_status\"} — not a bare reference name and not a primitive",
+        "The quantities property has type number with isCollection true; notes has required false; task_id has required true",
+        "No property anywhere references its own type's FQN (no custom-type self-reference)",
+        "The transcript contains 'dxs configuration validate customtype' before 'dxs configuration upsert customtype' for both components",
+        "Both descriptions are non-empty and at most 100 characters, and both bodies are single-line minified JSON"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "ui-enum-fqn-constraint",
+      "prompt": "On connection 9, branch {branch_id}: create a string-valued enum e_eval_wave_mode in the Utilities package with the values Standard, Express, and Consolidated. We're going to declare it as an inParam and a var on the wave planning form and editor so the UI can pass the mode around between screens.",
+      "expected_output": "The enum is authored correctly, and the agent surfaces the UI-component enum FQN constraint: form/editor vars/inParams/outParams cannot reference the enum by FQN — they must declare the primitive (string) and cast to $types.Utilities.e_eval_wave_mode at the use site.",
+      "files": [],
+      "expectations": [
+        "The enum body is correct: configurationTypeId 22, type \"enum\", objectTypeDef [] (empty array), enumTypeDef with ProperCase ids (Standard, Express, Consolidated) and kebab-case string values, isStringValue true",
+        "The transcript surfaces the UI-component enum FQN constraint: vars/inParams/outParams on UI components (forms, editors, selectors, hubs, grids) cannot declare objectType \"Utilities.e_eval_wave_mode\"",
+        "The response gives the documented workaround: declare the UI param/var as the underlying primitive (string, since the enum is string-valued) and cast at the use site in flow code (as $types.Utilities.e_eval_wave_mode)",
+        "The response mentions the failure mode (the \"Cannot find namespace '_types'\" error) and/or the constraint's scope (flow-tier components and other custom types can still reference the enum FQN freely)",
+        "The agent does NOT produce or recommend a form/editor param or var declaration that uses the enum's FQN in objectType",
+        "The transcript contains 'dxs configuration validate customtype' before 'dxs configuration upsert customtype'",
+        "The enum's description is non-empty and at most 100 characters, and the body is single-line minified JSON"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "add-property-frontend-inline-copies",
+      "prompt": "On connection 9, branch {branch_id}: the interface i_eval_pick_task (if it does not exist on the branch, first create it in the Utilities package with properties task_id number required, status string, location_code string) is consumed by a couple of backend flows via FQN and by two frontend forms that collect pick details. Add an optional property staging_lane (string) to it.",
+      "expected_output": "The property is added via the correct round-trip, and the agent flags that frontend components embed inline objectTypeDef copies of the shape that do NOT pick up the change — locating them by searching branch UI configs for distinctive sibling field ids, since FQN tracing cannot see them.",
+      "files": [],
+      "expectations": [
+        "The existing type is round-tripped correctly: 'dxs configuration get customtype ... -O envelope.json' then the inner .json is extracted (jq .json or equivalent) before editing — the envelope is never piped directly into upsert",
+        "The new property descriptor is complete: id staging_lane (snake_case), type string, isCollection false, required false, objectType null, isSecured false",
+        "The transcript flags that backend FQN consumers pick up the new property automatically, but frontend components embed inline objectTypeDef copies of the shape that do NOT propagate",
+        "The agent searches (or explicitly plans the search of) the branch's UI component configurations for the inline copies using distinctive sibling field ids from the shape (e.g. task_id, location_code) — noting that FQN-based reverse-tracing cannot see inline copies",
+        "The agent scopes frontend patching per the maintenance policy — patch only the inline copies whose flow code actually touches staging_lane (or flags each discovered copy for that audit) rather than declaring the job done after editing the type alone",
+        "The transcript contains 'dxs configuration validate customtype' before 'dxs configuration upsert customtype'",
+        "The edited body stays single-line minified JSON and the sibling slots (inParams, outParams, vars, events) stay null"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "tighten-loose-type-impact-first",
+      "prompt": "On connection 9, branch {branch_id}: the interface i_eval_allocation_result (if it does not exist on the branch, first create it in the Utilities package with wave_id as an optional number and details as a generic object property with objectTypeDef null) is already referenced by several flows and datasources. Tighten it up: make wave_id required, and replace the loose details object with a strict shape of location_id (number) and quantity (number).",
+      "expected_output": "The agent treats both edits as tightening: impact-analysis runs on Utilities.i_eval_allocation_result before push, the strict-pass ripple to consumers is explained, frontend inline copies are audited separately, and the round-trip discipline holds.",
+      "files": [],
+      "expectations": [
+        "Impact analysis is invoked on the type's FQN (Utilities.i_eval_allocation_result) BEFORE the tightened body is pushed (impact-analysis skill, impact-scanner subagent, or an explicit reverse-trace of reference sites)",
+        "The response explains the ripple: consumers that previously got an implicit any from the loose shape break on the platform's strict pass once the type is tightened",
+        "The response notes that frontend inline objectTypeDef copies are invisible to FQN tracing and must be audited separately by searching for the shape's distinctive field ids",
+        "The existing type is round-tripped correctly: 'dxs configuration get customtype ... -O envelope.json' then jq .json extraction before editing — the envelope is never upserted directly",
+        "The tightened details property is an inline-object descriptor: type \"object\" with a nested objectTypeDef whose child descriptors (location_id number, quantity number) each carry id, type, isCollection, required, objectType, and isSecured",
+        "The wave_id descriptor is changed to required true",
+        "The transcript contains 'dxs configuration validate customtype' before 'dxs configuration upsert customtype', and the upsert happens only after (or explicitly contingent on) the caller audit",
+        "Discovered reference sites are reconciled in the same edit, or the breaking change is explicitly surfaced to the user for approval before push"
+      ]
+    }
+  ]
+}

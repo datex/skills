@@ -11,8 +11,9 @@ description: |
   Studio lifecycle, designer context navigation, flow code patterns
   (`$utils.isDefined()`, OData pagination), RDLX-JSON report authoring
   (design standards, CLI commands, dataset rules, sample data, deploy patterns,
-  troubleshooting), and the Fluent 2 app design system (theme tokens, component
-  class names, traps) for hand-authored UI.
+  troubleshooting), component-type references for cards (cti 11), lists
+  (cti 14), and frontend flows (cti 27), and the Fluent 2 app design system
+  (theme tokens, component class names, traps) for hand-authored UI.
 depends:
   - function-creator
 ---
@@ -36,6 +37,12 @@ If a user asks a Datex Studio question that isn't already scoped to a more speci
 - [studio-management.md](studio-management.md) — Studio lifecycle: check status, start in background with readiness verification, clean up.
 - [context-navigation.md](context-navigation.md) — How to retrieve and read `dxs -O json … context` responses (backend vs. frontend symbol filtering), plus the `nomenclature` registry for discovering custom types and enum members (`$types.<Package>.*`).
 - [flow-code-patterns.md](flow-code-patterns.md) — `$utils.isDefined()`, date defaulting, `$shell.Reports.open{ref}()`, and the OData pagination / 5000-record cap pattern.
+
+### Component-type references (no dedicated creator skill yet)
+
+- [cards.md](cards.md) — card components (`-card.json`, cti 11): the list-item repeater primitive; `$card` imperative surface, the no-cross-flow-calls trap and its window-helper workaround, mutate→emit→refresh loop, inline-editing patterns, pre-flight checklist.
+- [lists.md](lists.md) — list components (`-list.json`, cti 14): card-based sibling of the grid; `datasourceConfig`/`itemConfig` wiring contracts, `$list` surface, report-card refresh, full-text search pushdown, pre-flight checklist.
+- [frontend-flows.md](frontend-flows.md) — frontend flows (`-frontendFlow.json`, cti 27): browser-tier sibling of functions; the wrong-cti failure mode, static-dispatch-only rule for `$frontendFlows`, by-reference object inParams, and browser keyboard-handling rules (zone.js `__zone_symbol__` escape hatch, `KeyboardEvent.code` vs `.key`, reserved-combo blocklist).
 
 ### Datex app design system (`design-system/`)
 

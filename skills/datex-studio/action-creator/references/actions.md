@@ -75,6 +75,7 @@ Each entry in `inParams` / `outParams` uses the full fat parameter-descriptor bo
 | `apiSettingName` | API-layer binding | Always `"FootprintApi"` for actions — they run on the Footprint server |
 | `start` | Entry-node id | References an `id` inside `nodes[]` |
 | `nodes` | Step graph | Typically one `ExecuteCodeActivity` step containing the full `code` string; more complex actions use multi-step graphs |
+| `code` | Denormalized top-level mirror of the code body | Exported action JSON carries the code **twice**: the field the runtime executes is `nodes[0].stepConfig.executeCodeConfig.code`; the top-level `code` is a duplicate the runtime ignores. Writing only the top-level field leaves the config looking correct to `json.load` and grep while the runtime keeps running the old code. When editing programmatically, write both and assert they match. |
 | `id` | Component identity | Stable id; don't reuse across environments |
 | `referenceName` | Code-facing handle | Snake_case with `_action` suffix — inside the JSON only, not the filename |
 | `description` | Searchable description | ≤ 100 chars (SQL column limit) |
@@ -110,6 +111,22 @@ Every caller of an action supplies the full inParams shape — including entries
 ## Common Patterns
 
 Recurring action shapes: CRUD composition via `crud_*` actions, error-on-undefined input guards, collection-aware guards via `$utils.isDefined`, and multi-step transactional workflows. See the `action-creator` SKILL.md workflow for worked examples; the Error Handling section below is the load-bearing one.
+
+**Batch-create via nested navigation properties (deep insert).** `crud_create_entity` creates one entity per call, with a single batching exception: a call can create a parent entity **and** its related children/grandchildren in one shot when those relationships exist as collection navigation properties on the parent. Example shape:
+
+```ts
+await $flows.Utilities.crud_create_entity({
+  entity: 'ShippingContainers',
+  properties: {
+    ...containerScalars,
+    ShipmentLinesForExpectedShippingContainer: [{ ...line1 }, { ...line2 }]
+  }
+});
+```
+
+creates the container and N child lines in one call. The same nesting works at multiple levels (e.g. `Tasks` → nested `HardAllocations` → each with nested `Details`). Deep insert goes through ordinary (non-contained) collection navigation properties — the schema does not need `ContainsTarget="true"`. The navigation property name must match the OData schema exactly; names sometimes carry FK-specific suffixes (`ShipmentLinesForExpectedShippingContainer`, not `ShipmentLines`) — confirm via the `schema-explorer` skill.
+
+Two hard limits to design around: there is **no flat multi-row bulk insert** — `crud_create_entity` does not accept an array of unrelated records, so batch-create patterns must be modeled around parent→children navigation chains, not flat arrays. And `crud_delete_entity` is strictly one-at-a-time — no bulk-delete primitive exists; high-volume deletes must loop, or prefer soft-delete / mark-and-sweep designs. See [`calling-conventions.md` → CRUD Actions](../../datex-studio-runtime/calling-conventions.md#crud-actions) for the generic CRUD contract.
 
 ## Error Handling
 
@@ -161,9 +178,10 @@ Walk this before push (the `action-creator` SKILL.md carries the authoritative c
 2. File suffix is `-footprintFlow.json`, not `-action.json` (asymmetric naming rule).
 3. `code` string line endings are `\r\n` inside the decoded string (the JSON layer escapes them as `\\r\\n`). Preserve existing escaping when editing — prefer Python `json.load`/`json.dump` over raw string replacement.
 4. Every `inParams`/`outParams` entry uses the full fat parameter-descriptor boilerplate.
-5. All `$datasources.*` calls target `-footprintDatasource.json` (same tier); no cross-tier calls.
-6. Any callers of this action include a full `configParameters` contract.
-7. Every `try/catch` either adds value (formats and rethrows) or is removed. No silent swallows — they leave the transaction unresolved and surface later as `"Transaction must begin first"`.
+5. Both `code` fields written and matching — the runtime executes only `nodes[0].stepConfig.executeCodeConfig.code`; the top-level `code` is a mirror that must agree with it (see Required Top-Level Fields).
+6. All `$datasources.*` calls target `-footprintDatasource.json` (same tier); no cross-tier calls.
+7. Any callers of this action include a full `configParameters` contract.
+8. Every `try/catch` either adds value (formats and rethrows) or is removed. No silent swallows — they leave the transaction unresolved and surface later as `"Transaction must begin first"`.
 
 ## Cross-References
 

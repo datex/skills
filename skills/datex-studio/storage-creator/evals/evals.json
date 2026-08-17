@@ -1,0 +1,77 @@
+{
+  "skill_name": "storage-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"storage-creator-eval-{timestamp}\" --description \"Temporary branch for storage-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "create-typed-storage",
+      "prompt": "On connection 9, branch {branch_id}: create a storage for the Packing feature (package Packing) called eval_carton_rule_storage that holds carton selection rules. Columns: owner_id (number), project_id (number), carton_type (string), max_weight (number), is_active (boolean), effective_date (date), and allowed_material_ids as an array of numbers.",
+      "expected_output": "A validated and upserted storage config (cti 17, isBlob false) under the Packing package with complete inParam-shaped column descriptors, no explicit id column, required defaulting to false, and null sibling slots.",
+      "files": [],
+      "expectations": [
+        "The storage body has configurationTypeId 17 and isBlob false",
+        "The referenceName is eval_carton_rule_storage (ending in _storage) and the title matches it",
+        "The storage is placed under the Packing package as requested — not the default Utilities (package placement drives the $db.Packing.eval_carton_rule_storage access path)",
+        "Every objectTypeDef[] column descriptor carries id (snake_case), type (one of string/number/boolean/date), and isCollection, with unused descriptor slots left null",
+        "allowed_material_ids is declared with type number and isCollection true; all scalar columns have isCollection false",
+        "No explicit 'id' column is declared in objectTypeDef[] — the platform adds an implicit GUID id",
+        "Every column's required is false (or null) — the agent does not defensively set required: true on columns the user did not ask to be required",
+        "The top-level inParams, outParams, vars, and events slots stay null — storage has no code strings of its own",
+        "The storage's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate storage' run before 'dxs configuration upsert storage'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "required-column-on-shipped-storage",
+      "prompt": "On connection 9, branch {branch_id}: our storage eval_carton_rule_storage has shipped — it already has rows in production, and two flows write to it via $db.Packing.eval_carton_rule_storage (a seed flow and an update flow that patches max_weight). If the storage does not exist on the branch, first create it in the Packing package with columns owner_id (number), carton_type (string), max_weight (number). Now add a new column priority (number) and make it required, so nobody can write a rule without a priority.",
+      "expected_output": "The agent surfaces the required:true read-then-patch trap and the additive-only-after-shipping rule instead of blindly adding required:true — recommending required:false with flow-layer validation, or pairing required:true with a full write-side caller audit and backfill plan.",
+      "files": [],
+      "expectations": [
+        "The transcript surfaces the required: true read-then-patch trap — explaining that a required column makes the platform reject any $db.update(id, patch) that omits it, even when the stored row already has the field populated",
+        "The agent does NOT blindly add the column with required: true as asked — it either recommends required: false with validation at the flow layer, or keeps required: true only alongside an explicit audit of every write-side caller",
+        "If required: true is kept, the transcript shows impact analysis / caller enumeration over $db.Packing.eval_carton_rule_storage before push (impact-analysis skill, impact-scanner subagent, or reverse-trace), and the existing max_weight update flow is identified as needing the read-then-patch echo",
+        "The transcript raises additive evolution: existing production rows will have null/undefined priority, so readers must tolerate null or a backfill flow must run in the same edit",
+        "The existing storage is round-tripped correctly: 'dxs configuration get storage ... -O envelope.json' then the inner .json is extracted (jq .json or equivalent) before editing — the envelope is never piped directly into upsert",
+        "The new column descriptor is complete: id 'priority' (snake_case), type number, isCollection false, with unused descriptor slots null",
+        "The transcript contains 'dxs configuration validate storage' before 'dxs configuration upsert storage'",
+        "The edit is surgical — existing columns are unchanged and the sibling slots (inParams/outParams/vars/events) remain null"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "storage-vs-footprint-entity-decision",
+      "prompt": "On connection 9, branch {branch_id}: create a storage called eval_customer_shipment_storage to keep track of our customers' shipments — shipment number, customer, carrier, current status, and full status history — so the receiving team and the billing team can both query and update them from their own apps.",
+      "expected_output": "The agent recognizes shipment data with business-object lifecycle, WMS navigation relationships, and cross-team consumption as first-class Footprint entity territory, raises the storage-vs-entity decision, and does not silently create the storage.",
+      "files": [],
+      "expectations": [
+        "The transcript explicitly raises the storage-vs-Footprint-entity decision before (or instead of) authoring anything",
+        "The response identifies at least two disqualifiers for storage: business-object lifecycle (status transitions / history), consumption by multiple teams/features, and/or natural navigation relationships to WMS entities like Shipment and Carrier",
+        "The agent does NOT silently create and upsert the storage without surfacing the decision",
+        "The recommendation points at the first-class Footprint entity route — the existing Shipment entity (or platform OData schema) reached via CRUD actions and OData datasources — rather than a feature-owned Mongo storage",
+        "The response notes that storage is feature-owned, function-tier-only data accessed via $db (or equivalently that data with meaning beyond one feature belongs in the platform schema)",
+        "No 'dxs configuration upsert storage' command is executed for eval_customer_shipment_storage without the user first confirming the storage route despite the raised concerns"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "rename-column-impact-first",
+      "prompt": "On connection 9, branch {branch_id}: in the storage eval_carton_rule_storage (if it does not exist, first create it in the Packing package with columns owner_id number, carton_type string, max_weight number), rename the column carton_type to carton_code — the ops team keeps confusing it with the carton's type id.",
+      "expected_output": "The agent treats a column rename as a contract-breaking schema change: caller/impact analysis over $db.Packing.eval_carton_rule_storage runs before the push, the round-trip discipline is followed, and callers are reconciled or the break surfaced.",
+      "files": [],
+      "expectations": [
+        "Impact analysis / caller enumeration over $db.Packing.eval_carton_rule_storage runs BEFORE the rename is pushed (impact-analysis skill, impact-scanner subagent, or an explicit reverse-trace of callers)",
+        "The response explains that the rename breaks every read and write site referencing the old column name (and/or that the generated IStorageItem type changes shape)",
+        "The existing storage is round-tripped correctly: 'dxs configuration get storage ... -O envelope.json' then jq .json extraction before editing — the envelope is never edited or upserted directly",
+        "The renamed column descriptor stays complete: id carton_code (snake_case), type string, isCollection false, with unused descriptor slots null",
+        "The transcript contains 'dxs configuration validate storage' before 'dxs configuration upsert storage'",
+        "Any discovered callers are updated in the same edit, or the breaking change is explicitly surfaced to the user for approval before push",
+        "The edit is surgical — no explicit id column is introduced and the other columns (owner_id, max_weight) are untouched"
+      ]
+    }
+  ]
+}

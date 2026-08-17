@@ -1,0 +1,78 @@
+{
+  "skill_name": "editor-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"editor-creator-eval-{timestamp}\" --description \"Temporary branch for editor-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "new-entity-detail-editor",
+      "prompt": "On connection 9, branch {branch_id}: create an editor eval_warehouse_editor — a detail screen for a single warehouse looked up by its id, showing the name, notes, and type. Users open it read-only, can switch into edit mode to change the name and notes, and save.",
+      "expected_output": "A validated and upserted editor with exactly one embedded private single-result flow datasource, mirrored entity shapes, correct onInit/onDataLoaded lifecycle split, a declared edit_mode view/edit toggle, and a save path that branches on isNew through a function-wrapped CRUD action.",
+      "files": [],
+      "expectations": [
+        "The config has configurationTypeId 4, referenceName eval_warehouse_editor (snake_case, _editor suffix), and a non-empty description of at most 100 characters",
+        "Exactly one embedded datasource exists in datasources[] with accessModifier 'private', type 'flows', getFlow populated, getListFlow: null, getByKeysFlow: null, resultIsCollection: false, and outParams[0].isCollection: false — the single-result shape (a collection-returning datasource cannot hydrate $editor.entity)",
+        "datasourceConfig.configOutParameters.result.objectTypeDef mirrors datasources[0].outParams[0].objectTypeDef field-for-field (the two-sided entity-shape mirror)",
+        "datasourceConfig.datasourceKeyDef matches the embedded datasource's keyDef and the editor's declared inParams shape (the entity id the host passes in)",
+        "The onInitFlowConfig flow code does NOT read $editor.entity (it is undefined pre-hydration — data arrives at onDataLoaded); any entity-derived defaults or snapshots live in the onDataLoadedFlowConfig flow",
+        "A view/edit mode toggle is present: an edit_mode (or equivalent) boolean declared in the top-level vars[] array, an Edit button shown when not editing and Save + Cancel shown in edit mode, with field readOnly driven by the mode",
+        "The save flow branches on $editor.entity.isNew — a create path and an update path, neither hardcoded",
+        "Persistence goes through a function invoked via $flows.<Package>.<fn> (with the CRUD action wrapped via $apis.<Package>.FootprintApi.extendedActions inside the function) — editor code never calls an action directly",
+        "The transcript shows schema exploration (dxs schema search / describe-entity or the schema-explorer agent) confirming the Warehouse entity's fields before the entity shape was authored — the agent did not guess property names",
+        "The transcript contains 'dxs configuration validate editor' run before 'dxs configuration upsert editor'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "save-gating-and-cancel-restore",
+      "prompt": "On connection 9, branch {branch_id}: eval_warehouse_editor should exist on the branch (if it does not, first create it per its earlier description: single-warehouse detail editor with name, notes, and type and a view/edit toggle). Wire it so the Save button is disabled until the name field is non-empty, and Cancel restores the values from before the user started editing.",
+      "expected_output": "Save gating routed through onFormValidateFlowConfig setting the save button's readOnly from computed validity, cancel restoring a pre-edit snapshot stashed during onDataLoaded (never onInit), all vars declared, and the edit round-tripped, validated, and upserted.",
+      "files": [],
+      "expectations": [
+        "onFormValidateFlowConfig is populated and its flow computes validity from field values and sets $editor.toolbar.<save_button_id>.control.readOnly = !is_valid — save gating goes through the form-validate hook, not ad-hoc checks inside the save click flow alone",
+        "The required-string validation uses a defined-and-non-blank check on the name value (e.g. $utils.isDefinedTrimmed), not a bare truthiness test on a possibly-whitespace string",
+        "Cancel restores original values via a pre-edit snapshot stashed in $editor.vars during the onDataLoaded flow (or by re-calling the datasource) — the snapshot is NOT taken in onInit, where $editor.entity is still undefined",
+        "Every $editor.vars.<id> written by the new code (snapshot, edit_mode, validity state) is declared in the top-level vars[] array",
+        "The modification used the corrected round-trip: 'dxs configuration get editor ... -O envelope.json' then extraction of the inner .json (jq .json or equivalent) before editing — the envelope was never piped directly back into upsert",
+        "The save path still branches on $editor.entity.isNew after the edit (the gating change did not hardcode one branch)",
+        "The transcript contains 'dxs configuration validate editor' run before 'dxs configuration upsert editor'",
+        "The editor's description remains non-empty and at most 100 characters"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "var-bound-field-declarative-encoding",
+      "prompt": "On connection 9, branch {branch_id}: add a read-only 'Status summary' field to eval_warehouse_editor (if the editor is not on the branch, first create it per its earlier description). The field shows a label computed in flow code from the loaded warehouse (for example 'Active — 3 docks'), and the field needs this tooltip: Computed from the current warehouse state.",
+      "expected_output": "A field whose value binds to a declared $editor.vars slot as a raw unwrapped expression, a backtick-wrapped tooltip, no semicolons in any declarative slot, computation in onDataLoaded, and an unchanged mirrored entity shape — round-tripped, validated, upserted.",
+      "files": [],
+      "expectations": [
+        "The new field's value slot is bound to the raw expression \"$editor.vars.<id>\" (unwrapped — it is a TypeScript expression, not display text), and that var is declared in the top-level vars[] array",
+        "The tooltip display text is backtick-wrapped in the JSON (i.e. \"`Computed from the current warehouse state.`\") — NOT bare prose like \"Computed from the current warehouse state.\", which is inlined verbatim into generated TypeScript and breaks the build",
+        "No declarative string slot introduced by the edit contains a semicolon or other statement-level syntax — every slot remains a single TypeScript expression",
+        "The summary computation runs in the onDataLoadedFlowConfig flow (it reads $editor.entity) — not in onInit, where the entity is undefined",
+        "The UI-only field does not alter the entity shape: datasources[0].outParams[0].objectTypeDef and datasourceConfig.configOutParameters.result.objectTypeDef remain mirrored field-for-field after the edit",
+        "The new field's controlConfig populates exactly one control sub-config with the sibling sub-config blocks present and explicitly null (matching the platform convention)",
+        "The modification used the corrected round-trip (dxs configuration get editor -O envelope.json, then jq .json extraction before editing)",
+        "The transcript contains 'dxs configuration validate editor' run before 'dxs configuration upsert editor'"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "editor-vs-form-routing",
+      "prompt": "On connection 9, branch {branch_id}: build an editor eval_cancel_reason_editor — a dialog that pops up when a user cancels a shipment, collects a cancellation reason code and an optional note, and hands them back to the caller. Nothing is saved by the dialog itself; the caller performs the actual cancellation.",
+      "expected_output": "The agent recognizes transient input collection returning a payload (no entity to hydrate, no persistence) as form territory, surfaces the editor-vs-form decision instead of silently building an editor, and routes to the form shape if it builds anything.",
+      "files": [],
+      "expectations": [
+        "The transcript explicitly raises the editor-vs-form decision: transient input collection that returns outParams to the caller with no stored entity to hydrate is a FORM, not an editor",
+        "The agent does NOT silently upsert an editor (configurationTypeId 4) for this requirement",
+        "If the agent builds the component, it is a form whose referenceName ends in _form — or the agent pauses to recommend the form route and asks/states the correct approach before building",
+        "The response cites at least one of the documented distinguishing criteria: no stored record to hydrate, the dialog returns a payload/outParams to the caller, or nothing persists implicitly",
+        "If a form was built, the transcript contains a validate command for it before the corresponding upsert",
+        "No component named eval_cancel_reason_editor is pushed to the branch"
+      ]
+    }
+  ]
+}

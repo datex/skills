@@ -1,0 +1,99 @@
+{
+  "skill_name": "selector-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"selector-creator-eval-{timestamp}\" --description \"Temporary branch for selector-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "entity-dropdown-cloud-variant",
+      "prompt": "On connection 9, branch {branch_id}: create a dropdown eval_carrier_dd for picking a carrier. Options come from the Carriers entity, showing the carrier's name, keyed by Id. Build whatever backing datasource you need.",
+      "expected_output": "A validated and upserted selector (cti 7) backed by a cloud -datasource.json (typeId 6) whose query was built from schema exploration, sorted by the display-label field, with mirrored keyDef, string top, and correct _dd naming.",
+      "files": [],
+      "expectations": [
+        "The backing datasource is created as the cloud -datasource.json component variant (configurationTypeId 6) — the selector is NOT wired to a -footprintDatasource.json (configurationTypeId 19)",
+        "The transcript shows schema exploration (dxs schema search / describe-entity or the schema-explorer path) before authoring the OData backing — Carrier property names are not guessed",
+        "The backing datasource sorts by the display-label field (an orderBys entry on Name for OData, or an in-code sort for flow-type)",
+        "The selector's text is \"$option.entity.<DisplayField>\" where <DisplayField> (e.g. Name) actually exists on the backing datasource's outParams result shape",
+        "The selector's datasourceConfig.datasourceKeyDef mirrors the backing datasource's keyDef (same id, same type — e.g. Id, number)",
+        "The moduleId on datasourceConfig is the DATASOURCE's package, not the selector's caller",
+        "top is a quoted string (e.g. \"25\") — not a JSON number",
+        "configurationTypeId is 7 and referenceName eval_carrier_dd ends in _dd",
+        "The selector's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate selector' run before 'dxs configuration upsert selector'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "full-text-search-contract",
+      "prompt": "On connection 9, branch {branch_id}: create an autocomplete eval_material_dd over the Materials entity showing LookupCode — typing into the dropdown must filter the options live. Build the backing datasource too; it exists only to back this selector.",
+      "expected_output": "An autocomplete selector with the three-piece full-text-search contract fully wired: full_text_search inParam on the backing, a conditional contains-filter on the display-label field gated on $utils.isDefined, and $selector.fullTextSearch wired through configParameters.",
+      "files": [],
+      "expectations": [
+        "The backing datasource declares an inParam with id exactly full_text_search, type string, required: false",
+        "The backing datasource applies a conditional contains-filter on the display-label field (LookupCode) gated on $utils.isDefined($datasource.inParams.full_text_search) — via hasCondition/condition on an OData filter expression, or an if-guard inside getListFlow code for a flow-type backing",
+        "The selector's datasourceConfig.configParameters contains a full_text_search entry whose value is \"$selector.fullTextSearch\"",
+        "All three pieces of the contract are present in the final deliverable — none of the three is skipped or left half-wired",
+        "The backing is a -datasource.json (configurationTypeId 6), not a -footprintDatasource.json",
+        "The backing datasource sorts results by LookupCode (the display-label field)",
+        "top is a quoted string, not a JSON number",
+        "referenceName eval_material_dd ends in _dd; the description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate selector' run before 'dxs configuration upsert selector'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "fixed-options-numeric-emission",
+      "prompt": "On connection 9, branch {branch_id}: create eval_hold_type_dd — a fixed dropdown with exactly these options: Quality hold = 1, Damage hold = 2, Customs hold = 3. Several engine flows will read the selected value. Make sure to tell me exactly what value a consuming flow receives when the user picks 'Damage hold'.",
+      "expected_output": "A fixed-option selector whose author explicitly states the emitted value is the NUMBER 2 (not the label string) and advises defensive consumption, with exactly one options source populated and getList/getByKeys parity if a flow-type backing was chosen.",
+      "files": [],
+      "expectations": [
+        "The transcript explicitly states that the value delivered to consuming flows is the NUMBER 2 (numeric), not the string 'Damage hold' — consumers must not assume string values",
+        "The transcript advises defensive consumption in the engine flows (handle the numeric form, e.g. accept both string and numeric in any switch/mapping) per the custom-options trap",
+        "Exactly one options source is populated on the selector — customOptionsConfig OR datasourceConfig — with the sibling slot explicitly null",
+        "If a flow-type backing datasource was chosen and getListFlow shapes the Key/display label, getByKeysFlow applies the identical transform with the helper definitions duplicated in both code bodies",
+        "No $types.<Package>.e_<enum> FQN appears in the selector's vars/inParams/outParams — primitives only at the param layer",
+        "configurationTypeId is 7 and referenceName eval_hold_type_dd ends in _dd",
+        "The description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate selector' run before 'dxs configuration upsert selector'"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "empty-dropdown-diagnosis",
+      "prompt": "On connection 9, branch {branch_id}: a teammate upserted the selector below as eval_project_dd and reports the dropdown renders empty and typing in its search box does nothing. Its backing eval_projects_fpds is a -footprintDatasource.json querying Projects, returning rows with fields Id and LookupCode, keyed by Id (number). Diagnose everything wrong, create anything you need, and push a working eval_project_dd. Their body (abridged): {\"dataType\": \"datasource\", \"datasourceConfig\": {\"configId\": \"eval_projects_fpds\", \"moduleId\": \"EvalFeature\", \"datasourceKeyDef\": [{\"id\": \"ProjectId\", \"type\": \"string\", \"isSecured\": null}], \"configParameters\": [], \"configOutParameters\": [{\"id\": \"result\", \"type\": \"object\", \"isCollection\": true, \"objectTypeDef\": [\"Id\", \"LookupCode\"]}]}, \"text\": \"$option.entity.Name\", \"top\": 25, \"configurationTypeId\": 7, \"referenceName\": \"eval_project_dd\"}.",
+      "expected_output": "A diagnosis that walks the documented failure points — FPDS backing (hard-rule violation), text referencing a nonexistent field, numeric top, keyDef drift, and the unwired full-text-search contract — followed by a corrected, validated, upserted selector with a compliant backing.",
+      "files": [],
+      "expectations": [
+        "The diagnosis identifies the -footprintDatasource.json backing as a violation of the hard component-variant rule, and the fix backs the selector with a -datasource.json (configurationTypeId 6) — either a flow-type wrapper that calls through to the FPDS or a fresh cloud datasource",
+        "The diagnosis flags text \"$option.entity.Name\" as referencing a field that does not exist on the backing's result shape (only Id and LookupCode) — fixed to a real field (e.g. LookupCode)",
+        "The diagnosis flags top: 25 (JSON number) — fixed to a quoted string (e.g. \"25\")",
+        "The diagnosis flags datasourceKeyDef drift (ProjectId/string vs the backing's Id/number) — fixed to mirror the backing's keyDef exactly",
+        "The diagnosis flags the empty configParameters as the reason typing does nothing, and the fix wires the full three-piece full-text-search contract (full_text_search inParam on the backing; conditional contains-filter on the display-label field gated on $utils.isDefined; a configParameters entry with value \"$selector.fullTextSearch\")",
+        "moduleId on datasourceConfig is corrected to the package of the new/wrapper datasource (the target's package)",
+        "The fixed backing sorts by the display-label field",
+        "The corrected body is validated ('dxs configuration validate selector') before 'dxs configuration upsert selector'",
+        "Every component created or modified carries a non-empty description of at most 100 characters"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "modify-existing-round-trip-parity",
+      "prompt": "On connection 9, branch {branch_id}: first create eval_status_dd — a simple dropdown backed by a flow-type -datasource.json whose getList returns three rows {Key: 'Open', Value: 1}, {Key: 'Closed', Value: 2}, {Key: 'On hold', Value: 3}, keyed on Value. Then, as a follow-up edit, raise the visible item limit from 25 to 50 and make the displayed labels UPPERCASE — without breaking how previously-saved selections render when a form reopens.",
+      "expected_output": "An initial validated selector + flow-type backing, then a round-trip modification (get envelope, jq-extract, edit, re-validate, re-upsert) that keeps top a string and applies the uppercase label transform identically in getListFlow and getByKeysFlow.",
+      "files": [],
+      "expectations": [
+        "The initial selector and its flow-type -datasource.json backing are validated before being upserted",
+        "The follow-up modification uses the round-trip: 'dxs configuration get ... -O envelope.json' then extracts the inner body (jq .json or equivalent) before editing — the envelope is never fed directly to upsert",
+        "top is updated to the STRING \"50\" (it remains a quoted string, not a JSON number)",
+        "The uppercase label transform is applied identically in BOTH getListFlow and getByKeysFlow code bodies (helper/expression duplicated — the flows compile independently), so re-hydrated saved selections render the same label the list shows",
+        "The edit is surgical — datasourceKeyDef, configOutParameters, and unrelated slots are preserved, not rebuilt",
+        "The backing's rows are sorted by the display label",
+        "The modified configs are re-validated before being re-upserted",
+        "configurationTypeId is 7 and referenceName eval_status_dd ends in _dd; description is non-empty and at most 100 characters"
+      ]
+    }
+  ]
+}

@@ -85,3 +85,24 @@ The resolver refuses to guess: if your `-c` connection isn't wired into the bran
 ### Finding a Customer's Connection
 
 Use `dxs organization connection list --search <term>` to search connection names and URLs (case-insensitive).
+
+## Lock Pre-Flight — `dxs source locks --repo` Looks Clean When It Isn't
+
+Configuration locks are held **per application group, across every branch in it** — not per branch. A component locked by any branch in the group cannot be modified from any other branch, including a brand-new one.
+
+`dxs source locks --repo <repo_id>` passes the **repository** id to an endpoint that expects the **applicationGroupId**, so it reports `total_config_locks: 0` for a repo that in fact has dozens of locks (verified 2026-08-17 on FootprintManager: `--repo 87` returned 0, the group returned 69). Treat a clean result from that command as *no information*, not as a green light.
+
+Query the group instead — take `defaultApplicationGroupId` from `dxs source repo list` (or `applicationGroupId` off any branch record):
+
+```bash
+dxs api GET /sourcecontrol/<applicationGroupId>/locks --raw -O locks.json
+# each entry: {id, applicationId (the branch holding it), referenceName, configurationTypeId, lockedBy}
+```
+
+Run this **before** editing any inherited component, and match on `referenceName`. `dxs source status --branch <id>` only shows the branch's own pending changes, so it cannot see a lock held elsewhere either.
+
+### Symptom when you skip it
+
+`dxs configuration upsert` swallows a `400 "Config is already locked."` from its lock step — it assumes the lock is its own — and then the PUT fails with the confusingly different **`400 "Cannot update configuration that is not locked or marked for deletion."`** That second message means *someone else's branch holds the lock*, not that the lock call was forgotten. Confirm with the group locks endpoint; the `applicationId` on the lock record is the branch to chase.
+
+**Never unlock another branch's config to unblock yourself** — including your own older branches. Unlocking reverts that branch's pending copy of the component. Surface the lock holder (branch id, title, and whether that branch has a pending change to the same component via `dxs source status --branch <that branch>`) and let the user decide: commit/publish the holding branch, do the edit there, or defer.

@@ -145,3 +145,7 @@ You validate a single Datex Studio component file against its type's authoring r
 ```
 
 Omit any bucket that is empty. If all three buckets are empty, return `No issues found.`
+
+## Bundled Save-Gate Hook (optional)
+
+`scripts/validate-component.py` is a Claude Code PostToolUse hook enforcing the two cheapest floor checks (valid JSON, description present and ≤100 chars) at the harness level, blocking bad saves before any skill runs. Install per [`scripts/INSTALL.md`](scripts/INSTALL.md). The hook is a floor, not a replacement for this skill's audit.

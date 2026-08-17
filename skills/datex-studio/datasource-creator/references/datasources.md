@@ -76,6 +76,12 @@ Any datasource with `type: "oDataQuery"` — regardless of component variant —
 
 Flow-type datasources are not mechanically subject to this rule (there is no declarative OData tree to validate), but if their embedded TS issues OData calls, apply the same validation judgment to the names in the query strings.
 
+## Parameter Descriptor Asymmetry — inParams Fat, outParams Slim
+
+Across both component variants, an oDataQuery datasource's `outParams` must be exactly `[{"id": "result", "type": "object", "isCollection": <bool>, "objectTypeDef": [...]}]` — the slim result descriptor, with no `required` / `oneOf` / `isSecured` / `description` / other full-boilerplate keys. `inParams` are the opposite: they keep the full parameter descriptor used by functions and actions everywhere. Applying the fat descriptor to `outParams` fails at Studio import with `Cannot read properties of undefined (reading 'type')` — and `dxs configuration validate` does **not** catch it (validation and import are separate code paths), so a config that validates cleanly can still be rejected on import.
+
+When generating datasource configs programmatically, use separate builders for inParams (fat) and outParams (slim) rather than one shared descriptor builder. See [`odata-datasources.md` → Result Type](odata-datasources.md#result-type) for the full descriptor rules.
+
 ## Selectors
 
 Selectors (`-selector.json`, `configurationTypeId: 7`) must be backed by a `-datasource.json` — the query type inside it can be OData or flow, whichever fits. Never back a selector with a `-footprintDatasource.json`. See [`../../selector-creator/references/selectors.md`](../../selector-creator/references/selectors.md) for the selector authoring spec.

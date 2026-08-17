@@ -1,0 +1,98 @@
+{
+  "skill_name": "action-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"action-creator-eval-{timestamp}\" --description \"Temporary branch for action-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "crud-deep-insert-create",
+      "prompt": "On connection 9, branch {branch_id}: create an action eval_create_container_action that creates a new shipping container for a shipment plus all of its shipment lines in one atomic operation. Inputs: shipment_id (number), a container lookup code (string), a container type id (number), and an array of line items each carrying a material id and an expected package amount. If any line fails, no container should exist — everything commits or rolls back together.",
+      "expected_output": "A validated and upserted footprintflow (cti 18) whose code creates the container and its child lines in a single crud_create_entity deep insert via a collection navigation property, with schema-verified navigation names, full fat param descriptors, and no silent error swallowing.",
+      "files": [],
+      "expectations": [
+        "The transcript contains a 'dxs configuration validate footprintflow' command run before upsert",
+        "The transcript contains a 'dxs configuration upsert footprintflow' command after validation",
+        "The action body has configurationTypeId 18, apiSettingName \"FootprintApi\", and a referenceName ending in _action (eval_create_container_action)",
+        "The runtime code is present at nodes[0].stepConfig.executeCodeConfig.code — a top-level 'code' field is not the only location carrying the code (if both exist, they match)",
+        "The code creates the container and its child lines in a SINGLE crud_create_entity call, nesting the lines under a collection navigation property on the parent (deep insert) — not a create-parent-then-loop-children pattern",
+        "The code does NOT attempt a flat multi-row bulk insert — no array of unrelated records passed to crud_create_entity and no invented bulk-insert primitive",
+        "The transcript verifies the collection navigation property name against the OData schema (schema-explorer subagent or dxs schema describe-entity) before use — navigation names can carry FK-specific suffixes (e.g. ShipmentLinesForExpectedShippingContainer) and must not be guessed",
+        "Every inParams/outParams entry uses the full fat parameter-descriptor shape (14 fields) and all new param ids are snake_case (e.g. shipment_id, line_items)",
+        "The action's description is non-empty and at most 100 characters",
+        "Every try/catch in the code either formats-and-rethrows with added context or is absent — no catch block swallows an error and none does a bare 'throw e'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "status-update-no-silent-swallow",
+      "prompt": "On connection 9, branch {branch_id}: create an action eval_release_tasks_action that takes an array of task ids and sets each task's StatusId to 4 (Released). One thing though — if updating one of the tasks fails, I don't want the whole batch to blow up; just quietly skip the failing task and keep going with the rest.",
+      "expected_output": "The agent refuses the silent-swallow request, explaining that a swallowed error inside an action leaves the Footprint transaction unresolved and surfaces later as 'Transaction must begin first', and ships an action whose errors propagate (format-and-rethrow at most).",
+      "files": [],
+      "expectations": [
+        "The transcript pushes back on the quietly-skip-failures request instead of implementing it as asked — error handling in actions is load-bearing for transaction propagation",
+        "The response explains that a silently swallowed error leaves the transaction unresolved and that the misleading 'Transaction must begin first' error then surfaces on a later, unrelated action invocation",
+        "The final code contains no catch block that swallows an error — every try/catch rethrows (e.g. 'throw new Error(...)' with context) or the code has no try/catch and lets exceptions propagate",
+        "The status update goes through $flows.<Package>.crud_update_entity (or an equivalent crud_* action call) — not $db and not raw OData/HTTP from action code",
+        "The transcript contains 'dxs configuration validate footprintflow' before 'dxs configuration upsert footprintflow'",
+        "The runtime code lands at nodes[0].stepConfig.executeCodeConfig.code (top-level 'code' mirror, if present, matches it)",
+        "The action body has configurationTypeId 18, apiSettingName \"FootprintApi\", and referenceName eval_release_tasks_action ending in _action",
+        "In-param ids are snake_case (e.g. task_ids) with the full fat parameter-descriptor shape",
+        "The action's description is non-empty and at most 100 characters"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "fpds-tier-datasource",
+      "prompt": "On connection 9, branch {branch_id}: create an action eval_close_stale_orders_action that, for a given project id, reads the project's open orders through a datasource (create the datasource first if it doesn't exist on the branch) and sets each one's status to Closed. The whole thing must be atomic — either every stale order closes or none do.",
+      "expected_output": "An action whose read goes through a FootprintDatasource (typeId 19) — not a cloud datasource — with the FPDS created first, mutations via crud_update_entity, no $db, and the full validate/upsert lifecycle for both components.",
+      "files": [],
+      "expectations": [
+        "Any datasource created to support the action is the FootprintDatasource variant (configurationTypeId 19, -footprintDatasource.json / FPDS) — NOT a cloud -datasource.json (configurationTypeId 6)",
+        "The action code's $datasources.<Package>.<name> calls target that FootprintDatasource — the transcript does not wire the action to a typeId-6 cloud datasource",
+        "The action code contains no $db usage ($db is function-tier only, unavailable in actions)",
+        "The action code makes no raw HTTP/OData calls — reads go through $datasources, writes through $flows crud_* actions",
+        "The status mutation uses $flows.<Package>.crud_update_entity (or a composed action call), keeping all writes inside the transaction",
+        "The transcript shows schema exploration (schema-explorer subagent or dxs schema commands) before authoring the datasource query — entity and property names are not guessed",
+        "The datasource is validated before it is upserted (dxs datasource validate or dxs configuration validate), and it is created/upserted BEFORE the action that depends on it is pushed",
+        "The transcript contains 'dxs configuration validate footprintflow' before 'dxs configuration upsert footprintflow' for the action",
+        "The action's referenceName ends in _action, its new param ids are snake_case (e.g. project_id), and its description is non-empty and at most 100 characters",
+        "Every try/catch in the action code formats-and-rethrows or is absent — no silent swallow"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "action-vs-function-judgment",
+      "prompt": "On connection 9, branch {branch_id}: make me an action called eval_order_totals_action that, given a project id, reads all of the project's orders and returns the count per status plus the total expected amounts. It's read-only — no writes — the hub screen will call it to populate its summary tiles.",
+      "expected_output": "The agent recognizes a pure read/aggregation with a UI caller as function-tier work, surfaces the action-vs-function decision instead of silently building a cti-18 action, and routes to (or recommends) a function.",
+      "files": [],
+      "expectations": [
+        "The transcript explicitly raises the action-vs-function decision: it identifies the request as a pure read/aggregation with no transactional boundary, which belongs in a function — not an action",
+        "The response cites that UI components cannot call actions directly (calling-conventions tier matrix) — the hub caller independently forces the function route",
+        "The agent does NOT silently create and upsert a footprintflow (cti 18) that performs pure read work without surfacing the routing decision",
+        "If a component is built, it is a function (dxs function commands / configurationTypeId 9) with a _flow-suffixed reference name — or the agent pauses to recommend the function route and asks the user",
+        "The response gives the absence of atomicity/rollback requirements as a reason for the routing decision",
+        "If a function was built, the transcript shows it validated (dxs function validate) before any upsert"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "modify-existing-roundtrip-impact",
+      "prompt": "On connection 9, branch {branch_id}: there should be an action eval_release_tasks_action on the branch (if it does not exist, first create it exactly as: in-param task_ids number array; code that loops the ids and calls $flows.Utilities.crud_update_entity to set StatusId 4 on each Tasks row). Then modify it: add a new in-param released_by (string) and stamp it into each task's ModifiedBy property alongside the status update.",
+      "expected_output": "The agent round-trips the existing config correctly (get envelope, jq-extract the inner .json, edit, validate, upsert), runs a caller/impact check before the signature change, keeps the param snake_case, and writes both code fields.",
+      "files": [],
+      "expectations": [
+        "The transcript fetches the existing action via 'dxs configuration get footprintflow ... -O envelope.json' (or an equivalent fetch) before modifying it",
+        "The inner body is extracted from the envelope before editing (jq .json envelope.json > body.json or equivalent) — the envelope file is never edited or piped directly into upsert",
+        "Before changing the signature, the transcript shows a caller/impact check for eval_release_tasks_action (impact-analysis skill, impact-scanner subagent, or an explicit reverse-trace/caller search)",
+        "The new in-param id is snake_case (released_by) and uses the full fat parameter-descriptor shape",
+        "The updated code is written to nodes[0].stepConfig.executeCodeConfig.code — the top-level 'code' mirror is not the only field edited, and if both exist they match after the edit",
+        "The transcript contains 'dxs configuration validate footprintflow' after the modification and before upsert",
+        "The transcript contains 'dxs configuration upsert footprintflow' after validation",
+        "The modified code preserves the original StatusId update behavior and introduces no catch block that swallows errors"
+      ]
+    }
+  ]
+}

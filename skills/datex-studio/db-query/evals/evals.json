@@ -1,0 +1,71 @@
+{
+  "skill_name": "db-query",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"db-query-eval-{timestamp}\" --description \"Temporary branch for db-query skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "composed-predicate-query",
+      "prompt": "On connection 9, branch {branch_id}: create a storage component eval_carrier_rule_storage (package Utilities) with columns carrier_id (number), service_level (string), region (string), and is_active (boolean) — all optional. Then create a function eval_find_carrier_rules_flow that takes carrier_id (number), regions (string[]), and include_unset_active (boolean), and returns the matching rules: rows where carrier_id equals the input AND region is one of the given regions AND (is_active is true OR — only when include_unset_active is true — is_active has never been set). Return out-params match_count (number) and service_levels (string[]).",
+      "expected_output": "A storage plus a validated/upserted function whose $db predicate composes .equals/.in/.isNull with .and/.or inside a single .where callback, ends in .toList(), and treats result-row fields as TypeScript-optional.",
+      "files": [],
+      "expectations": [
+        "The transcript creates the storage component (eval_carrier_rule_storage) before or alongside the function, and the function accesses it via $db.Utilities.eval_carrier_rule_storage",
+        "The predicate composes conditions with the fluent .and(...) / .or(...) methods on column expressions — it does NOT use native &&, ||, ===, or !== inside the .where callback",
+        "The predicate uses .equals(...) for the carrier_id comparison and .in([...]) (or .in(regions)) for the region set membership",
+        "The is_active never-set branch uses .isNull() (composed via .or with .equals(true)), not a comparison against null with === or .equals(null)",
+        "The code contains none of the non-existent operator names .notEquals, .greaterThan, .greaterThanOrEqual, .ge, or .le anywhere in the $db predicate",
+        "The .where(...) chain ends in a terminal .toList() (the cursor is materialized, not left dangling)",
+        "Result rows are treated as TypeScript-optional: no strict local row type annotation (e.g. no 'id: string' / non-optional fields), and field access on rows uses ?. / ?? / $utils.isDefined narrowing",
+        "The transcript contains 'dxs function validate' and 'dxs configuration upsert flow' for the function (round-trip owned by function-creator)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "required-column-read-then-patch",
+      "prompt": "On connection 9, branch {branch_id}: create a storage component eval_carton_spec_storage (package Utilities) with columns spec_code (string, required), max_weight (number, required), and notes (string, optional). Then create a function eval_update_carton_max_weight_flow that takes spec_id (string) and new_max_weight (number), updates that record's max_weight, and returns an out-param success (boolean).",
+      "expected_output": "A function whose .update(id, patch) call passes the id string directly and — because the storage has required:true columns — reads the current row first and echoes every required column in the patch.",
+      "files": [],
+      "expectations": [
+        "The .update call passes the id string directly as the first argument — .update(specId, { ... }) — NOT a predicate callback like .update(r => r.id.equals(specId), ...)",
+        "Before patching, the code reads the current row (a .where(r => r.id.equals(...)) ... .toList() or equivalent fetch) — the read-then-patch idiom for storages with required: true columns",
+        "The patch object echoes every required: true column: it includes spec_code (unchanged, copied from the read row) alongside the new max_weight — not a max_weight-only patch",
+        "The read result is guarded before indexing: the materialized list is coalesced (?? []) or the row is checked with $utils.isDefined / an explicit undefined check before the patch runs",
+        "The lookup predicate uses the fluent .equals(...) operator, not === ",
+        "The transcript contains 'dxs function validate' and 'dxs configuration upsert flow' for the function"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "add-returns-id-string",
+      "prompt": "On connection 9, branch {branch_id}: using the storage eval_carton_spec_storage (create it first if it does not exist on the branch: spec_code string required, max_weight number required, notes string optional), create a function eval_create_carton_spec_flow that takes spec_code (string), max_weight (number), and notes (string), inserts a new spec row via $db, and returns the generated record id as out-param new_spec_id (string).",
+      "expected_output": "A function whose .add(record) return value is treated as the generated id string itself — assigned directly to the out-param, never dereferenced as a record.",
+      "files": [],
+      "expectations": [
+        "The code treats the .add(...) return value as the generated id STRING: the awaited return is assigned (directly or via a local) to $flow.outParams.new_spec_id",
+        "The code does NOT dereference an id property on the .add return value — no added.id, added?.id, or (await ...add(...)).id anywhere (that fails the TS pass with \"Property 'id' does not exist on type 'string'\")",
+        "The out-param new_spec_id is declared as type string",
+        "The inserted record's field names match the storage's snake_case column ids exactly (spec_code, max_weight, notes)",
+        "The transcript contains 'dxs function validate' and 'dxs configuration upsert flow' for the function"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "tolist-coalesce-on-fresh-storage",
+      "prompt": "On connection 9, branch {branch_id}: create a brand-new storage component eval_dock_event_storage (package Utilities) with columns event_code (string), dock_door (string), and occurred_on (date) — all optional. Then create a function eval_get_latest_dock_event_flow that takes dock_door (string) and returns latest_event_code (string) and event_count (number): the event_code of the most recent matching row (by occurred_on descending) and the total number of matching rows. This storage will have never been written to when the function first runs in a fresh environment — the function must not throw in that case.",
+      "expected_output": "A function whose .toList() result is coalesced to an empty array before any indexing or .length access, per the undefined-on-fresh-storage rule.",
+      "files": [],
+      "expectations": [
+        "The materialized list is coalesced before use: the code wraps the read as (await $db....toList()) ?? [] (or an equivalent explicit undefined-check on the ARRAY) before any [0] indexing or .length access",
+        "The code does NOT rely solely on optional-chaining the row (rows[0]?.event_code) without first coalescing the array — the [0] index itself throws on a fresh storage where .toList() returns undefined",
+        "The query uses the fluent .equals(...) for the dock_door filter and a .sort({ occurred_on: 'desc' }) (or equivalent fluent sort) with a terminal .toList()",
+        "The out-params are populated with optional-narrowing on row fields (?? fallback or $utils.isDefined), since $db result fields are TypeScript-optional",
+        "event_count is derived from the coalesced array's .length (or an equivalently guarded count) so it is 0, not a crash, on a never-written storage",
+        "The transcript contains 'dxs function validate' and 'dxs configuration upsert flow' for the function"
+      ]
+    }
+  ]
+}

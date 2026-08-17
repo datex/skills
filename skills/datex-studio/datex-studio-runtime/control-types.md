@@ -131,7 +131,13 @@ Action button. Slots: `label`, `icon`, `buttonDefaultStyleClass` (`"primary"` / 
 
 ### label
 
-Static display text. Slots TBD.
+Static display text. **Declarative-only** — the runtime model `ILabelModel` exposes neither `.value` nor `.styles`, so flow-code assignments like `$hub.filters.foo.control.value = '...'` or `.control.styles.setStyle('color', ...)` fail the TypeScript check with `Property 'X' does not exist on type 'ILabelModel'`. This is the strictest case of cross-cutting rule 3: nothing on a label control is settable imperatively.
+
+- **Dynamic label text:** declare a string var on the host component (`$hub.vars.foo_text`, `$form.vars.foo_text`, …), bind `labelConfig.value` to it as an unwrapped TS expression (e.g. `"$hub.vars.foo_text"`), and write to the var from flow code. Seed the var in `on_init` so the label has defined text before first render.
+- **Runtime styling:** there is no path. Bake the visual distinction into the text itself (e.g. a `✓` + count for the active state vs a plain "None set" when empty), or pick a different control type.
+- The field-level visibility toggle (`.hidden = true/false`) still works on label fields.
+
+Other slots TBD.
 
 ### text
 

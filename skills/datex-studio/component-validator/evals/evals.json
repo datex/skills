@@ -1,0 +1,68 @@
+{
+  "skill_name": "component-validator",
+  "evals": [
+    {
+      "id": 1,
+      "name": "defective-action-four-seeded-defects",
+      "prompt": "Audit the component file at evals/files/update_task_priority_action-footprintFlow.json before merge. Return your findings as a punch list.",
+      "expected_output": "A Blockers/Warnings/Nits punch list that catches all four seeded defects: 105-char description, outParam updated_count never assigned, camelCase inParam id taskId, and a top-level code field that differs from nodes[0].stepConfig.executeCodeConfig.code.",
+      "files": [
+        "evals/files/update_task_priority_action-footprintFlow.json"
+      ],
+      "expectations": [
+        "The audit flags the description as exceeding the 100-character limit (it is 105 characters)",
+        "The audit flags the outParam 'updated_count' as declared but never assigned anywhere in the flow code",
+        "The audit flags the inParam id 'taskId' as camelCase (new param ids must be snake_case, e.g. task_id)",
+        "The audit flags that the top-level 'code' field differs from nodes[0].stepConfig.executeCodeConfig.code — identifying the nested field as the one the runtime executes and the top-level field as a stale duplicate",
+        "The findings are reported in the structured punch-list format with severity buckets (Blockers / Warnings / Nits), not as prose or a rewritten file",
+        "The audit does not rewrite or edit the component file — it only reports findings"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "clean-function-no-false-positives",
+      "prompt": "Audit the component file at evals/files/format_lookup_label_flow-flow.json before merge. Return your findings as a punch list.",
+      "expected_output": "A clean audit: no blockers reported (the file is fully valid), ideally 'No issues found.'",
+      "files": [
+        "evals/files/format_lookup_label_flow-flow.json"
+      ],
+      "expectations": [
+        "The audit reports NO blockers — either 'No issues found.' or a punch list whose Blockers bucket is empty/absent",
+        "The audit does not flag the description (it is non-empty and 68 characters, within the 100-char limit)",
+        "The audit does not flag the param ids (lookup_code, label_prefix, formatted_label are all snake_case)",
+        "The audit does not flag the out-param assignment (formatted_label is assigned in the code, and there is no bare 'return;')",
+        "The audit does not invent findings about missing fields that are legitimately null (vars, events) or about the file being minified single-line JSON (that is the required format)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "defective-form-declarative-strings",
+      "prompt": "Audit the component file at evals/files/capture_shipment_notes_form-form.json before merge. Return your findings as a punch list.",
+      "expected_output": "A punch list catching the three seeded defects: a semicolon inside an unwrapped tooltip TS-expression slot, an unwrapped pipe inside the fieldset info slot, and a null description.",
+      "files": [
+        "evals/files/capture_shipment_notes_form-form.json"
+      ],
+      "expectations": [
+        "The audit flags the notes field's tooltip ('Notes print on the BOL; keep them under two lines') as a broken declarative string — unwrapped plain text in a TypeScript-expression slot, with the mid-sentence semicolon called out (fix: wrap as a quoted/backticked TS literal and drop the semicolon)",
+        "The audit flags the fieldset info slot ('Applies to BOL | packing slip | shipping label') for its unwrapped pipe characters in a TS-expression slot",
+        "The audit flags the null description as a blocker (description must be non-empty and at most 100 characters)",
+        "The findings are reported in the structured punch-list format with severity buckets (Blockers / Warnings / Nits)"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "suffix-dispatch-action-rules",
+      "prompt": "Audit the component file at evals/files/release_wave_batch_action-footprintFlow.json before merge. State which rule set you applied and why, then return your findings as a punch list.",
+      "expected_output": "The validator dispatches on the -footprintFlow.json suffix to the action rule set (not the function rule set) and catches the action-specific defect: a catch block that swallows the error without rethrowing, which leaves the Footprint transaction unresolved.",
+      "files": [
+        "evals/files/release_wave_batch_action-footprintFlow.json"
+      ],
+      "expectations": [
+        "The transcript identifies the component as an ACTION from its -footprintFlow.json suffix / configurationTypeId 18 and states that the action-creator rule set (actions.md) applies — not the function (-flow.json / functions.md) rule set",
+        "The audit flags the try/catch inside the shipment loop as a blocker: the catch block swallows the error without rethrowing, which leaves the Footprint transaction unresolved (the 'Transaction must begin first' failure mode) — an action-specific rule the function rule set does not carry",
+        "The audit does NOT misapply function-only rules to this action (e.g. it does not flag the absence of enableProgressAndCancelation, and it does not flag apiSettingName: 'FootprintApi' — which is required on actions)",
+        "The audit does not flag the referenceName/suffix pairing as a mismatch (the '_action' referenceName with '-footprintFlow.json' file suffix is the documented asymmetric naming convention for actions)"
+      ]
+    }
+  ]
+}
