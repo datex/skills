@@ -6,13 +6,17 @@ Confirmed numeric enum values for the Footprint domain columns that drive order/
 
 ## `Order.OrderStatusId`
 
+The values below are the subset of `$types.FootPrintWorkflow.OrderStatusEnum` confirmed in the field. That enum is the authoritative list — it is **bit-flag shaped** (every member is a power of two: `Created=1, Processing=2, Completed=4, Cancelled=8, Error=16, Virtually_Allocated=32, Hold=64, Wait=128, Ready=256, Backorder=512, Feedback_Started=1024, Approval_Required=2048, Rejected=4096`), so values like 2048 are not exceptions to a 1/2/4/8 progression; they are ordinary members of it. See [`footprint-workflows.md`](../../../datex-studio/footprint-workflows/references/footprint-workflows.md) for the full enum.
+
+**Open question — single value or mask?** The values are flag-shaped, but it is not yet confirmed whether the `OrderStatusId` *column* ever holds an OR'd combination or only ever one member at a time. Until that is settled, compare with equality (`=== 2048`) as production code does today, and do not introduce bitmask tests (`& 2048`) on the strength of the enum's shape alone.
+
 | Id | Meaning | Notes |
 |---|---|---|
 | 1 | Created | |
 | 2 | Processing | The static resting state after Created — **not** a transient/in-flight state (contrast Wave 6). |
 | 4 | Completed | |
 | 8 | Cancelled | |
-| 2048 | Approval required | Used by the "Approval required" substatus; flag-style value outside the 1/2/4/8 progression. |
+| 2048 | Approval required | Used by the "Approval required" substatus. |
 | 4096 | Rejected | Order rejected during approval; the order editor offers an "Undo rejected" (`revert_order`) action. |
 
 ## `Shipment.StatusId`

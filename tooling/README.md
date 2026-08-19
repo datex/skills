@@ -19,7 +19,7 @@ From the project root (PowerShell):
 
 The script creates one directory junction per skill (no admin rights needed) so Claude Code discovers them under `.claude/skills/`. Re-running is idempotent.
 
-**Optional but recommended:** wire the harness-level component save gate — see [`component-validator/scripts/INSTALL.md`](component-validator/scripts/INSTALL.md).
+**Optional but recommended:** wire the harness-level component save gate — see [`component-validator/scripts/INSTALL.md`](../skills/datex-studio/component-validator/scripts/INSTALL.md).
 
 ## Layout
 

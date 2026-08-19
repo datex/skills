@@ -10,7 +10,7 @@ one is how platform behaviour is replaced without touching Footprint itself.
 Unlike every other component type, **you do not invent the contract** — the slot defines it. The
 component declares `workflowDefinitionId`, `workflowGUID` and an `inParams` list whose shape the
 server dictates, and the code inside runs **action-tier** (Footprint server), so all the rules in
-[`calling-conventions.md`](../datex-studio-runtime/calling-conventions.md) for actions apply
+[`calling-conventions.md`](../../../skills/datex-studio/datex-studio-runtime/calling-conventions.md) for actions apply
 unchanged: no `$db`, no functions, no cloud-tier datasources.
 
 In practice a footprintWorkflow should be a **shim**. Put the behaviour in ordinary actions and let
@@ -21,7 +21,7 @@ the workflow map the platform's input onto them — see [Common Patterns](#commo
 Use a footprintWorkflow when Footprint itself will invoke your code — when the trigger is a server
 operation rather than a UI event, a schedule, or another flow. Choose it over:
 
-- an **action** ([`actions.md`](../action-creator/references/actions.md)) when the caller is the
+- an **action** ([`actions.md`](../../../skills/datex-studio/action-creator/references/actions.md)) when the caller is the
   Footprint server dispatching to a registered slot rather than your own code;
 - a **function** when the work must run inside the Footprint runtime's transaction.
 
@@ -37,7 +37,7 @@ The branch is the source of truth — author via `dxs configuration` commands an
 - Naming: snake_case `referenceName` matching the filename stem, usually `<slot>_workflow`
   (`allocation_strategy`, `outbound_processing_strategy_workflow`). `title` is the operator-facing
   label and follows the sentence-case rule in
-  [`naming-conventions.md`](../datex-studio-conventions/naming-conventions.md).
+  [`naming-conventions.md`](../../../skills/datex-studio/datex-studio-conventions/naming-conventions.md).
 
 ## Minimal Valid Skeleton
 
@@ -85,14 +85,14 @@ The branch is the source of truth — author via `dxs configuration` commands an
 |---|---|---|
 | `workflowDefinitionId` | Which Footprint slot this fills | Server-assigned; copy from an existing registration. `21` = Allocation Strategy, `31` = Outbound Processing Strategy |
 | `workflowDefinitionName` | Product-facing slot name | Must match the catalogue entry |
-| `workflowGUID` | The code callers pass | This is the value that reaches `ProcessingStrategyWorkflowCode` / `AllocationStrategyWorkflowId`. **Never invent one** — reusing the legacy GUID is what makes the replacement drop-in |
+| `workflowGUID` | The code callers pass | Generate a fresh v4 UUID for a genuinely new workflow (then point callers at it); **preserve the legacy GUID** when this config is a drop-in replacement for an existing implementation whose callers must not change; never regenerate on an edit |
 | `configurationTypeId` | Component type discriminator | Always `23` for footprintWorkflow (contrast `18` footprintFlow, `22` customType, `19` footprintDatasource) |
 | `apiSettingName` | API binding | `"FootprintApi"` |
 | `start` / `nodes` | Flow graph | One `ExecuteCodeActivity` node is the norm — see [Common Patterns](#common-patterns) |
 | `inParams` | Platform-supplied input | Shape is dictated by the slot. Typically a single `Input` of `objectType` `FootPrintWorkflow.<Slot>InputBaseWL` |
 | `outParams` | Platform-consumed output | Some slots require one (allocation returns `HardAllocationResponse`); many are pure side-effecting and use `null` |
 | `description` | Searchable description | **Hard cap 256 characters** — see the gotcha below |
-| `accessModifier` | Visibility | `public`; see [`defaults.md`](../datex-studio-conventions/defaults.md) |
+| `accessModifier` | Visibility | `public`; see [`defaults.md`](../../../skills/datex-studio/datex-studio-conventions/defaults.md) |
 
 ### `description` is capped at 256 characters
 
@@ -210,7 +210,7 @@ if (check?.meetsMinimumVersion) { request.CartonizationStrategyWorkflowCode = co
 
 1. **`workflowGUID` and `workflowDefinitionId` copied from the real slot**, never invented — a
    replacement is drop-in only if the GUID matches what callers already pass.
-2. **`configurationTypeId` is `23`.** See [`file-format.md`](../datex-studio-conventions/file-format.md).
+2. **`configurationTypeId` is `23`.** See [`file-format.md`](../../../skills/datex-studio/datex-studio-conventions/file-format.md).
 3. **`description` ≤ 256 characters** — the save fails with an unnamed `DbUpdateException` otherwise,
    and `validate` will not warn you.
 4. **Input shape enumerated against the compiler**, not assumed from a legacy definition or a
@@ -225,8 +225,8 @@ if (check?.meetsMinimumVersion) { request.CartonizationStrategyWorkflowCode = co
 
 ## Cross-References
 
-- [`calling-conventions.md`](../datex-studio-runtime/calling-conventions.md) — action-tier rules and the CRUD actions
-- [`actions.md`](../action-creator/references/actions.md) — the component the workflow should delegate to
-- [`runtime-globals.md`](../datex-studio-runtime/runtime-globals.md) — `$flows`, `$api`, `$utils`, `$types`
-- [`file-format.md`](../datex-studio-conventions/file-format.md) — `configurationTypeId` table and file layout
-- [`configuration-roundtrip.md`](configuration-roundtrip.md) — the dxs get → extract → validate → upsert loop
+- [`calling-conventions.md`](../../../skills/datex-studio/datex-studio-runtime/calling-conventions.md) — action-tier rules and the CRUD actions
+- [`actions.md`](../../../skills/datex-studio/action-creator/references/actions.md) — the component the workflow should delegate to
+- [`runtime-globals.md`](../../../skills/datex-studio/datex-studio-runtime/runtime-globals.md) — `$flows`, `$api`, `$utils`, `$types`
+- [`file-format.md`](../../../skills/datex-studio/datex-studio-conventions/file-format.md) — `configurationTypeId` table and file layout
+- [`configuration-roundtrip.md`](../../../skills/datex-studio/datex-studio-shared/configuration-roundtrip.md) — the dxs get → extract → validate → upsert loop

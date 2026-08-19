@@ -1,6 +1,6 @@
 # Custom Angular Components
 
-Custom angular components (configurationTypeId **36**) are the platform's newest UI component type: a free-form Angular component — class body, HTML template, and SCSS — embedded directly in a configuration. Unlike declarative UI components (hubs, grids, forms, editors), nothing is generated from schema: the author writes real Angular code and the platform compiles it into the app shell. Data access flows through the same `$datasources` surface as generated components. See [`../datex-studio-conventions/file-format.md`](../datex-studio-conventions/file-format.md) for the general file-format rules and [`../datasource-creator/references/datasources.md`](../datasource-creator/references/datasources.md) for the backing-datasource taxonomy.
+Custom angular components (configurationTypeId **36**) are the platform's newest UI component type: a free-form Angular component — class body, HTML template, and SCSS — embedded directly in a configuration. Unlike declarative UI components (hubs, grids, forms, editors), nothing is generated from schema: the author writes real Angular code and the platform compiles it into the app shell. Data access flows through the same `$datasources` surface as generated components. See [`../datex-studio-conventions/file-format.md`](../../../skills/datex-studio/datex-studio-conventions/file-format.md) for the general file-format rules and [`../datasource-creator/references/datasources.md`](../../../skills/datex-studio/datasource-creator/references/datasources.md) for the backing-datasource taxonomy.
 
 ## Purpose & When to Use
 
@@ -53,7 +53,7 @@ The branch is the source of truth; the conventional export layout:
 | `inParams` | Injected as `this.inParams.<id>` | Fat parameter descriptors, snake_case ids |
 | `outParams` | Observed `[]` | _TODO_: whether non-empty outParams are supported |
 | `vars` / `events` | Observed `null` | _TODO_ |
-| `accessModifier` | `public` per [defaults](../datex-studio-conventions/defaults.md) | |
+| `accessModifier` | `public` per [defaults](../../../skills/datex-studio/datex-studio-conventions/defaults.md) | |
 
 **Line endings: all three code strings use LF (`\n`) — never CRLF.** This differs from many action/function code strings, which are CRLF in several packages.
 
@@ -92,7 +92,7 @@ Observed consumers:
 Two constraints that follow from this, both worth knowing before you design the payload:
 
 - **The caller must reference the component's package.** `$shell.<Package>` only carries components from packages the calling app references, and it resolves against the **published** release of that package — so a brand-new component does not appear to its consumers until the owning package publishes. Validation fails with `Property 'open<referenceName>Dialog' does not exist on type '{ … }'`, and the error usefully enumerates the sibling `open*` methods that *do* exist, which is how you confirm the package reference itself is fine and only the component is missing.
-- **Keep inParams primitive.** Custom angular components are UI components, so the [UI-component enum FQN constraint](../type-definition-creator/references/type-definitions.md#ui-components-cannot-reference-custom-enums-in-vars--inparams--outparams) applies to their `inParams`. Objects and maps are best passed as JSON strings and parsed inside the component (`filters_json` above), which also keeps the calling dispatch code type-stable.
+- **Keep inParams primitive.** Custom angular components are UI components, so the [UI-component enum FQN constraint](../../../skills/datex-studio/type-definition-creator/references/type-definitions.md#ui-components-cannot-reference-custom-enums-in-vars--inparams--outparams) applies to their `inParams`. Objects and maps are best passed as JSON strings and parsed inside the component (`filters_json` above), which also keeps the calling dispatch code type-stable.
 
 ## Common Patterns
 
@@ -138,7 +138,7 @@ No dialog service is verified in this component type; use a two-click confirm (f
 
 ## Cross-References
 
-- [`../datasource-creator/references/flow-datasources.md`](../datasource-creator/references/flow-datasources.md) — the flows-datasource bridge shape used for UI-triggered mutations.
-- [`../datex-studio-runtime/calling-conventions.md`](../datex-studio-runtime/calling-conventions.md) — UI-tier rule (UI cannot invoke actions directly).
-- [`../datex-studio-conventions/defaults.md`](../datex-studio-conventions/defaults.md) — description/accessModifier defaults.
+- [`../datasource-creator/references/flow-datasources.md`](../../../skills/datex-studio/datasource-creator/references/flow-datasources.md) — the flows-datasource bridge shape used for UI-triggered mutations.
+- [`../datex-studio-runtime/calling-conventions.md`](../../../skills/datex-studio/datex-studio-runtime/calling-conventions.md) — UI-tier rule (UI cannot invoke actions directly).
+- [`../datex-studio-conventions/defaults.md`](../../../skills/datex-studio/datex-studio-conventions/defaults.md) — description/accessModifier defaults.
 - Reference implementation: `src/SalesOrders/custom-angular/outbound_command_center-customAngularComponent.json` (id 9965353, SalesOrders branch 88904).
