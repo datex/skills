@@ -109,7 +109,9 @@ Consult references/selectors.md:
   - enum dropdown — flow-type backing iterating $types.<Package>.<enum>
     with formatKey helpers, getList/getByKeys parity required
 Backing-datasource source:
-  - existing `-datasource.json` -> wrap it; verify keyDef/outParams
+  - existing `-datasource.json` -> wrap it; verify keyDef/outParams; flow-type
+    backing must be the keyed-collection shape (getListFlow + getByKeysFlow
+    populated, non-empty keyDef) — getList-only cannot resolve selected labels
   - existing `-footprintDatasource.json` (FPDS) -> NOT ALLOWED as backing;
     wrap the FPDS in a flow-type `-datasource.json` that calls through,
     or invoke `datasource-creator` for a fresh one
@@ -201,7 +203,7 @@ Consult [references/selectors.md](references/selectors.md) before authoring. Two
 
 **Backing source.** Where does the option set come from?
 
-- **Existing `-datasource.json`** — wrap it. Verify `keyDef` and `outParams` shape; the selector's `datasourceKeyDef` and `configOutParameters` must mirror them.
+- **Existing `-datasource.json`** — wrap it. Verify `keyDef` and `outParams` shape; the selector's `datasourceKeyDef` and `configOutParameters` must mirror them. The branch's server-side usage gate blocks publish if the backing datasource doesn't implement `getList` and `getByKeys` — the same keyed-collection shape this section requires.
 - **Existing `-footprintDatasource.json` (FPDS)** — **not allowed as the selector's backing**. Hard platform rule. Wrap the FPDS in a flow-type `-datasource.json` that calls through, or invoke `datasource-creator` for a fresh datasource that returns the same shape.
 - **No datasource yet** — invoke `datasource-creator`. For an OData-backed datasource, invoke `schema-explorer` first to confirm the entity, the display-label field, and any filter fields exist in the Footprint schema.
 

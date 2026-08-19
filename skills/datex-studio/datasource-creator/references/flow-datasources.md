@@ -13,23 +13,68 @@ The flow query type can appear inside either component variant. The structure is
 
 Note the `apiSettingName` difference: flow-type `-datasource.json` sets it to `null` (no OData endpoint to resolve), while flow-type `-footprintDatasource.json` sets it to `"FootprintApi"`. OData-type datasources always use `"FootprintApi"` in both variants.
 
-## Two Execution Shapes
+## Three Execution Shapes
 
-Flow datasources come in two distinct execution shapes. Pick based on how the datasource will be called.
+Flow datasources come in three legitimate shapes. The generated methods (`get` / `getList` /
+`getByKeys`) exist **iff the corresponding flow slot is populated** — nothing derives them from
+the flags — so slot population must match `resultIsCollection` / `keyDef` exactly. The Studio
+designer enforces this imperatively (`createMissingFlows` / `clearUnusedFlows`); configs
+authored outside the designer must get it right by construction. `dxs datasource generate-flow`
+rejects every violation at authoring time; `dxs datasource validate` reports hand-edit
+corruption (`hasKey`↔`keyDef` mismatch, `getByKeysFlow` without `keyDef`, collection slots on
+a single-result config) as errors — which make it exit non-zero — and legacy shapes older CLI
+versions generated (`getFlow` on a collection, a collection without `getListFlow`, a keyed
+collection without `getByKeysFlow`) as advisory warnings, so deployed configs keep validating.
+A **missing `resultIsCollection`** is an error rather than a warning even though older CLI
+versions produced it: the server refuses to save a flow datasource without the flag
+(`Use in ... is required`), so always stamp it. The same lint runs on the FootprintDatasource
+variant (`-footprintDatasource.json`) too — and there it is the *only* shape check, since the
+server-side usage gate does not reach FPDS references.
 
-| Shape | `getFlow` | `getListFlow` | `getByKeysFlow` | Typical use |
-|---|---|---|---|---|
-| **Paginated list + key lookup** | `null` | populated | populated | Dropdown selectors, grid datasources — caller needs paginated browsing and key-based round-trips |
-| **Single-result** | populated | `null` | `null` | Editor datasources, computed utilities — caller passes inputs and gets one object back |
+| Shape | `resultIsCollection` | `keyDef` | `getFlow` | `getListFlow` | `getByKeysFlow` | Suitable consumers |
+|---|---|---|---|---|---|---|
+| **Single-result** | `false` | optional (best practice) | populated | `null` | `null` | Editor, form, large-number/gauge widget, `oneToOne` linked DS |
+| **Collection, unkeyed** | `true` | empty | `null` | populated | `null` | List, calendar, pie-chart widget, `oneToMany` linked DS — **not** grid/selector |
+| **Collection, keyed** | `true` | required (`isKey` on output type) | `null` | populated | populated | Grid, selector, `oneToOneWithMerge` linked DS |
 
-**Shapes are mutually exclusive.** A flow datasource implements **one** shape — either the paginated pair (`getListFlow` + `getByKeysFlow`) or the single-result slot (`getFlow`) alone — never all three. The unused slots are `null`. A file with all three populated is malformed.
+Any other slot combination is malformed: a single-result shape with `getListFlow` or
+`getByKeysFlow` populated, a single-result shape with no `getFlow` at all (the config would
+generate no methods), a collection with `getFlow` populated, a collection without
+`getListFlow`, or `getByKeysFlow` without a `keyDef`.
 
-`onInitFlow` is `null` in both shapes unless explicit initialization logic is needed.
+**Why grid/selector require the keyed shape:** both call `getByKeys` at runtime — the grid to
+re-fetch a single row after an action, the selector to resolve the display label of an
+already-selected value. `getByKeys` only exists when the slot is populated and `keyDef` is
+non-empty.
+
+### Reading suitability off an existing flow datasource
+
+When wiring an existing flow datasource into a consumer, read its implemented methods:
+
+- has `get` only → editor / form / single-widget material
+- has `getList` but no `getByKeys` → list / calendar / pie-chart / `oneToMany` material; **not**
+  grid/selector
+- has `getList` + `getByKeys` (and a `keyDef`) → grid / selector material, plus everything on the
+  line above — those consumers need only `getList`
+
+List and calendar call `getList` and never `getByKeys`, so they sit with the unkeyed consumers:
+requiring a `keyDef` of them would reject datasources they can use perfectly well. The server-side
+usage gate mirrors this split exactly.
+
+`onInitFlow` is `null` in all shapes unless explicit initialization logic is needed.
 
 ### Picking a Shape
 
-- **Paginated + key lookup** is the shape for selector backings and grid datasources. `resultIsCollection: true`, `outParams[0].isCollection: true`. The `getListFlow` receives platform-injected `$top` / `$skip` / `$orderby` / `$filter` params; the `getByKeysFlow` receives `$keys`.
-- **Single-result** is the shape for datasources invoked with a specific set of inputs that produce one output object. `resultIsCollection: false`, `outParams[0].isCollection: false`. No pagination inputs, no `$keys`.
+- **Collection, keyed** is the shape for selector backings and grid datasources.
+  `resultIsCollection: true`, `outParams[0].isCollection: true`. The `getListFlow` receives
+  platform-injected `$top` / `$skip` / `$orderby` / `$filter` params; the `getByKeysFlow`
+  receives `$keys`.
+- **Collection, unkeyed** is the shape for consumers that only ever enumerate — pie-chart
+  widgets and `oneToMany` linked-datasource targets. Same `getListFlow` contract, no
+  `getByKeysFlow`.
+- **Single-result** is the shape for datasources invoked with a specific set of inputs that
+  produce one output object. `resultIsCollection: false`, `outParams[0].isCollection: false`.
+  No pagination inputs, no `$keys`.
 
 ### Keys in Single-Result Shape
 
@@ -93,18 +138,18 @@ const { result } = await $datasources.Acme.fpds_get_widget_info.get({ });
 await $datasources.Acme.ds_widget_options.getByKeys.get({ $keys: KEYS });
 ```
 
-The rule is uniform across both component variants (`-datasource.json` called from functions, `-footprintDatasource.json` called from actions) and across both execution shapes. Flow referenceNames (`getList`, `getByKeys`, `get`) are the only method names on the datasource handle.
+The rule is uniform across both component variants (`-datasource.json` called from functions, `-footprintDatasource.json` called from actions) and across all three execution shapes. Flow referenceNames (`getList`, `getByKeys`, `get`) are the only method names on the datasource handle.
 
 ## Top-Level Datasource Fields
 
-Same for both shapes:
+Fields below apply across all three shapes; shape-dependent values are called out inline:
 
 - `inParams` — only the component-specific inputs (e.g. `full_text_search`, or editor-specific id inputs). The platform-injected params (`$top`, `$skip`, `$keys`) are **not** declared at the top level — they appear only inside the respective flow's `inParams`.
-- `outParams` — `[{ id: "result", type: "object", isCollection: <bool>, objectTypeDef: [...] }]` (same simple descriptor as OData datasources). `isCollection` is `true` for paginated shape, `false` for single-result.
-- `keyDef` — the key field(s) of the result. Mandatory for paginated shape; author's choice for single-result shape (empty array `[]` when omitted).
+- `outParams` — `[{ id: "result", type: "object", isCollection: <bool>, objectTypeDef: [...] }]` (same simple descriptor as OData datasources). `isCollection` is `true` for both collection shapes (unkeyed and keyed), `false` for single-result.
+- `keyDef` — the key field(s) of the result. **Required** (non-empty) for the collection-keyed shape; **must be empty** (`[]`) for the collection-unkeyed shape; author's choice for single-result (empty array `[]` when omitted — see [Keys in Single-Result Shape](#keys-in-single-result-shape)).
 - `queryOptionsObjectTypeDef` — the **entity definition**: the authoritative result shape / output contract (see [The entity definition is the output contract](#the-entity-definition-is-the-output-contract) below). Flow datasources use the fat parameter-descriptor boilerplate here (with `required`/`oneOf`/etc.), unlike OData datasources which use the simple descriptor. Must match the surrounding flow's `outParams[0].objectTypeDef` exactly.
-- `resultIsCollection`: `true` for paginated shape, `false` for single-result. **`hasResult`**: `true`. **`hasKey`**: matches `keyDef` presence.
-- The unused flow slot is `null`: paginated shape sets `getFlow: null`; single-result sets `getListFlow: null` and `getByKeysFlow: null`.
+- `resultIsCollection`: `true` for both collection shapes (unkeyed and keyed), `false` for single-result. **`hasResult`**: `true` in all three shapes. **`hasKey`**: matches `keyDef` presence — always `true` for collection-keyed, always `false` for collection-unkeyed, author's choice for single-result.
+- The unused flow slot(s) are `null`: both collection shapes set `getFlow: null`; the collection-unkeyed shape additionally leaves `getByKeysFlow: null` (only `getListFlow` is populated); single-result sets `getListFlow: null` and `getByKeysFlow: null`.
 - `onInitFlow: null` unless initialization logic is needed.
 - All OData-specific fields (`paths`, `queryOptions`, `outputResultAsSingleObject`, `allSelectedIs*`, `dynamicOrderBys`, `dynamicFilters`, `linkedDatasources`, `customColumns`) are `null`.
 - `apiSettingName`: `null` for `-datasource.json`, `"FootprintApi"` for `-footprintDatasource.json`.
@@ -167,7 +212,11 @@ A common use case is exposing a custom enum type as a dropdown datasource. The p
 
 ## Canonical Skeletons
 
-Two skeletons below — one for each execution shape. Single-line minified JSON in practice; shown expanded here for readability.
+Two skeletons below, covering the collection-keyed shape (the "Paginated Shape" skeleton, which
+also covers key lookup) and the single-result shape. The collection-unkeyed shape is not shown
+as its own skeleton — it is a small variant of the paginated skeleton (see the note after the
+`getByKeysFlow` skeleton for how to derive it). Single-line minified JSON in practice; shown
+expanded here for readability.
 
 All flow-style datasources share a common null-slot layout — the parts that vary per use case are the `code` strings, `inParams` (component-specific inputs), `outParams`/`objectTypeDef` (result shape), `keyDef`, and which flow slot is populated.
 
@@ -291,6 +340,11 @@ All flow-style datasources share a common null-slot layout — the parts that va
   "accessModifier": "public"
 }
 ```
+
+**Deriving the collection-unkeyed shape from this skeleton:** drop the `getByKeysFlow` block
+entirely (set the top-level `getByKeysFlow: null`), set `keyDef: []` and `hasKey: false` on the
+top-level structure, and remove the `getByKeysFlow` skeleton. Everything else — the top-level
+structure and the `getListFlow` skeleton — is unchanged.
 
 ### Single-Result Shape (getFlow)
 
