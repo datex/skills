@@ -6,14 +6,15 @@ Detailed syntax for `dxs report` commands used during report authoring. SKILL.md
 
 - [Batch Operations](#batch-operations)
 - [Tablix Creation](#tablix-creation)
+  - [Table Cell & Column Management](#table-cell--column-management)
 - [Tablix Row Grouping](#tablix-row-grouping)
 - [Tablix Add Row](#tablix-add-row)
 - [Image Handling](#image-handling)
-- [Table Cell & Column Management](#table-cell--column-management)
 - [DataSet Field Management](#dataset-field-management)
 - [Element Editing (set/move/remove)](#element-editing)
 - [PageHeader & PageFooter](#pageheader--pagefooter)
 - [Validation](#validation)
+- [Report Schema Commands](#report-schema-commands)
 
 ## Batch Operations
 
@@ -142,7 +143,9 @@ dxs report add tablix <file> --name Orders --dataset ds_orders --columns '2in,1.
 
 This generates the correct RowHierarchy: header (`KeepWithGroup: "After"`), detail (Group), footer (`KeepWithGroup: "Before"`). Prefer footer rows over standalone textboxes for totals — they stay anchored to the table.
 
-### Post-creation cell edits
+### Table Cell & Column Management
+
+Editing an existing table — the table must already exist (created above or in the report you loaded).
 
 ```bash
 # Update a specific cell's value or style
