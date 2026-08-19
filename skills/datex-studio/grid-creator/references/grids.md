@@ -415,8 +415,8 @@ Expanded navigation properties carry their own per-expand `selects`:
 
 ```json
 "expands": [
-  { "property": "Address", "queryOptions": { "selects": ["Line1", "City", "Country", ...] } },
-  { "property": "Type",    "queryOptions": { "selects": ["Name"] } }
+  { "property": "Address", "queryOptions": { "selects": [{ "property": "Line1" }, { "property": "City" }, ...] } },
+  { "property": "Type",    "queryOptions": { "selects": [{ "property": "Name" }] } }
 ]
 ```
 

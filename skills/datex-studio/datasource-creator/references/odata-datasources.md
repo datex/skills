@@ -41,7 +41,7 @@ Most fields are **optional** — only include what you need. A minimal queryOpti
 
 ```
 {
-    selects: ["Field1", "Field2", ...],          // plain array of OData property names
+    selects: [{ "property": "Field1" }, ...],    // DSSelectConfig objects (see contract note below)
     filters: [ <filter expression> ],             // optional, see below
     orderBys: [ { property: ["Field"], order: "asc" | "desc" } ],  // optional
 
@@ -191,6 +191,18 @@ The same applies to nested `objectTypeDef` entries inside expanded navigation pr
 
 ### `queryOptions.selects` Is the Runtime Data Shape
 
+> **Contract note — `selects` entries are objects, not strings.** Since the server's
+> Tailored Datasource change (merged 2026-07-31), every `selects` entry — top-level and
+> inside `expands[].queryOptions` — binds to a `DSSelectConfig` object:
+> `{ "property": "<Name>" }` (optional `removed`, `fromBaseConfiguration`). The legacy
+> bare-string form (`"selects": ["Id"]`) is **rejected** by validate/upsert with
+> `DXS-API-400` `Error converting value "…" to type '…DSSelectConfig'`. `dxs datasource
+> generate` emits the object form (CLI versions after 0.4.13; older CLIs emit strings and
+> fail against current servers — upgrade rather than hand-editing the JSON). When you hit a
+> contract error like this, derive the expected shape from the validate error plus an
+> existing valid config on the branch (via `dxs configuration get`) — never from the
+> platform source.
+
 The type-metadata locations (`queryOptionsObjectTypeDef`, `outParams[0].objectTypeDef`, and on grids also `datasourceConfig.configOutParameters[0].objectTypeDef`) are **compile-time contracts** — they tell the platform what fields the query *promises* to return. The actual HTTP request is driven by `queryOptions.selects`, which is the literal OData `$select` clause.
 
 A field declared in every type-metadata location but missing from `queryOptions.selects` imports cleanly, types cleanly, and is **undefined at runtime**. The query never asked for it. Every consumer (grid column bound to `$row.entity.<Field>`, flow reading `$row.entity.<Field>`, expand-backed nested access) silently returns `undefined`, with no import-time error to warn you.
@@ -260,7 +272,7 @@ The skeleton below is a collection query against a single-key entity. Placeholde
     "hasSkip": null,
     "skip": null,
     "count": null,
-    "selects": ["Id", "<Field>"],
+    "selects": [{ "property": "Id" }, { "property": "<Field>" }],
     "orderBys": null,
     "filters": [{
       "hasCondition": null,

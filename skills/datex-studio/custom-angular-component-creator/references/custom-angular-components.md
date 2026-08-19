@@ -167,7 +167,8 @@ Because only your candidate is real, the full typed surface is still there for a
 dxs ng preview <folder>              # serve locally + screenshot -> <folder>/render.png
 dxs ng preview <folder> -o out.png   # custom output path
 dxs ng preview <folder> --refresh -b <branch>   # after a manifest/IO change
-dxs ng preview <folder> --clean      # kill a stuck server and rebuild
+dxs ng preview <folder> --clean      # kill a stuck server + reset the browser session, then rebuild
+dxs ng stop <folder>                 # stop-only disposal: server + browser session + lock (idempotent)
 ```
 
 `preview` copies `mocks/` into the harness assets, runs `npm install` once, warms `ng serve`, and drives a headless browser to screenshot the component. Read the PNG, compare to the target, edit, re-run — the loop is the acceptance test for bespoke UI. Type/template errors surface in the render (the real component compiles).
@@ -176,7 +177,32 @@ dxs ng preview <folder> --clean      # kill a stuck server and rebuild
 
 **A full-page/dashboard CAC's `render.png` may be capped to one viewport.** The platform shell's global stylesheet forces `html, body { overflow: hidden }`, so `preview`'s full-page screenshot can only capture the outer document box (commonly ~569px tall) — it can't see past your own inner `overflow-y: auto` container no matter how much content that container holds. This is a platform-shell constraint, not a bug in your layout. To confirm content beyond the first viewport renders correctly, drive `agent-browser` directly against the harness's served port with a taller viewport rather than relying on `render.png` alone.
 
-**A failed screenshot is not a failed render.** If `preview` errors with `DXS-RPT-043` (`agent-browser 'wait' timed out`), the component usually compiled and served fine — the browser wait/capture step is the flake, not your code. A reused warm `ng serve` can also serve a **stale** build (edits not yet picked up). Before assuming your component is broken: re-run with `--clean` (fresh serve), then confirm the real state by opening the served port (from `<folder>/.dxs-serve.lock`) with `agent-browser` and checking the mounted element actually has content — `agent-browser open http://localhost:<port>` then `agent-browser get html app-<referenceName>`. A non-empty `app-<ref>` with a blank capture is a screenshot-timing issue; a genuinely empty one points at your component/data. (Contrast: a real compile failure shows up as `ng serve did not become ready`, not `DXS-RPT-043`.)
+**A failed screenshot is not a failed render.** If `preview` errors with `DXS-NG-053` (`agent-browser 'wait' timed out`), the component usually compiled and served fine — the browser wait/capture step is the flake, not your code. (The wait step has 90s headroom to absorb the first compile, so a timeout usually means something real is stuck, not just a slow build.) A reused warm `ng serve` can also serve a **stale** build (edits not yet picked up). Before assuming your component is broken: re-run with `--clean` (fresh serve + fresh browser session), then confirm the real state by opening the served port (from `<folder>/.dxs-serve.lock`) with `agent-browser` and checking the mounted element actually has content — `agent-browser open http://localhost:<port>` then `agent-browser get html app-<referenceName>`. A non-empty `app-<ref>` with a blank capture is a screenshot-timing issue; a genuinely empty one points at your component/data. (Contrast: a real compile failure shows up as `DXS-NG-042` `ng serve did not become ready`, not `DXS-NG-053`.)
+
+### Preview error codes & session lifecycle
+
+`dxs ng preview` raises its own error codes for the screenshot toolchain (older dxs ≤0.4.13 leaked report-preview codes `DXS-RPT-042/043` here — if you see those, the CLI is outdated):
+
+| Code | Meaning | First move |
+|---|---|---|
+| `DXS-NG-045` | folder not materialized (no `angularapp/`) | `dxs ng create` / `dxs ng pull` |
+| `DXS-NG-043` | `npm install` failed in the harness | check Node/npm; `--clean` |
+| `DXS-NG-042` | `ng serve` didn't become ready | extend `DXS_NG_SERVE_TIMEOUT`; re-run; `--clean` if it persists (on CLI ≤0.4.13 also caused by a relative folder argument — pass an absolute path) |
+| `DXS-NG-047` | `push` datasource connection preflight failed (datasource missing on branch, or its `apiSettingName` not defined in branch settings) | regenerate the datasource against this branch; wire a connection in Studio; `--skip-connection-check` for mock-only dev |
+| `DXS-NG-048` | `pull` target folder already exists | `preview --refresh` to keep local work, or `pull --force` to take server truth |
+| `DXS-NG-049` | `pull --force` refused/failed to overwrite (not a CAC working copy, or files still locked) | check the target path; close whatever holds files, retry |
+| `DXS-NG-050` | agent-browser not installed | `npm i -g agent-browser && agent-browser install` |
+| `DXS-NG-053` | agent-browser step timed out | see "failed screenshot" above |
+| `DXS-NG-055` | browser build missing/incompatible | `agent-browser install` |
+| `DXS-NG-052` | other agent-browser failure | `--clean`, re-run; report if reproducible |
+
+**Session lifecycle (self-healing):** each preview runs agent-browser in a transient named session (`dxs-ng-preview-<port>`), torn down completely (daemon, Chrome tree, `~/.agent-browser/<session>.*` state files) after every run. The historical Windows named-session launch flake ("Chrome exited early … without writing DevToolsActivePort") is **auto-retried once** after tearing down the wedged session — you only see it if the retry also fails. `--clean` additionally reaps stale `dxs-ng-preview-*` state files left by crashed runs. Net effect: **a wedged preview is reset with `--clean`; manual killing of Chrome/daemon PIDs or hand-deleting `~/.agent-browser` files is never required** — if you find yourself needing that, it's a CLI regression to report (see [SKILL.md → CLI-first — no workarounds](../SKILL.md#cli-first--no-workarounds-hard-rule)).
+
+**Disposal:** the warm dev server survives across previews by design (fast re-previews). When done, `dxs ng stop <folder>` tears down the server (identity-checked PID+image kill), the agent-browser session, and the lock file — idempotent, safe to call unconditionally. `--clean` is the same teardown followed by a fresh serve (reset); `pull --force` runs it implicitly before replacing the working copy. Manual lock-reading / `taskkill` is never required on a CLI that has `stop`.
+
+**Remaining known gap:** leaked `agent-browser-chrome-*` temp profile dirs can still accumulate under `%LOCALAPPDATA%\Temp` — a toolchain gap to report, not to script around.
+
+**Degraded-but-honest path when the screenshot step stays blocked:** the visual loop is the acceptance test, but it is not the only gate — `ng serve` becoming ready proves the component compiles (that's the step *before* the browser), and `dxs ng push` still runs the server-side validator. If the user agrees to proceed without the screenshot, push, then say explicitly that the visual check was skipped and the rendered component must be eyeballed in Studio. Never present a push made this way as visually verified.
 
 ## Prerequisites
 

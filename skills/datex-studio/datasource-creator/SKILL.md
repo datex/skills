@@ -381,7 +381,7 @@ For datasources, the primary scope symbols are `$entity`, `$ccentity`, and `$dat
 dxs datasource validate <file.json> --branch <branch_id>
 ```
 
-Validates the datasource config against the branch. **Run for BOTH standalone and owned modes** before proceeding to upsert or report upload.
+Validates the datasource config against the branch. **Run for BOTH standalone and owned modes** before proceeding to upsert or report upload. This command validates the datasource in isolation — it does **not** catch consumer-shape mismatches, and a mis-shaped datasource with no consumer still validates clean here. The branch's separate server-side usage gate (grid/selector require `getList` + `getByKeys`; editor/form require `get` on a single result) only fires when the *consumer* is validated (`dxs configuration validate <consumer type>`) or at publish — not from this command.
 
 ## Standalone Completion
 
@@ -463,6 +463,7 @@ DataSet.Name = "ds_my_report"                  # RDLX-JSON
 | Using manager connection name as `--api-setting-name` | Use app-level `name` from `branch settings`, or omit the flag entirely and let the CLI auto-resolve from the branch's AppConfig |
 | Looking for `apiConnectionId` in `branch settings` output | There is no `apiConnectionId`. A connection setting has `name`, `settingType: 1`, `apiConnectionType: 1`, `apiConnectionName` (the connection's name), and `value: null`. Match your `-c` connection to the setting whose `apiConnectionName` equals its name, then use that setting's `name` for `--api-setting-name` (or just omit the flag and auto-resolve) |
 | Retrying blindly when `generate` fails to resolve the API setting | A `DXS-DS-021` error means your `-c` connection isn't wired to a Footprint API setting on the branch. Pass `--api-setting-name` explicitly (from `dxs source branch settings`), or wire the connection into the branch's AppConfig in Studio -- don't re-run the same command |
+| Copying a datasource config JSON from another branch/app and upserting it as-is | `apiSettingName` is **app-scoped** -- the copied value likely names a setting the target app never defined. Upsert accepts it silently; Studio then flags "Missing API Connection setting `<name>`" (and on CACs, `dxs ng push` fails the `DXS-NG-047` preflight). Check `dxs source branch settings <target-branch>` first, or regenerate against the target branch with `dxs datasource generate` (it auto-resolves; `DXS-DS-021` if no connection is wired). If the app has no API connection at all, wire one in Studio -- the CLI never creates connections |
 | `{Param}` instead of `${$datasource.inParams.Param}` in filter | `--detect-params` requires template literal syntax -- simple `{curly braces}` are silently ignored |
 | Using only `--dynamic-filter` for required params | Dynamic filters are optional UI filters -- use `--detect-params` with template literals for required params |
 | Not verifying `in_params` after upsert | Always run `datasource-fields` and confirm `in_params` is populated, not empty |
