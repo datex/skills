@@ -50,6 +50,13 @@ Most fields are **optional** — only include what you need. A minimal queryOpti
 }
 ```
 
+> **orderBys entries do NOT support `hasCondition`/`condition`** (unlike `filters` entries). The runtime
+> query builder silently ignores condition keys and emits EVERY entry into `$orderby` — duplicate
+> properties then 400 at runtime (`Duplicate property named 'X' is not supported in '$orderby'`) while
+> `dxs configuration validate` passes. Verified 2026-07-22 (Totes control-center datasources). For
+> caller-selectable sort orders, author one datasource per sort order and let the caller pick the
+> datasource — do not invent conditional orderBys.
+
 Sibling files may explicitly set the optional fields to `null` (the working `fpds_get_orders_by_order_ids` does); both styles import successfully. When building from scratch, prefer the minimal shape — fewer fields means fewer chances of authoring a wrong null vs `[]` etc.
 
 ### `hasTop` Is Tri-State — `false` Suppresses Caller-Passed `$top`
@@ -60,7 +67,7 @@ Sibling files may explicitly set the optional fields to `null` (the working `fpd
 - `true`: the platform applies a literal cap from `queryOptions.top` (e.g. `"1"` for single-object queries) on every call, regardless of what the caller passes.
 - `false`: **the platform actively suppresses the caller's `$top`** — the OData URL is built with no `$top` clause. This is almost never what you want. The OData server then returns its configured default page (typically ~5000 rows) regardless of `getList({$top: N})`.
 
-The bug pattern: an author meant "no top by default" and wrote `hasTop: false` (intuitive English, wrong API contract). The datasource silently ignores `$top` from callers, and a per-LP-loop that intended `$top: 50` ends up pulling thousands of rows per call. Performance degrades but no error fires. Diagnose by checking the actual response row count vs the requested `$top`.
+The bug pattern: an author meant "no top by default" and wrote `hasTop: false` (intuitive English, wrong API contract). The datasource silently ignores `$top` from callers, and a per-LP-loop that intended `$top: 50` ends up pulling thousands of rows per call. Performance degrades but no error fires. Diagnose by checking the actual response row count vs the requested `$top` — when a datasource fetches far more rows than the caller asked for, check `hasTop` first.
 
 **Rule:** for collection queries that should accept caller-paginated `$top`, leave `hasTop` as `null` (or omit). Only set `hasTop: true` for fixed-cap queries (single-object lookups with `top: "1"`). Never set `hasTop: false`.
 
@@ -109,6 +116,13 @@ The `value` is a **TypeScript template literal — stored as a string with the b
   - `` `Id eq ${$utils.odata.formatNumber($datasource.inParams.shipment_id)}` ``
   - `` `Id in ${$utils.odata.formatNumberArray($datasource.inParams.order_ids)}` ``
   - `` `Name eq ${$utils.odata.formatString($datasource.inParams.name)}` ``
+  - `` `contains(Name, ${$utils.odata.formatString($datasource.inParams.full_text_search)})` ``
+
+  **The formatters supply their own delimiters.** `formatString` emits the surrounding single quotes — never write `'${$utils.odata.formatString(...)}'`. The `format*Array` variants emit the wrapping parentheses (`formatNumberArray` produces `(1,2,3)`) — never wrap the call in `(...)`. Double-delimiting produces malformed OData just as surely as hand-quoting does.
+
+  Beyond syntax, `formatString` escapes embedded quotes that a hand-quoted `'${value}'` would not — a user typing `O'Brien` into a full-text search box breaks the unescaped form at runtime *and* opens an OData injection path.
+
+  **Working examples are not proof of correctness.** Hand-quoted filter values can import cleanly and behave correctly under benign input, so an existing component on the branch may carry the bug undetected. When copying a datasource skeleton from another component, audit its filter expressions against this rule independently rather than trusting the template.
 
 - For navigation collections, use OData lambda operators: `` `ShipmentOrderLookups/any(sol: sol/ShipmentId in ${$utils.odata.formatNumberArray($datasource.inParams.shipment_ids)})` ``. The lambda variable (`sol` here) is arbitrary.
 
@@ -139,7 +153,7 @@ The result shape is described **twice** and the two copies must stay in sync:
 
 Both use a **simpler property descriptor** than interface customTypes — only `id`, `type`, `isCollection`, and (for nested objects) `objectTypeDef`. **No** `required` / `isSecured` / `oneOf` / `fromBaseConfiguration` / `objectType` / `isConstant` / `constantValue` / `description` fields. Nested objects are described inline; there is no reference-by-name to other interfaces.
 
-**This applies to `outParams[0]` itself, not just its nested `objectTypeDef`.** A common trap is to author the top-level outParam with the fat interface-style descriptor and only nest the simple shape inside. The platform import will fail with `Cannot read properties of undefined (reading 'type')` when this happens. The full `outParams` array should look exactly like `[{ "id": "result", "type": "object", "isCollection": <bool>, "objectTypeDef": [ ... simple descriptors ... ] }]` — nothing else.
+**This applies to `outParams[0]` itself, not just its nested `objectTypeDef`.** A common trap is to author the top-level outParam with the fat interface-style descriptor and only nest the simple shape inside. The platform import will fail with `Cannot read properties of undefined (reading 'type')` when this happens. Branch-level validation (`dxs configuration validate`) does **not** catch this — validation and import are separate code paths — so a config that validates cleanly can still be rejected at import. The full `outParams` array should look exactly like `[{ "id": "result", "type": "object", "isCollection": <bool>, "objectTypeDef": [ ... simple descriptors ... ] }]` — nothing else.
 
 ```
 {"id":"Id","type":"number","isCollection":false}
@@ -147,6 +161,10 @@ Both use a **simpler property descriptor** than interface customTypes — only `
 ```
 
 The result tree must mirror the `selects` + `expands` tree exactly.
+
+> **Keep the CLI current — mismatched skeletons are a version problem, not a contract to chase.** Datasource bodies emitted by older `dxs` builds (bare-string `selects`, missing `removed`/`fromBaseConfiguration` keys) are rejected by the current validate/upsert API. **Upgrade `datex-studio-cli` to 0.4.17 or later** and let `dxs datasource generate` emit the current shape — do not hand-edit JSON to match an error message, and do not template around it. If a body generated by 0.4.17+ is still rejected, that is a CLI bug worth reporting, not a doc to update.
+
+> **`outParams: null` saves and validates but generates an empty service interface** (footprint datasource, observed 2026-08-13) — the generated `…Service` has no `get` / `getList` / `getByKeys`, so every caller fails to compile with `Property 'get' does not exist on type '…Service'`. The `result` outParam mirroring `queryOptionsObjectTypeDef` is what drives service-method generation; never omit it.
 
 ### Result fields are TypeScript-optional on the caller side
 
@@ -179,8 +197,8 @@ The same applies to nested `objectTypeDef` entries inside expanded navigation pr
 > `{ "property": "<Name>" }` (optional `removed`, `fromBaseConfiguration`). The legacy
 > bare-string form (`"selects": ["Id"]`) is **rejected** by validate/upsert with
 > `DXS-API-400` `Error converting value "…" to type '…DSSelectConfig'`. `dxs datasource
-> generate` emits the object form (CLI versions after 0.4.13; older CLIs emit strings and
-> fail against current servers — upgrade rather than hand-editing the JSON). When you hit a
+> generate` emits the object form on **0.4.17 or later**; older CLIs emit strings and fail
+> against current servers — upgrade rather than hand-editing the JSON. When you hit a
 > contract error like this, derive the expected shape from the validate error plus an
 > existing valid config on the branch (via `dxs configuration get`) — never from the
 > platform source.
@@ -224,6 +242,7 @@ Validate, in order:
 2. **Every property name in `selects`** — confirm each exists on the EntityType (or on the expanded nav target for nested selects).
 3. **Every navigation property in `expands` and in lambda filters (`any()` / `all()`)** — confirm it exists on the *source* side you are traversing from. Remember the `Partner=` inverse-name rule: the same join is named differently from each side (`Order.ShipmentOrderLookups` vs `Shipment.OrderLookups` are the same join), so look it up from the side you're querying, not the side you're thinking about.
 4. **Key fields** — confirm the full key set. Composite-key entities need every key field listed in both `paths[0].keyDef` and the top-level `keyDef`.
+5. **`in` lists containing `''`** — OData's `in` never matches an empty-string literal, even when the column genuinely holds `''` (the platform convention for "global/context-less" on non-nullable string columns like `Configurations.Context`). Rows silently drop from the result. Write the empty case as its own disjunct — prefer `length(<col>) eq 0`. See [filter-patterns.md](../../odata-execution/references/filter-patterns.md#in-never-matches-an-empty-string-literal).
 
 Modifications to an existing datasource carry the same obligation: if you change a select, add an expand, edit a filter, or switch the entity, re-validate the pieces you touched. Do not rely on the file's current contents as proof that a new name is correct.
 
@@ -232,6 +251,8 @@ Modifications to an existing datasource carry the same obligation: if you change
 Write every field — including every null-slot. Omitting nulls has been observed to break Angular service codegen (e.g. a missing `resultIsCollection` causes the generated service to lack `getList` / `getByKeys` methods). "Present with null" and "absent" are not equivalent to the platform's code generators.
 
 The skeleton below is a collection query against a single-key entity. Placeholders are in `<angle brackets>`. Flip `configurationTypeId` to `6` for the `-datasource.json` variant; everything else is identical.
+
+> **This skeleton assumes `datex-studio-cli` 0.4.17 or later** (see [Result Type](#result-type)). Bodies emitted by older CLIs use the superseded bare-string `selects` form and are rejected by the current validate/upsert API — upgrade the CLI rather than hand-editing to match.
 
 ```json
 {

@@ -1,0 +1,99 @@
+{
+  "skill_name": "form-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"form-creator-eval-{timestamp}\" --description \"Temporary branch for form-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "dialog-input-collector",
+      "prompt": "On connection 9, branch {branch_id}: our shipments grid needs a row action that opens a dialog where the user types a hold reason and picks a hold-until date, then hands both values back to the grid flow so it can update the row. Create the form (reference name eval_shipment_hold_form) and write the exact grid-side flow code that opens the dialog and consumes the result — including what the grid flow should do when the user closes the dialog without confirming.",
+      "expected_output": "A validated and upserted form (cti 5) whose confirm flow populates outParams (including is_confirmed) before $form.close(), plus caller-side dialog-opener code using $shell.<Package>.open<referenceName>Dialog with snake_case preserved and an explicit cancel branch for undefined outParams.",
+      "files": [],
+      "expectations": [
+        "A form body is created with configurationTypeId 5 and referenceName eval_shipment_hold_form (snake_case, ending in _form)",
+        "The confirm flow assigns $form.outParams.<id> values BEFORE calling $form.close()",
+        "The form emits an explicit is_confirmed boolean outParam so callers can distinguish confirm from cancel",
+        "The grid-side opener code uses $shell.<Package>.open<referenceName>Dialog(...) with the snake_case referenceName preserved inside the method name (e.g. openeval_shipment_hold_formDialog — NOT camelCased like openEvalShipmentHoldFormDialog)",
+        "The <Package> segment in the dialog-open call is the target form's package (the package the form was created in), not a grid/caller-specific package",
+        "The caller-side code handles the cancel path explicitly — it notes that closing without confirm resolves the promise with undefined outParam fields and branches on is_confirmed (it does not treat undefined outParams as a confirm with empty values)",
+        "All new param ids are snake_case (e.g. hold_reason, hold_until, is_confirmed — no camelCase param ids)",
+        "No outParam that is written only on the confirm branch is declared required: true (the type contract must match the cancel close path too)",
+        "The form's description is non-empty and at most 100 characters",
+        "The transcript contains a 'dxs configuration validate form' command run before 'dxs configuration upsert form'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "validate-then-confirm-gating",
+      "prompt": "On connection 9, branch {branch_id}: create a form eval_transfer_qty_form that collects a source location code (text), a destination location code (text), and a quantity (number). The Confirm button must stay disabled until all three are filled in and quantity is greater than zero; if source equals destination, show an error on both location fields. On confirm, return all three values to the caller and close.",
+      "expected_output": "A form whose confirm-button gating lives in onFormValidateFlowConfig + a validation flow that sets $form.toolbar.confirm.control.readOnly and pushes $validation.fieldErrors, with all flow-id references resolving and the full validate/upsert lifecycle.",
+      "files": [],
+      "expectations": [
+        "Confirm-button gating is implemented via onFormValidateFlowConfig referencing a validation flow in flows[] — NOT via one-shot readOnly assignments inside onInitFlowConfig",
+        "The validation flow sets $form.toolbar.confirm.control.readOnly based on the computed validity of the current field values",
+        "The source-equals-destination rule pushes field-level errors via $validation.fieldErrors.<field_id>.push(...) onto both location fields",
+        "Every referenced flowId (onFormValidateFlowConfig.flowId, each clickFlowConfig.flowId, onInitFlowConfig.flowId if set) names a flow that actually exists in flows[]",
+        "No $form.<flowName>() call appears in flow code without a matching flow of that referenceName in flows[] (no phantom set_state-style calls)",
+        "The confirm flow assigns $form.outParams values and then calls $form.close()",
+        "All field ids and param ids are snake_case (e.g. source_location, destination_location, quantity)",
+        "configurationTypeId is 5 and referenceName eval_transfer_qty_form ends in _form; description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate form' run before 'dxs configuration upsert form'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "declarative-string-slots",
+      "prompt": "On connection 9, branch {branch_id}: create eval_scoring_options_form with four fields: (1) a numeric weight field whose tooltip must convey exactly this: v2: higher score wins; tiebreak on smaller delta (2) a notes textBox with the placeholder Enter carrier notes (3) a cutoff date field displaying MM/DD/YYYY format (4) a read-only summary textBox whose initial value comes from the form's summary inParam. Confirm returns the weight and notes.",
+      "expected_output": "A form whose declarative string slots are correctly encoded as TypeScript expressions: the hazardous tooltip neutralized (no unwrapped semicolon/leading-colon), the textBox placeholder left as the plain-string exception, the format slot TS-quoted, and the inParam binding left as a raw unwrapped expression.",
+      "files": [],
+      "expectations": [
+        "The weight field's tooltip is emitted as a TypeScript-expression string (backticks or a quoted TS string literal) — not bare unwrapped plain text, which would compile to broken tokens",
+        "The tooltip content neutralizes the documented breaking tokens: the leading 'v2:' bare-word label and the mid-sentence semicolon are either wrapped as a single-quoted TS string literal (e.g. \"'v2, per...'\" style) or rephrased — the raw 'v2: ...; ...' text is not left as an unwrapped expression",
+        "The notes textBox placeholder is treated as the documented plain-string exception: 'Enter carrier notes' appears as plain text with NO backtick or TS-quote wrapping (backticks would render literally in the UI)",
+        "The date field's format slot is a TS-quoted plain literal: \"'MM/DD/YYYY'\" (quotes inside the JSON string)",
+        "The summary field's value binding is the raw unwrapped expression \"$form.inParams.summary\" — no backticks, no quotes",
+        "No declarative string slot (value/tooltip/placeholder/format) in the final body contains an unwrapped mid-sentence semicolon, an unwrapped leading bare-word colon, or an unwrapped pipe",
+        "Sibling *Config keys are explicitly null on every controlConfig (only the active sub-config populated)",
+        "All param ids are snake_case; referenceName eval_scoring_options_form ends in _form; description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate form' run before 'dxs configuration upsert form'"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "multi-select-field",
+      "prompt": "On connection 9, branch {branch_id}: create eval_service_types_form where the user picks ONE OR MORE carrier service types — assume an existing selector eval_service_type_dd in the Utilities package backs the dropdown. Require at least one selection before Confirm enables, and return the selected list to the caller on confirm.",
+      "expected_output": "A form whose multi-choice field is a single selector-backed dropdown with allowMultiSelection: true producing an array value, at-least-one validation in the form-level validation flow, and an isCollection outParam — not a set of checkboxes.",
+      "files": [],
+      "expectations": [
+        "The multi-choice field is a SINGLE selector-backed dropdown control with allowMultiSelection: true on its config — NOT a set of checkBox fields",
+        "The field's value is treated as an ARRAY of selector keys in flow code (the confirm flow emits the array, not a scalar)",
+        "The 'at least one selected' rule is validated in the form-level validation flow that gates the Confirm button — not via per-checkbox logic",
+        "The outParam carrying the selection is declared with isCollection: true and a snake_case id (e.g. service_types)",
+        "The selector reference on the field uses the target selector's package (Utilities) for its module reference — not the form's own feature/caller package",
+        "Confirm-button gating lives in onFormValidateFlowConfig + a validation flow setting $form.toolbar.confirm.control.readOnly",
+        "configurationTypeId is 5 and referenceName eval_service_types_form ends in _form; description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate form' run before 'dxs configuration upsert form'"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "modify-existing-round-trip",
+      "prompt": "On connection 9, branch {branch_id}: two steps. Step 1 — create a minimal form eval_dock_note_form with a single note textBox and a Confirm button that returns the note to the caller. Step 2 — as a separate follow-up edit, add an optional priority number field (also returned to the caller on confirm) without disturbing the rest of the form.",
+      "expected_output": "An initial validated/upserted form, then a surgical round-trip modification (get envelope, extract inner .json, edit, re-validate, re-upsert) that adds the priority field and outParam while preserving the existing note field and confirm flow.",
+      "files": [],
+      "expectations": [
+        "Step 1 runs 'dxs configuration validate form' before the initial 'dxs configuration upsert form'",
+        "The follow-up edit uses the round-trip: 'dxs configuration get form ... -O envelope.json' then extracts the inner body (jq .json envelope.json or equivalent) before editing — the envelope is NEVER fed directly to upsert",
+        "The edit is surgical: the existing note field, confirm toolbar button, and confirm flow are preserved (not rebuilt from scratch or dropped)",
+        "The new field id and outParam id are snake_case (priority)",
+        "The new priority outParam is declared required: false (it is optional and not written on the cancel path)",
+        "The outParams schema and the confirm flow's code are updated in the same edit (the flow writes $form.outParams.priority and the outParams array declares it — schema/code parity)",
+        "The transcript contains 'dxs configuration validate form' again before the second 'dxs configuration upsert form'",
+        "The form's description remains non-empty and at most 100 characters after the edit"
+      ]
+    }
+  ]
+}

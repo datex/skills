@@ -1,0 +1,77 @@
+{
+  "skill_name": "hub-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"hub-creator-eval-{timestamp}\" --description \"Temporary branch for hub-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "filter-driven-tab-grid",
+      "prompt": "On connection 9, branch {branch_id}: create a hub eval_operations_hub with a Warehouse filter that scopes its single tab. The tab mounts eval_pick_velocity_grid (if that grid is not on the branch, first create a minimal version: flow-type embedded datasource, row shape { warehouse_name: string, pick_date: string, pick_count: number }). Selecting a warehouse in the hub filter must actually filter the grid's rows.",
+      "expected_output": "A hub whose filter → tab configParameters → grid inParams chain is wired consistently end to end — the grid (and its datasource) extended in the same change to declare the warehouse parameter, no dead wiring, correct moduleId, validated and upserted.",
+      "files": [],
+      "expectations": [
+        "The hub has configurationTypeId 2, referenceName eval_operations_hub (snake_case, _hub suffix), and a non-empty description of at most 100 characters",
+        "The tab's configParameters binding for the warehouse filter uses a TypeScript-expression value of the form \"$hub.filters.<id>.control.value\"",
+        "Every id bound in the tab's configParameters is declared in the mounted grid's top-level inParams — since the grid did not originally declare a warehouse parameter, the agent EXTENDED the grid's inParams in the same change rather than leaving dead wiring where the hub passes a value the grid never receives",
+        "The chain continues into the grid's datasource: the new grid inParam is consumed downstream ($grid.inParams.<id> fed through datasourceConfig.configParameters, with the embedded datasource declaring the matching inParam and its flow code using it to filter rows)",
+        "The tab's configParameters covers EVERY inParam the grid declares — unused ones with value \"\" or null — and contains no extra entries for ids the grid does not declare",
+        "The tab's contentConfig moduleId is the GRID's package (the target's module), not the hub's",
+        "The transcript contains 'dxs configuration validate hub' run before 'dxs configuration upsert hub'",
+        "The transcript shows a wiring-contract audit before push (a component-wiring-check invocation, or an explicit cross-check of the tab's configParameters against the grid's inParams)",
+        "If the grid was extended, the grid edit used the corrected round-trip (dxs configuration get grid -O envelope.json, then jq .json extraction before editing) and the grid was re-validated and re-upserted"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "hub-local-flow-no-dollar-flow",
+      "prompt": "On connection 9, branch {branch_id}: create a hub eval_engine_hub with an engine on/off toolbar toggle and a status label that must refresh both when the hub opens and after the toggle is clicked. Factor the shared refresh logic into one hub-local flow — the refresh logic needs to know which caller triggered it ('init' or 'toggle').",
+      "expected_output": "A hub whose shared local flow takes no inParams and never references $flow — the per-call value travels through a declared $hub.vars slot (or is inlined), the shared flow is invoked as $hub.<name>() from both call sites, and the hub validates before upsert.",
+      "files": [],
+      "expectations": [
+        "No hub-local flow in the hub's flows[] declares inParams (inParams null or empty) — hub-local flows have no $flow global and cannot accept inParams",
+        "No hub-local flow body references $flow.inParams (or $flow at all) — flow bodies use $hub, $flows, $shell, $utils instead",
+        "The per-call trigger value reaches the shared flow via one of the two documented workarounds: each caller writes a declared $hub.vars.<id> before invoking the shared flow, or the logic is inlined at each call site with the value as a literal",
+        "The shared flow is invoked as $hub.<flow_referenceName>() from both the on_init path and the toggle click handler",
+        "Every $hub.vars.<id> written in flow code is declared in the hub's top-level vars[] array",
+        "Any backend work is invoked as a function via $flows.<Package>.<fn> — no direct action calls from hub code",
+        "The transcript contains 'dxs configuration validate hub' run before 'dxs configuration upsert hub', the referenceName ends in _hub, and the hub description is non-empty and at most 100 characters"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "toolbar-button-and-selector-filter",
+      "prompt": "On connection 9, branch {branch_id}: eval_operations_hub should exist (if it does not, first create it per its earlier description with its warehouse filter and pick-velocity tab). Add (1) a Project filter backed by a projects selector — if no suitable selector exists on the branch, create a minimal eval_projects_dd first — and (2) an 'Options' toolbar button that opens eval_hub_options_form as a dialog (create a minimal form if missing) and refreshes the hub only when the form confirms.",
+      "expected_output": "A selector-backed filter whose configId/moduleId resolve to the selector's package with a complete dropdownConfig.configParameters mirror, plus a toolbar button whose click flow opens the dialog via $shell and refreshes only on confirmation — round-tripped, validated, upserted.",
+      "files": [],
+      "expectations": [
+        "The new filter field's configId resolves to the projects selector and its moduleId is the SELECTOR's package (the target's module), not the hub's",
+        "Every configParameter the selector declares has an entry in the filter's dropdownConfig.configParameters — unused ones with value \"\" — with no missing and no extra entries (the mirror is complete)",
+        "The toolbar button's click flow opens the form via the generated $shell.<Package>.open<referenceName>Dialog(...) opener — not by invoking the form component any other way",
+        "The click flow calls $hub.refresh() only when the dialog result's confirmation flag (e.g. is_confirmed) is truthy — a cancelled dialog does not trigger a re-query",
+        "The button's click handler is wired via clickFlowConfig referencing a flow declared in the hub's flows[], and the new button id and filter id are unique within the hub (no collision with existing toolbar/tab/filter ids)",
+        "The hub modification used the corrected round-trip: 'dxs configuration get hub ... -O envelope.json' then extraction of the inner .json (jq .json or equivalent) before editing — the envelope was never piped directly back into upsert",
+        "The transcript contains 'dxs configuration validate hub' run before 'dxs configuration upsert hub'",
+        "If a selector or form was created as a prerequisite, it was created and upserted BEFORE the hub edit that references it"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "role-gated-tab",
+      "prompt": "On connection 9, branch {branch_id}: add an Admin tab to eval_operations_hub (if the hub is not on the branch, first create it per its earlier description). The Admin tab mounts eval_warehouses_grid (create a minimal version if missing) and must be hidden from users who lack the admin permission.",
+      "expected_output": "A role-gated tab implemented the documented way: permission check in the on_init flow calling a function via $flows, deny path setting $hub.tabs.<id>.hidden = true, full configParameters contract on the new tab, correct moduleId, round-tripped and validated.",
+      "files": [],
+      "expectations": [
+        "The access gate runs in the hub's on_init flow (onInitFlowConfig) — the permission check executes as the hub opens; the gate is not attempted via a nonexistent role/permission property on the tab config itself",
+        "On the deny path the flow hides the tab by setting $hub.tabs.<tab_id>.hidden = true (the documented mechanism for role-gated tabs)",
+        "The permission check invokes a function via $flows.<Package>.<fn> — no direct action call from hub code",
+        "The new Admin tab carries a full configParameters contract for the mounted grid: every grid inParam has an entry (unused ones with \"\" or null) and there are no extra entries for ids the grid does not declare",
+        "The Admin tab's contentConfig moduleId is the grid's package (the target's module), not the hub's",
+        "The hub edit used the corrected round-trip (dxs configuration get hub -O envelope.json, then jq .json extraction before editing), and 'dxs configuration validate hub' ran before 'dxs configuration upsert hub'",
+        "The new tab's id is unique within the hub (flow code addresses tabs by id; collisions silently overwrite)"
+      ]
+    }
+  ]
+}

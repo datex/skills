@@ -1,0 +1,71 @@
+{
+  "skill_name": "grid-validator",
+  "evals": [
+    {
+      "id": 1,
+      "name": "dynamic-filter-contract-mismatch",
+      "prompt": "Audit the grid component file at evals/files/carrier_rates_grid-grid.json before merge. Return your findings as a punch list.",
+      "expected_output": "A punch list catching the dynamic-filter wiring drift on the carrier_name column: only 3 of the 5 wiring locations are present — the audit names the two missing ones (datasourceConfig.dynamicFilters registration and the per-column dynamicFilterControl).",
+      "files": [
+        "evals/files/carrier_rates_grid-grid.json"
+      ],
+      "expectations": [
+        "The audit detects the dynamic-filter wiring drift for the carrier_name field (the column declares dynamicFilter/dynamicFilterType and datasources[0].dynamicFilters registers it, but the wiring is incomplete)",
+        "The audit names datasourceConfig.dynamicFilters as missing the carrier_name registration — the consumer-side half of the two-site registration mirror (datasources[0].dynamicFilters has the entry, datasourceConfig.dynamicFilters is null)",
+        "The audit names the carrier_name column's missing dynamicFilterControl (the per-column filter input control descriptor is null while dynamicFilter and dynamicFilterType are set)",
+        "The registration-site drift between datasources[0].dynamicFilters and datasourceConfig.dynamicFilters is classified as a blocker (it fails import with 'Outdated contract. Type mismatch for dynamic filtering/sorting')",
+        "The audit does NOT flag the absence of $filter/$orderby entries in any inParams list as a defect (those are auto-injected from the registrations; a manual entry would itself be the bug)",
+        "The findings are reported in the structured punch-list format with severity buckets (Blockers / Warnings / Nits)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "text-coercion-and-broken-envelope",
+      "prompt": "Audit the grid component file at evals/files/wave_pick_summary_grid-grid.json before merge. Return your findings as a punch list.",
+      "expected_output": "A punch list catching both seeded defects: the total_picks column binds a number field to a text display without coercion, and the embedded datasource envelope is broken (datasources[0] has no referenceName matching datasourceConfig.configId).",
+      "files": [
+        "evals/files/wave_pick_summary_grid-grid.json"
+      ],
+      "expectations": [
+        "The audit flags the total_picks column's textConfig.value ('$row.entity.total_picks') as an uncoerced non-string binding — total_picks is declared as number in queryOptionsObjectTypeDef, so the binding needs coercion (e.g. '$row.entity.total_picks?.toString()') and fails import as-is with a type-assignability error",
+        "The audit flags the broken embedded-datasource identity envelope: datasources[0] is missing its referenceName, which must equal datasourceConfig.configId ('ds_wave_pick_summary_grid') verbatim — the failure signature is 'Invalid contract. Referenced own configuration ... does not exist or has been renamed' plus a cascade of generated-TS errors",
+        "Both defects are classified as blockers",
+        "The audit does NOT flag the completed_picks column, whose binding is correctly coerced with ?.toString()",
+        "The proposed fix direction for the coercion defect is to coerce at the bind site, not to change the entity field's declared type from number to string"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "clean-grid-no-false-positives",
+      "prompt": "Audit the grid component file at evals/files/dock_appointments_grid-grid.json before merge. Return your findings as a punch list.",
+      "expected_output": "A clean audit: no blockers reported (the grid is fully valid), ideally 'No issues found.'",
+      "files": [
+        "evals/files/dock_appointments_grid-grid.json"
+      ],
+      "expectations": [
+        "The audit reports NO blockers — either 'No issues found.' or a punch list whose Blockers bucket is empty/absent",
+        "The audit does not flag the entity shape (all four fields — id, dock_name, carrier_name, appointment_time — appear consistently in all five entity-shape locations)",
+        "The audit does not flag the embedded-datasource envelope (datasources[0].referenceName equals datasourceConfig.configId 'ds_dock_appointments_grid' and the identity fields are present)",
+        "The audit does not flag the text bindings (all displayed fields are declared string type, so direct $row.entity.<field> bindings need no coercion)",
+        "The audit does not flag the getListFlow's $db usage (getQuery() factory per terminal, paging pushed to $db via .skip/.take, list coalesced with ?? [] before mapping)",
+        "The audit does not flag pageSize (25), rowSizingType ('default'), columnSizingType ('cellsWidth'), or fullTextSearch (false) — all are valid explicit values"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "row-flow-registered-in-flows",
+      "prompt": "Audit the grid component file at evals/files/shipment_exceptions_grid-grid.json before merge. Return your findings as a punch list.",
+      "expected_output": "A punch list catching the misregistered row flow: on_click_exception_code reads $row but is registered in flows[] instead of rowFlows[].",
+      "files": [
+        "evals/files/shipment_exceptions_grid-grid.json"
+      ],
+      "expectations": [
+        "The audit flags that the flow 'on_click_exception_code' reads $row (e.g. $row.entity.exception_code) but is registered in the grid's flows[] array instead of rowFlows[] — flows whose body reads $row must be registered in rowFlows[]",
+        "The finding names the on_click_exception_code flow specifically and identifies the fix as moving it from flows[] to rowFlows[]",
+        "The audit does NOT flag the on_click_refresh flow, which reads only $grid and is correctly registered in flows[]",
+        "The audit does not report the exception_code column's onCellClickFlowConfig as pointing at a nonexistent flow (the flow exists — it is merely registered in the wrong array)",
+        "The findings are reported in the structured punch-list format with severity buckets (Blockers / Warnings / Nits)"
+      ]
+    }
+  ]
+}

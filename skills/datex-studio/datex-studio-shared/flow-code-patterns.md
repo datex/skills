@@ -138,3 +138,15 @@ while (true) {
 | Used `$skip` literally in the query without `${...}` template | Same as above — `skip` is not a real parameter | Use the template-literal syntax that `--detect-params` requires |
 | Looped on `page.length > 0` instead of `< PAGE_SIZE` | One extra round-trip per query (returns empty 5001st page) | Break when `page.length < PAGE_SIZE` |
 | Hardcoded a "reasonable" cap like `$top=10000` | Server still caps at 5k; you get 5k records and think you got 10k | Always paginate; never assume server limits can be raised |
+
+## Escaping-Safe Content Writer — JSON Stored in Entity String Fields
+
+Passing a configuration **object** through Studio-side object-parameter serialization corrupts any nested JSON-**string** field it carries: string values containing quotes are embedded unescaped, and the stored `Content` becomes invalid JSON that no longer parses. Any flow that saves user-authored JSON (criteria trees, rule definitions) inside a serialized object parameter is exposed.
+
+The shipped pattern (cloned across Allocations → Totes → SalesOrders, so treat it as the platform convention):
+
+1. **Serialize caller-side.** The caller does `JSON.stringify(config)` and passes Content as one opaque **string** parameter — never as a structured object the platform re-serializes.
+2. **Store verbatim** via `crud_update_entity` on the Content property, behind a **parse-check gate**: the writer does `JSON.parse` on the incoming string and refuses to store anything unparseable (a corrupted write is strictly worse than a failed one).
+3. **Create-then-write.** Entity creation flows with typed contracts force Content through the object serializer — so create the row with **empty** content (no nested JSON strings survive that path safely), then immediately write the real Content through the safe writer.
+
+Read-side companion: fail-soft on `JSON.parse` of stored Content (skip + surface, don't throw) — rows written before the safe writer landed may hold corrupted JSON, and a re-save through the editor overwrites them cleanly.

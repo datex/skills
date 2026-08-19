@@ -106,6 +106,8 @@ The standard tailoring pattern for **adding a field that isn't in the base datas
 - `datasources[0]` — the inherited primary (`fromBaseConfiguration: true`). Still drives row population. The first datasource (or the one named by `datasourceConfig.configId`) is always the primary — see [grids.md → Datasource Wiring](../../grid-creator/references/grids.md#datasource-wiring--five-places-must-stay-in-sync).
 - `datasources[1]` — the tailored overlay's secondary datasource (`tailored_ds_<base>`). Typically filtered by `Id in ${contactIds}` against the same entity set, selecting only the extra fields.
 
+Note that in observed tailored exports the array order can be inverted — the overlay's secondary datasource listed first and the inherited primary (`fromBaseConfiguration: true`) second. Position alone doesn't determine primacy in that case; `datasourceConfig.configId` names the primary, and the inherited entry still drives row population. Identify each datasource by its `fromBaseConfiguration` marker and `configId` binding, not by index.
+
 Then an `after` customization on `on_data_loaded` walks `$grid.rows`, batches a lookup against the secondary datasource, and writes the enrichment into each row using the [Imperative Cell API](../../grid-creator/references/grids.md#imperative-cell-api):
 
 ```typescript

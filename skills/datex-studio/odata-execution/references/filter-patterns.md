@@ -22,6 +22,30 @@ Lines/all(l: l/Verified eq true)
 - "Orders with at least one completed line" → `Lines/any(l: l/StatusId eq 4)`
 - "Shipments where all lines are verified" → `Lines/all(l: l/Verified eq true)`
 
+### `$it/` — Correlating a Lambda Back to the Root Entity
+
+Inside a lambda, `$it/` refers to the **root** entity of the query, enabling field-to-field comparison between a child and its root (probe-verified against the live Footprint API):
+
+```
+# Shipments where some contact's reference code equals the shipment's own route number
+Contacts/any(p0: p0/Contact/ReferenceCode eq $it/RouteNumber)
+```
+
+Limits (each confirmed live):
+
+- **Field-compare inside `$count($filter=…)` is unsupported** — the range-variable scoping leaks there (children compile with an empty scope prefix, indistinguishable from root scope) and full `$it` support in count-filters is gated on OData 4.01, which the platform does not serve. Generators should detect and skip this combination rather than emit it.
+- **Root↔expand correlated joins outside lambda scope are inexpressible** — there is no way to filter an `$expand` by comparing its fields to root fields. The working pattern is a **chunked client-side join**: fetch the roots, collect keys, query the related set with `in`-batches, and join in flow code.
+
+## `in` Never Matches an Empty-String Literal
+
+`Context in ('', 'X')` is **inert on the `''` member** — even when the column genuinely holds an empty string. Confirmed live: `Context eq ''` and `length(Context) eq 0` both match the rows; `Context in ('')` returns nothing. A membership test that includes `''` silently drops those rows — the classic symptom is "global" rows (platform convention: context-less/global means **empty string**, because columns like `Configurations.Context` are `Edm.String Nullable=false`) never being fetched while explicitly-scoped rows work.
+
+Write the empty case as its own disjunct instead — and prefer `length(Context) eq 0` over `eq ''`, since empty-string literal handling is exactly what failed in `in`:
+
+```
+(length(Context) eq 0 or Context eq '<scoped-value>')
+```
+
 ## String Functions
 
 Replace SQL `LIKE` patterns:

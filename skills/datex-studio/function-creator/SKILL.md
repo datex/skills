@@ -169,6 +169,7 @@ dxs configuration upsert flow -D <config.json> --branch <id>
 | Referencing a frontend-only symbol (`$shell`, `$frontendFlows`) | Functions are backend-only. If a symbol is not in `defaultContext.imports`, you cannot use it — see [context-navigation.md](../datex-studio-shared/context-navigation.md). |
 | Using `$item` instead of `$entity` | The expression variable is `$entity` in Datex Studio |
 | Code file exceeding 512 KB | Split logic into multiple functions or extract helpers |
+| New flow fails to save (`DXS-API-500` / `DbUpdateException`) even though `validate` passes | **Check `description` length first** — over 256 characters produces exactly this error on every configuration type, and `validate` does not catch it (bisected 2026-08-13; see [configuration-roundtrip.md](../datex-studio-shared/configuration-roundtrip.md#description-is-capped-at-256-characters)). If the description is within the cap, fall back to the wide-signature bug observed 2026-08-11 (PrintManager, ~19 inParams + 8 outParams + code in one body): the single-shot create/update 500s while every subset saves fine — **and a failed save deletes the flow from the branch**. Workaround: compose incrementally — upsert a minimal body (referenceName + placeholder code, no params), then add inParams + code, then add outParams a few at a time, re-upserting each step; verify the final branch state with a fresh `get` afterwards. |
 
 ---
 

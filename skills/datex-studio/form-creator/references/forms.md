@@ -216,6 +216,17 @@ if (!($form.inParams.allow_edit ?? true)) {
 await $form.set_state();
 ```
 
+### Multi-Select Fields Use `allowMultiSelection`, Not Checkbox Sets
+
+When a field needs **multiple** choices from an option set, keep the single selector-backed dropdown control and set `allowMultiSelection: true` on its config (it sits alongside the selector reference on the dropdown's config block). The control's value then becomes an **array** of the selector's keys. Do not replace the dropdown with a set of `checkBox` fields — the platform's dropdown control supports multi-select natively, and a checkbox set adds fields, flows, and serialization code for something the control does out of the box.
+
+Working with the array value:
+
+- Seed on load with array coercion so single-value callers still work, e.g. `$form.fields.units.control.value = $form.inParams.units ?? ($form.inParams.unit ? [$form.inParams.unit] : []);`
+- Emit the array on confirm, and validate "at least one selected" in the confirm/validation flow rather than per checkbox.
+
+The same rule applies to selector-backed filter fields on hubs and grids.
+
 ### `$form.vars` Requires Declaration; `$form.<flow>()` Requires the Flow
 
 Two related platform constraints often hit together:

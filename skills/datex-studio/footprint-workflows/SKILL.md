@@ -10,7 +10,8 @@ description: |
   Owns the platform-fixed signature contract (single `Input:
   FootPrintWorkflow.<Slot>InputBaseWL`, slot-dictated out-params), the slot
   binding (workflowDefinitionId/Name discovered via the workflowsMetadata API;
-  workflowGUID is a fresh per-config UUID you generate, preserved on edits),
+  workflowGUID is the code callers pass: generate fresh for a new workflow,
+  preserve on edits, reuse the legacy value for a drop-in replacement),
   the action-tier calling rules, and the thin-dispatcher pattern. Triggers:
   "create/edit a footprint workflow", "implement the Cartonization workflow",
   "customize entity status change before commit", "allocation strategy
@@ -61,13 +62,15 @@ Author or modify a Datex Studio footprint-workflow (`configurationTypeId: 23`) o
 
 Workflow authoring goes through `dxs configuration` — the generic CRUD primitive over every platform configuration type. **There is no `dxs workflow` subcommand** and no field-level patching; you build (or fetch + extract) the whole JSON body, edit it, and push the whole thing back. The CLI type identifier is **`footprintworkflow`** (lowercase, matches `ConfigurationEndpoints.normalize_type` output), mapping to `configurationTypeId: 23`. PublishedMain configs are `readonly: true` — author on a **feature branch**.
 
-**New workflow — discover the slot from the metadata API, assign a fresh GUID:**
+**New workflow — discover the slot from the metadata API, assign a fresh GUID** (replacing a legacy
+workflow instead? reuse its GUID — see step 2):
 
 ```bash
 # 1. Discover the slot: id (= workflowDefinitionId), name, exact inParams/outParams
 dxs api GET "/footPrintApiConnections/byName/<connectionName>/workflowsMetadata?applicationId=<branchId>" --raw -O meta.json
 jq '.workflowsMetadataJson.workflowDefinitions[] | select(.name=="Cartonization")' meta.json
-# 2. Generate a fresh workflowGUID for this new config (unique; matches nothing)
+# 2. Generate a fresh workflowGUID for this new config (new capability; you point callers at it).
+#    Superseding a legacy workflow on this slot? Reuse ITS GUID instead so existing callers keep working.
 python3 -c "import uuid; print(uuid.uuid4())"
 # 3. Build body.json: apiSettingName + workflowDefinitionId/Name (step 1) + your fresh GUID,
 #    the slot's inParams/outParams verbatim, configurationTypeId:23, id:0, your referenceName/title/description/code
@@ -110,8 +113,9 @@ If nothing in the platform *calls* the slot -> a workflow config is inert; stop.
 [Phase 3: Bind to the slot]
 Pull the workflowsMetadata API for the connection/branch -> copy the slot's
 id (=workflowDefinitionId), name, and inParams/outParams VERBATIM. Never
-invent the id/name. workflowGUID is NOT in the metadata and matches nothing:
-generate a fresh UUID for a NEW workflow; preserve the existing GUID on edits.
+invent the id/name. workflowGUID is NOT in the metadata — it is the code callers
+pass: generate fresh for a NEW workflow, preserve it on edits, and reuse the
+legacy GUID when shipping a drop-in replacement for an existing workflow.
         |
 [Phase 4: Author the body]
 Build body.json:
@@ -161,7 +165,7 @@ The slot binding has two independent parts:
    jq '.workflowsMetadataJson.workflowDefinitions[] | {id, name, inParams, outParams}' meta.json
    ```
    Copy the slot's `id` → `workflowDefinitionId`, `name` → `workflowDefinitionName`, and its `inParams`/`outParams` **verbatim**. `<connectionName>` is a real Footprint connection (e.g. `DSV`), not the `apiSettingName` value. Set `apiSettingName` from the branch's Footprint setting. **Never invent the id/name.**
-2. **`workflowGUID` (yours).** It is **not** in the metadata and matches nothing — it's a unique per-config reference you own. **Generate a fresh v4 UUID** for a new workflow (`python3 -c "import uuid; print(uuid.uuid4())"`); **preserve the existing GUID unchanged** when editing (the `jq .json` round-trip keeps it). Never regenerate on edit, never reuse another config's GUID.
+2. **`workflowGUID` (the code callers pass).** It is **not** in the metadata, so nothing in the catalog dictates it — but callers do: the value reaches the server as `ProcessingStrategyWorkflowCode` / `AllocationStrategyWorkflowId` and selects which implementation of the slot runs. **Generate a fresh v4 UUID** for a genuinely new workflow (`python3 -c "import uuid; print(uuid.uuid4())"`) and then point the callers at it; **preserve the existing GUID unchanged** when editing (the `jq .json` round-trip keeps it); **reuse the legacy GUID** when your config is a drop-in replacement for an existing implementation whose callers must not change. Never regenerate on an edit.
 
 ### Phase 4: Author the body
 
@@ -209,7 +213,7 @@ Walk the full list in [references/footprint-workflows.md → Pre-Flight Checklis
 
 1. **`configurationTypeId: 23`**; conventional suffix `-footprintWorkflow.json`.
 2. **Slot binding real** — `workflowDefinitionId` + `workflowDefinitionName` copied from the workflowsMetadata catalog; `apiSettingName` matches the branch's Footprint setting.
-3. **`workflowGUID` correct** — fresh v4 UUID you generated (new) or the unchanged existing value (edit); never reused/regenerated.
+3. **`workflowGUID` correct** — fresh v4 UUID (new workflow, callers repointed), the unchanged existing value (edit), or the legacy workflow's GUID (deliberate drop-in replacement). Never regenerated on an edit.
 4. **Param contract matches the slot** — single `Input` typed with the slot's input type (usually `FootPrintWorkflow.<Slot>InputBaseWL`); out-params exactly as the slot dictates (or `[]`).
 5. **`description` ≤ 100 chars, non-empty;** `accessModifier` set; `id: 0` for net-new.
 6. **Single `ExecuteCodeActivity` node;** `start` points at its `id`; `vars`/`events`/`fromBaseConfiguration` `null`.
@@ -222,7 +226,7 @@ Walk the full list in [references/footprint-workflows.md → Pre-Flight Checklis
 | Mistake | Fix |
 |---|---|
 | Invented or mismatched `workflowDefinitionId` / `workflowDefinitionName` | Pull the slot's `id`/`name` + `inParams`/`outParams` from the `workflowsMetadata` API and copy verbatim. A wrong/mixed id+name validates clean but never wires. |
-| Cloned another config's `workflowGUID`, or regenerated it on edit | The GUID is a unique per-config reference you own (not part of the slot binding). Fresh v4 UUID for new (`python3 -c "import uuid; print(uuid.uuid4())"`); preserve unchanged on edits. |
+| Regenerated `workflowGUID` on an edit, or cloned one from an unrelated config | The GUID is what callers pass to select this workflow (not part of the slot binding). Fresh v4 UUID for a new workflow (`python3 -c "import uuid; print(uuid.uuid4())"`); preserve unchanged on edits. Copying a GUID is correct in exactly one case — a drop-in replacement for the workflow that owns it. |
 | Renamed `Input`, added in-params, or changed the out-param shape | The slot owns the signature. Keep single `Input: FootPrintWorkflow.<Slot>InputBaseWL` + the slot's exact out-params (or `[]`). Mismatch validates clean, breaks the invoke. |
 | Hand-wrote interfaces for the `Input`/result | Read real shapes from `dxs configuration contexts footprintworkflow -D body.json`; reference `$types.FootPrintWorkflow.*`. |
 | Called a function or used `$db` from the workflow | Action-tier: call actions via `$flows.<Pkg>.<action>`; wrap function/`$db` logic behind an action; use `fpds`, not cloud datasources. |

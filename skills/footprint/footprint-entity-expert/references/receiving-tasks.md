@@ -74,7 +74,7 @@ The `.filter(Boolean)` matters — some receiving tasks don't produce a target L
 
 ## Volume considerations
 
-Receiving Tasks at a busy warehouse can exceed 5,000 rows in a single day for a multi-warehouse or multi-week query. **Paginate** — see [../../../datex-studio/shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../../../datex-studio/shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap).
+Receiving Tasks at a busy warehouse can exceed 5,000 rows in a single day for a multi-warehouse or multi-week query. **Paginate** — see [../../datex-studio-shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../../../datex-studio/datex-studio-shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap).
 
 ## Worked query
 

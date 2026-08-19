@@ -1,0 +1,57 @@
+{
+  "skill_name": "component-wiring-check",
+  "evals": [
+    {
+      "id": 1,
+      "name": "hub-tab-omits-grid-inparam",
+      "prompt": "Audit the cross-component wiring between the hub at evals/files/receiving_hub-hub.json and the grid it mounts, at evals/files/receiving_appointments_grid-grid.json. Both components are imported into the Utilities package. Report your findings; do not edit anything.",
+      "expected_output": "A findings report catching the configParameters mismatch: the hub's appointments tab mirrors only warehouse_id and date_from, omitting the grid's declared status_ids inParam. The fix is named as caller-side (add the entry on the hub tab).",
+      "files": [
+        "evals/files/receiving_hub-hub.json",
+        "evals/files/receiving_appointments_grid-grid.json"
+      ],
+      "expectations": [
+        "The audit diffs the tab's contentConfig.configParameters against the grid's declared inParams and detects that the mirror is incomplete",
+        "The finding names status_ids as the grid inParam missing from the hub tab's configParameters (warehouse_id and date_from are present; status_ids is not)",
+        "The finding identifies the fix as caller-side: add a status_ids entry to the hub tab's configParameters (bound to a hub value, or with an explicit null/empty value if unused) — routed to hub-creator as the fix owner",
+        "The audit explains the failure mode: a missing configParameters entry silently resolves to an undefined input at runtime (the grid's status filter never receives a value)",
+        "The audit does NOT flag the tab's moduleId ('Utilities' correctly matches the grid's package)",
+        "The audit reports findings only — it does not edit either file or run any upsert"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "form-selector-wrong-moduleid",
+      "prompt": "Audit the cross-component wiring between the form at evals/files/create_shipment_form-form.json and the selector its service field mounts, at evals/files/carrier_service_dd-selector.json. The form create_shipment_form is imported into the Utilities package; the selector carrier_service_dd is imported into the Carriers package. Report your findings; do not edit anything.",
+      "expected_output": "A findings report catching the wrong-moduleId trap: the service field's dropdownConfig.moduleId is 'Utilities' (the form's own package) instead of 'Carriers' (the selector's package).",
+      "files": [
+        "evals/files/create_shipment_form-form.json",
+        "evals/files/carrier_service_dd-selector.json"
+      ],
+      "expectations": [
+        "The audit detects that the service field's dropdownConfig.moduleId is 'Utilities' — the FORM's own package — while the target selector carrier_service_dd lives in the Carriers package (moduleId must always be the TARGET's package)",
+        "The finding names the reference site (the form's service field / dropdownConfig) and the correct value ('Carriers'), and identifies the fix as caller-side on the form — routed to form-creator as the fix owner",
+        "The audit does NOT flag the dropdownConfig.configParameters mirror, which correctly contains exactly the selector's one declared inParam (carrier_id) with a binding",
+        "The audit connects the defect to its silent-failure symptom (the dropdown resolves against the wrong module — empty or broken dropdown at runtime), rather than treating it as a cosmetic naming issue",
+        "The audit reports findings only — it does not edit either file or run any upsert"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "undeclared-grid-var-with-clean-hub-pair",
+      "prompt": "Audit the cross-component wiring for the pair at evals/files/wave_release_hub-hub.json and evals/files/wave_release_monitor_grid-grid.json — including each component's own var declarations. Both components are imported into the Utilities package. Report your findings; do not edit anything.",
+      "expected_output": "A findings report catching exactly one defect: the grid's on_click_release_selected flow reads and writes $grid.vars.release_in_flight, but the grid's top-level vars array does not declare it. The hub-to-grid mount is clean and produces no findings.",
+      "files": [
+        "evals/files/wave_release_hub-hub.json",
+        "evals/files/wave_release_monitor_grid-grid.json"
+      ],
+      "expectations": [
+        "The audit detects that flow code in the grid (on_click_release_selected) writes $grid.vars.release_in_flight while the grid's top-level vars array is null / does not declare release_in_flight",
+        "The finding names the var id release_in_flight and identifies the fix as declaring it in the grid's top-level vars[] array (inParam-shaped descriptor) — routed to grid-creator as the fix owner",
+        "The audit does NOT report a configParameters finding for the hub's waves tab (its single entry, warehouse_id, exactly mirrors the grid's declared inParams — no missing entries, no extras)",
+        "The audit does NOT report a moduleId finding (the tab's moduleId 'Utilities' matches the grid's package)",
+        "The audit reports findings only — it does not edit either file or run any upsert"
+      ]
+    }
+  ]
+}

@@ -49,11 +49,14 @@ The index covers entities and cross-cutting concerns separately because some pat
 |-------|----------------|-----------------|
 | Owner / Project navigation chain | [references/owner-navigation.md](references/owner-navigation.md) | Any report that groups, filters, or labels by owner or project — the path differs by entity |
 | Weight calculations (fixed vs catch weight) | [references/weight-and-units.md](references/weight-and-units.md) | Any total-weight or per-LP weight calculation — the formula depends on `Material.IsFixedWeight` |
+| Status & operation codes (Order / Shipment / Wave / Task / OperationCodeId) | [references/footprint-status-codes.md](references/footprint-status-codes.md) | Any state-driven filter or lifecycle logic — the metadata gives `StatusId : Edm.Int32` but not what each integer means; also covers replenishment-gated picking, born-completed load tasks, and the `Task.Result`/`Notes` payload fields |
+| Entity Id reservation (`$api.ReserveEntityIdBatch`) | [references/entity-id-reservation.md](references/entity-id-reservation.md) | Bulk creates that pre-reserve Ids — `NewIdCeiling` is the TOP of the reserved range; the `ceiling - idx` mapping is only safe for 0-indexed dense counters |
+| Sales order line creation (`create_sales_order_line_action` vs `create_sales_order_lines_action`) | [references/order-line-creation.md](references/order-line-creation.md) | Any flow creating order lines — the batch action demands fully-specified lines (`MaterialId`, computed `Amount`, packaging; no serial-only); wizard/UI creation must loop the singular action, which derives material from the lot |
 
 ## What's NOT in here (deliberately)
 
 - **Per-customer business rules** — order class IDs to exclude, custom statuses, billing tiers, etc. These vary by customer and belong in customer-specific docs, not here. Where this skill mentions exclusions (e.g., common receiving order classes), it flags them as "common but verify per-customer."
-- **OData mechanics** — how `$expand`, `$filter`, paging work. That's in `schema-explorer`, `datasource-creator`, and [../../datex-studio/shared/flow-code-patterns.md](../../datex-studio/shared/flow-code-patterns.md).
+- **OData mechanics** — how `$expand`, `$filter`, paging work. That's in `schema-explorer`, `datasource-creator`, and [../datex-studio-shared/flow-code-patterns.md](../../datex-studio/datex-studio-shared/flow-code-patterns.md).
 - **Standard CRUD entities with no surprises** — Warehouse, Carrier, Pack, etc. Use `schema-explorer` directly; they don't need a reference page.
 - **UI / hub configuration** — how Footprint hubs and grids are wired. That's `datex-studio/hub-editor`.
 

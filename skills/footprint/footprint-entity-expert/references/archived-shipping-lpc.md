@@ -91,7 +91,7 @@ Don't `count(*)` on ASLPC and call it a pallet count — you'll over-count mixed
 
 ## Volume considerations
 
-ASLPC over a multi-week range at a busy warehouse easily exceeds 5,000 rows — **paginate**. The standalone OData datasource needs a `skip` inParam and the flow must loop. See [../../../datex-studio/shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../../../datex-studio/shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap).
+ASLPC over a multi-week range at a busy warehouse easily exceeds 5,000 rows — **paginate**. The standalone OData datasource needs a `skip` inParam and the flow must loop. See [../../datex-studio-shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap](../../../datex-studio/datex-studio-shared/flow-code-patterns.md#odata-pagination--the-5000-record-cap).
 
 ## Worked query
 

@@ -137,8 +137,18 @@ Cannot find namespace '_types'. Did you mean 'Type'?
 
 **Scope of the constraint:** UI components only. Flow-tier components (actions, functions, flow datasources) and custom-type files themselves can declare `objectType: "<Package>.e_<enum>"` references freely — only UI-component vars/inParams/outParams are affected.
 
+## UI Components Embed Inline Type Copies — Shape Changes Don't Propagate
+
+The enum constraint above is one instance of a broader rule: UI components (forms, editors, hubs, grids, selectors) cannot reference **any** custom type by FQN in their `inParams`, `outParams`, or `vars` — interface references are equally out. Where a backend component declares `objectType: "<Package>.i_<name>"`, a UI component must embed a full **inline `objectTypeDef` copy** of the shape (property-shape 3 above, repeated per component). Backend components (functions, actions, datasources, other custom types) reference the FQN and pick up shape changes automatically.
+
+**Consequence:** when a shared interface gains a field, backend consumers propagate for free, but every frontend inline copy goes stale. Validation fails on any UI flow code that touches the new field through a stale copy, and a stale outParam typedef at a dialog boundary can silently strip the new field from the payload. A single shared shape can accumulate many copies — one step shape existed as 15 inline copies across 6 UI components.
+
+**Maintenance policy:** use the custom-type FQN everywhere the platform allows it (all backend components) so shape changes propagate. Where the frontend forces inline copies, patch **only** the copies whose flow code actually touches the new field — minimal touchpoints, in the same change that extends the shared type. Don't sweep every copy: fewer duplicated shapes means less maintenance.
+
+**Finding the copies:** FQN-based reverse-tracing cannot see inline copies — they carry no reference to the source type. Search the branch's UI component configurations for two or three distinctive sibling field ids from the shape (e.g. grep the exported configs for adjacent property `id`s) to locate the embedded copies, then check each hit's flow code for the new field.
+
 ## Tightening a Previously-Loose Type Ripples to Consumers
 
 When a type is already in use, tightening it — adding required fields, removing optional ones, narrowing a property from `object` to a specific shape, or rewriting `objectTypeDef` from `null` to a strict schema — can break callers that previously got an implicit `any` and accessed properties the new type doesn't declare. Flow code that referenced `suggestion.preallocation_actions` while the type had only `{type, location_id, …}` typed compiled cleanly when the type was loose; once tightened, every reference site fails on the platform's strict pass.
 
-**Before any tightening edit**, invoke the `impact-analysis` skill on the type's FQN to enumerate every reference site, then audit each one against the new shape. Net-new types skip this — nothing references them yet.
+**Before any tightening edit**, invoke the `impact-analysis` skill on the type's FQN to enumerate every reference site, then audit each one against the new shape. Net-new types skip this — nothing references them yet. Remember that frontend inline copies (previous section) are invisible to FQN tracing — audit those separately by searching for the shape's distinctive field ids.

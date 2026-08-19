@@ -33,11 +33,11 @@ Author or modify a Datex Studio backend test (configurationTypeId=24) on a branc
 - [references/backend-tests.md](references/backend-tests.md) — Authoritative backend-test reference: file shape, hook semantics, runtime globals, mocking-strategy tiers, Platform TODOs
 - [../datex-studio-conventions/file-format.md](../datex-studio-conventions/file-format.md) — `configurationTypeId` table, `-backendTest.json` suffix, single-line-minified-JSON convention, `\r\n` editing rule
 - [../datex-studio-conventions/naming-conventions.md](../datex-studio-conventions/naming-conventions.md) — `_test` suffix, filename stem matching, `referenceName` == `title` rule
-- [../datex-studio-runtime/runtime-globals.md](../datex-studio-runtime/runtime-globals.md) — function-tier globals (`$test`, `$flows`, `$apis`, `$datasources`, `$db`, ...) available inside hook and test-case code strings
+- [../datex-studio-runtime/runtime-globals.md](../datex-studio-runtime/runtime-globals.md) — function-tier globals (`$test`, `$flows`, `$apis`, `$datasources`, ...) available inside hook and test-case code strings — **but NOT `$db`** (see tier-compliance rule below)
 - [../datex-studio-runtime/calling-conventions.md](../datex-studio-runtime/calling-conventions.md) — function-tier calling matrix; the `FootprintApi.extendedActions` bridge for invoking actions
 - [../action-creator/references/actions.md](../action-creator/references/actions.md) — the action component; backend-tests replace the historical action-as-test anti-pattern
 - [../type-definition-creator/references/type-definitions.md](../type-definition-creator/references/type-definitions.md) — property-descriptor baseline shared with `vars[]` entries
-- [../db-query/references/db.md](../db-query/references/db.md) — `$db` predicates and patches usable from test-case code
+- [../db-query/references/db.md](../db-query/references/db.md) — `$db` predicates and patches for the **function-tier test-support shim** a suite calls for raw storage fixtures (`$db` itself does not resolve inside test-case code)
 
 ## Dependencies
 
@@ -207,7 +207,7 @@ Build `body.json` from the skeleton in [references/backend-tests.md → Minimal 
    - `$apis.<Package>.FootprintApi.extendedActions.<action_name>({ ... })` — call an action. **The only way to invoke an action from a backend test.** The action → action syntax `$flows.<Package>.<action_name>` does **not** work here.
    - `$flows.<Package>.<function_name>({ ... })` — call another function. `$flows` at this tier reaches functions only.
    - `$datasources.<Package>.<name>.get({ ... })` — function-tier datasources (`-datasource.json`) only. FPDS (`-footprintDatasource.json`) are **not** reachable.
-   - `$db.<Package>.<storage>` — available at the function tier; follow the [../db-query/references/db.md](../db-query/references/db.md) rules.
+   - `$db.<Package>.<storage>` — **NOT available.** Studio Validate rejects `$db` inside backend-test hook/test-case code with `Cannot find name '$db'` (verified 2026-07-15 — a suite whose June-era flows used `$db` failed on its first upload), even though other function-tier services resolve. Storage access must ride same-package `$flows`: prefer the feature's real manage/verb flows when the test exercises the contract anyway; for raw fixture access (legacy-row inserts, column-state assertions, purges) add a small function-tier test-support shim and call it from the test (shipped precedents: `LaborManagement.task_control_engine_test` uses zero `$db`; `SalesOrders.oa_test_support_flow` is the shim pattern). The [../db-query/references/db.md](../db-query/references/db.md) rules apply *inside the shim*.
 
    See [../datex-studio-runtime/runtime-globals.md](../datex-studio-runtime/runtime-globals.md) and [../datex-studio-runtime/calling-conventions.md](../datex-studio-runtime/calling-conventions.md).
 

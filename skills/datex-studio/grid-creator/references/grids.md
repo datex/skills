@@ -12,14 +12,14 @@ Top-level fields of interest (many others exist but default to `null`):
 - `datasourceConfig` — the grid's **consumer reference** to its backing datasource. Carries `datasourceKeyDef`, `configParameters` (inputs piped into the datasource), `configOutParameters` (the subset of the entity shape the grid binds against), and `configId` / `moduleId` pointing at the datasource (or `isOwned: true` when the datasource is embedded in this same file).
 - `datasources` — an array containing **embedded** datasource definitions (when `datasourceConfig.isOwned: true`). `datasources[0]` is a full flow-type datasource in its own right (same shape as a standalone `-datasource.json`) and carries its own `queryOptionsObjectTypeDef` (the entity definition), top-level `outParams`, and per-flow `getListFlow` / `getByKeysFlow` out-params.
 - `flows` — grid-level flows keyed by `referenceName`. Platform-recognized names include `on_data_loaded`, `on_select_row`, `on_excel_import`, `on_excel_export`, `on_init`, `on_interval`. Author-defined flows can also live here and be invoked from toolbars/row actions (e.g. `open_wave_creation_form`).
-- `rowFlows` — per-row flows, typically hooked to cell-click handlers (`on_click_<field>`).
+- `rowFlows` — per-row flows, typically hooked to cell-click handlers (`on_click_<field>`). Any flow whose body reads `$row` must be registered here, not in `flows` — see [Flows](#flows).
 - `topToolbar` / `toolbar` — buttons and controls above/below the grid. Each entry is a polymorphic control descriptor — see [Toolbar Items](#toolbar-items) below for the full shape.
 - `filters` — filter panel fields (same shape as hub filters). Values flow into `datasourceConfig.configParameters` via `$grid.filters.<id>.control.value`.
 - `selection` — configures row-selection behavior (single vs multi).
-- `fullTextSearch` — non-nullable boolean. `true` mounts the built-in search box (its value arrives at `$flow.inParams.full_text_search` inside the datasource's flow code); `false` omits the box. `null` and the object form `{ "enabled": true }` both fail import — the server expects a bare `System.Boolean` and rejects every other shape ("Error converting value {null} to type 'System.Boolean'" / "Unexpected character encountered while parsing value: {").
-- `pageSize` — required integer. The number of rows fetched per page. The skeleton uses `25` as a reasonable default; override per grid if the row size makes a different page size more appropriate.
-- `rowSizingType` / `columnSizingType` — layout-mode enums. Members are **camelCase**, not PascalCase. Both fields are technically nullable but leaving them `null` renders badly — set explicit values.
-  - `columnSizingType` (`EGridColumnSizingType`) members: `"cellsWidth"` (default), `"headersWidth"`, `"fixedWidth"`, `"fitedWidth"` (note: spelled `fitedWidth`, not `fittedWidth` — match the platform's literal). The skeleton uses `"cellsWidth"`.
+- `fullTextSearch` — non-nullable boolean. `true` mounts the built-in search box (its value arrives at `$flow.inParams.full_text_search` inside a flow datasource's code, or at `$datasource.inParams.full_text_search` in an OData datasource's filter expressions — declare the `full_text_search` inParam on the datasource in either variant); `false` omits the box. `null` and the object form `{ "enabled": true }` both fail import — the server expects a bare `System.Boolean` and rejects every other shape ("Error converting value {null} to type 'System.Boolean'" / "Unexpected character encountered while parsing value: {").
+- `pageSize` — required integer. The number of rows fetched per page. The skeleton uses `25` as a reasonable default; override per grid if the row size makes a different page size more appropriate. "Required" here means **build-required**: the grid imports cleanly without it and then fails the build — see [Import-Time vs Build-Time Validation](#import-time-vs-build-time-validation).
+- `rowSizingType` / `columnSizingType` — layout-mode enums. Members are **camelCase**, not PascalCase. Both fields are technically nullable but leaving them `null` renders badly — set explicit values. `columnSizingType` is additionally **build-required**: `null` imports cleanly and then fails the build (see [Import-Time vs Build-Time Validation](#import-time-vs-build-time-validation)).
+  - `columnSizingType` (`EGridColumnSizingType`) members: `"cellsWidth"` (size columns to content — default), `"headersWidth"`, `"fixedWidth"` (per-column pixel `width`), `"fitedWidth"` (note: spelled `fitedWidth`, not `fittedWidth` — match the platform's literal). The skeleton uses `"cellsWidth"`.
   - `rowSizingType` (`ERowSizingType`) members: `"default"`, `"relaxed"`, `"compact"`. The skeleton uses `"default"`.
   - **Anti-patterns observed empirically:** `"fill"` (lowercase, not a member) and `"Fill"` (PascalCase, wrong casing) both fail with `Error converting value '...' to type 'System.Nullable\`1[...EGridColumnSizingType]'`. The error message doesn't list the valid members — copy them from this section.
 - `inParams` / `outParams` — the grid's own callable-component I/O, distinct from its datasource's. Accessed as `$grid.inParams.<id>` in grid and row flow code.
@@ -296,6 +296,15 @@ A complete copy-pasteable grid with an **embedded flow-type datasource**. The ex
 
 _The two-field row shape (`id`, `name`) appears verbatim at all five entity-shape locations. After any field-set edit, grep an unchanged neighbor id (e.g. `"id": "name"`) across the file — your new field must have a matching occurrence at each site. The canonical key order for `datasources[0]` follows [Embedded Datasource Component-Identity Envelope](#embedded-datasource-component-identity-envelope) below; toolbar entries keep all sibling `*Config` keys present and explicitly `null`._
 
+### Import-Time vs Build-Time Validation
+
+Platform errors surface in **two phases**, and passing the first proves nothing about the second:
+
+1. **Import** validates JSON shape and enum membership — wrong shapes (`fullTextSearch` as an object) and phantom enum values (`columnSizingType: "fill"`) fail here with `400` responses naming the offending path.
+2. **Build** additionally requires concrete values for codegen-critical fields — `pageSize` and `columnSizingType` are nullable/omittable at import yet **required to build**. A grid can import cleanly and still fail to build.
+
+Static validation (the grid-validator rule set, JSON-parse checks) catches neither phase — it derives from these docs, not from the platform's binding model. When a new field draws an import or build error despite matching this doc, treat the doc as wrong, fix the component against the platform's actual contract, and update this doc + the skeleton with the verified value.
+
 ## Columns
 
 Each entry in `columns` has:
@@ -305,7 +314,7 @@ Each entry in `columns` has:
 - `visible` — initial visibility. Runtime code can flip `$grid.headers.<id>.hidden` (inverse boolean, confusingly named).
 - `displayControl` — the control shown in read mode. Most common is `type: "text"` with `textConfig.value` bound to an entity field (`"$row.entity.<field>"`), but any control type from the platform's control repertoire is available (selectBox, checkBox, dateBox, numberBox, button, image, etc.).
 - `editControl` — the control shown in edit mode. `null` when the column is read-only.
-- `width` — pixel width, applied when `columnSizingType` is set to the platform's fixed-width mode (literal enum value unverified — see [File Shape at a Glance](#file-shape-at-a-glance) above; copy from a known-good component before setting).
+- `width` — pixel width, applied when `columnSizingType: "fixedWidth"` (see [File Shape at a Glance](#file-shape-at-a-glance) above for the full member list).
 - `hyperLink` — when `true`, the cell renders as a clickable link that fires `onCellClickFlowConfig`.
 - `onCellClickFlowConfig` — flow reference fired on cell click; the flow typically lives under `rowFlows` and receives `$row` / `$grid` runtime globals.
 - `dynamicOrderBy` / `dynamicFilter` / `dynamicFilterType` / `dynamicFilterControl` — per-column sort/filter wiring for OData-backed grids.
@@ -320,7 +329,7 @@ Inside grid flows (`flows[]` and `rowFlows[]`):
 - `$grid.inParams.<id>` — grid-level input values passed in by whatever mounts the grid (hub tab, dialog, etc.). Writable — mutating `$grid.inParams.entity_id` inside a save flow lets a later refresh pick up the new parent id.
 - `$grid.outParams.<id>` — grid-level outputs, assigned from flow code. Changes notify the host via `$grid.events.outParamsChange.emit()` — call this after updating any `outParams.*` field that hosts are subscribed to.
 - `$grid.filters.<id>.control.value` — filter panel field values.
-- `$grid.topToolbar.<id>` / `$grid.toolbar.<id>` — toolbar entry handles. Top-level `.hidden = true` hides the entry; the nested control (`.buttonConfig` / `.control` under the shared alias) carries `.readOnly`, `.disabled`, etc. Useful to gate button `readOnly` on selection.
+- `$grid.topToolbar.<id>` / `$grid.toolbar.<id>` — toolbar entry handles. Top-level `.hidden = true` hides the entry; the nested control (`.buttonConfig` / `.control` under the shared alias) carries `.readOnly`, `.disabled`, etc. Useful to gate button `readOnly` on selection. The nested control's `.label` is also writable — imperative assignment (`$grid.topToolbar.<id>.control.label = ...`) is the proven pattern for state-reflecting button text (e.g. showing an applied-filter summary on a Filters button); there is no declarative binding for a live label. The control's `.styles` object carries semantic class toggles (`setPrimaryClass()`) and resets (`resetStyle()`, `resetClasses()`) for marking a button active/inactive — the same `.control.styles` API exists on hub toolbar buttons.
 - `$grid.canAdd`, `$grid.canEdit` — booleans controlling the add-row / inline-edit affordances. Flip in `on_init` or `on_apply_operations` based on permission checks (`$operations.<Package>.<Op>.isAssignedToAll()`).
 - `$grid.refresh()` — re-triggers the backing datasource.
 - `$grid.fullTextSearch` — current search box value. To forward this value to the embedded datasource as `full_text_search`, you must wire it explicitly via a `datasourceConfig.configParameters` entry whose `value` is `"$grid.fullTextSearch"` — see [`datasourceConfig.configParameters` — Feeding Inputs to the Datasource](#datasourceconfigconfigparameters--feeding-inputs-to-the-datasource).
@@ -332,6 +341,13 @@ Inside grid flows (`flows[]` and `rowFlows[]`):
 - `$row.vars.<id>` — per-row scratch state, declared at top-level `rowVars[]`. Typical use: stash a freshly-reserved id during `on_save_new_row` so `on_save_existing_row` (or a chained tailored handler) can use it on the next pass.
 - `$row.refresh()` — re-fetches just this row via the datasource's `getByKeysFlow`. Cheaper than `$grid.refresh()` for single-row updates.
 - `$row` also exposes selection/edit state (`.isNew`, `.isSelected`, etc.) where relevant.
+
+### Stable Compiled-Instance APIs (advanced)
+
+Generic browser-side tooling that receives a live grid reference as an object argument (frontend flows called with `{ grid: $grid }` — object arguments pass by reference, so the callee sees live grid state) can introspect the compiled grid instance beyond the documented handles:
+
+- `$grid.$dataLoad` — the grid's compiled data-load method. Its source carries the literal inParams object the grid passes to its backing datasource (grid inParams, filter-control values, vars, page size), which can be parsed/evaluated to reproduce the grid's current query inputs. Caveat: the compiled form differs between Preview and the built app, so state recovered by evaluating the compiled literal can silently drop dynamic filter/sort in Preview — prefer the `$getDynamic_*` APIs below for that state.
+- `$grid.$getDynamic_orderby()` / `$grid.$getDynamic_<family>()` — stable methods that rebuild the grid's **current dynamic sort and filter state** without parsing compiled code. Filter families are `number` / `numberMulti` / `string` / `date` / `boolean`; feature-detect each method, since a grid only compiles the families its columns register. Family results slot into the standard envelope `{ operator: 'and', operands: [{ operator: 'and', <family>: arr || null }] }` — the same `$filter` shape delivered to flow datasources — and `$getDynamic_orderby()` returns the `$orderby` array. The envelope shape is identical across grids; calling these is idempotent in the built app and corrective in Preview.
 
 ## Embedded Datasource Component-Identity Envelope
 
@@ -456,6 +472,12 @@ Common platform-recognized flow slots (each has a matching `on<Name>FlowConfig` 
 - Row-level: `on_init_new_row`, `on_save_new_row`, `on_save_existing_row`, `on_row_data_loaded`.
 
 Author-defined flows sit in `flows[]` alongside these. Reference them from toolbar click handlers (`"flowId": "open_wave_creation_form"`), cell-click handlers, or other flow code (`$grid.<flow_referenceName>(...)`).
+
+**Flows that read `$row` must be registered in `rowFlows[]`, not `flows[]`.** Grid-level `flows[]` compile with grid scope only (`$grid`); only `rowFlows[]` entries receive the `$row` global. A row-scoped flow (e.g. `on_row_data_loaded`) placed in `flows[]` fails platform validation with `Cannot find name '$row'` plus `Missing 'Row data loaded (Row Flows)'` — pointing `onRowDataLoadedFlowConfig` at the flow is not enough; the flow object itself must live in `rowFlows[]`. Automated grid audits have missed this, so check manually: scan every flow body for `$row` and move any hit into `rowFlows[]`.
+
+**`on_row_data_loaded` must not make backend calls — it is the platform's N+1 anti-pattern.** The flow fires once per rendered row, so a `$flows` / `$datasources` call inside it multiplies into a page-size burst of dispatches on every load, sort, and filter change. Restructure instead: hoist row-invariant work (permission checks, config reads) to `on_init` / `apply_operations` and stash it in `$grid.vars`; derive per-row display state from fields already on `$row.entity` (extend the datasource's projection if a field is missing); and when a genuine per-row lookup is unavoidable, batch it once per data-load from `on_data_loaded` — collect the page's ids, make one `in`-query, index into a map keyed by row id.
+
+**Awaited writes to `$grid.vars` lose the race against a refresh.** A refresh triggered by a filter change reads the datasource inputs **before** an `await`-delayed write to `$grid.vars` lands — the stale value applies, and the fresh value sits unused until the *next* filter change (synchronous writes win the refresh; awaited writes lose it — verified both directions live). Rule: change-handler flows that feed `$grid.vars` into datasource inputs must write **synchronously, with no `await` between flow entry and the write**. Precompute whatever the handler needs (e.g. lookup tables) at grid init into a `$grid.vars` entry, resolve from that var synchronously in the handler, and keep an async fallback (followed by an explicit `$grid.refresh()`) only for the init-load-failed path.
 
 ## Dynamic Filters and Sorting
 
@@ -684,6 +706,21 @@ Two common idioms:
 - **Post-load enrichment** in `on_data_loaded` — walk `$grid.rows`, fetch side-data from another datasource, then assign `row.cells.<col>.displayControl.text` / `editControl.value` for columns whose `displayControl.textConfig.value` is an empty string (i.e. not source-bound). This is the standard way to populate a column that isn't part of the primary datasource's `select`, and the backbone of the secondary-datasource pattern below.
 - **Change-guarded writes** in `on_save_existing_row` — wrap every field assignment to the update payload in `if ($row.cells.<col>.editControl.isChanged) { payload.<X> = $row.cells.<col>.editControl.value; }`. This produces a minimal PATCH — unchanged fields stay absent.
 
+### Cell Styling — Icons, Classes, and the Two `setStyle` Targets
+
+Three constraints govern imperative cell icons/styling. Local TypeScript accepts violations of all three; they surface only at platform validation — or as silently missing visuals:
+
+- **`displayControl.icon` exists only on button-typed cells.** A cell whose display control is a button (`IButtonModel`) exposes `.icon` — assign a Fluent class string (e.g. `'icon-ic_fluent_arrow_up_20_regular'`), clear with `null`. Text-typed cells (`ITextModel`) do **not** have `.icon`; assigning it compiles locally but fails platform validation with `Property 'icon' does not exist on type 'ITextModel'`. To put an icon on a text column, change the column's `displayControl.type` to `button` — a structural column edit, not a code-only change.
+- **`ICellStyles` exposes only `setAttentionClass()` (plus `clearClasses()` to reset).** The richer semantic class toggles — `setCreationClass()`, `setPlannedClass()`, `setDestructiveClass()`, `setClass(<name>)` — live on button / button-group styles (`IButtonStyles` / `IButtonsStyles`, i.e. toolbar buttons and editor/hub controls), **not** on grid cells. Consequence: two row states cannot be distinguished by cell background color alone — both land on the same attention class. Carry the distinction in the cell text (e.g. prefix a failure label) or in a sibling cell.
+- **`setStyle(prop, value)` has two targets — pick by which DOM element the property affects.** Every cell carries two `.styles` objects that apply inline CSS to *different* elements:
+
+  | Target | Element styled | Properties that belong here |
+  |---|---|---|
+  | `$row.cells.<col>.styles.setStyle(...)` | the parent cell `<div>` wrapping the control | cell-spanning backgrounds and layout chrome; the class toggles (`setAttentionClass()` / `clearClasses()`) also act on this element |
+  | `$row.cells.<col>.displayControl.styles.setStyle(...)` | the inner control element itself (the `<button>` when button-typed, the `<input>` when text-typed; `editControl.styles` is the edit-mode counterpart) | hover state, `pointer-events`, `cursor`, `opacity`, `text-decoration` of the control/label |
+
+  A control-level property applied to the parent-div target type-checks and validates fine but has **zero visible effect** — the CSS lands on the wrong element. Rule of thumb: cell-level chrome on `cells.<col>.styles`, control-level chrome on `displayControl.styles`. For multi-state visuals inside one cell, combine them: a button-typed column with `displayControl.icon` + `displayControl.styles` for the control affordance, and `setAttentionClass()` on the cell parent for the background.
+
 ### Text Display Bindings Need String Values
 
 `displayControl.textConfig.value` is typed `string`. Binding a non-string entity field (`"$row.entity.Id"` when `Id` is `Edm.Int32`, `"$row.entity.Active"` when `Active` is boolean, `"$row.entity.CreatedSysDateTime"` when it's a date) fails import with
@@ -737,4 +774,5 @@ Hubs embed grids inside `tabs[].contentConfig` (when `contentType: "grid"`). The
 - **Built-in CRUD actions** (`crud_create_entity`, `crud_update_entity`, `crud_delete_entity` from Utilities) are the conventional way to persist grid row edits — see [`calling-conventions.md` → CRUD Actions](../../datex-studio-runtime/calling-conventions.md#crud-actions).
 - **Vars and rowVars**. Grid-scope scratch lives in top-level `vars[]`, accessed as `$grid.vars.<id>`. Per-row scratch lives in top-level `rowVars[]`, accessed as `$row.vars.<id>`. Both use the standard inParam-shaped descriptor. Declare every id you read or write — see [`component-wiring.md` → Component Variables Must Be Declared](../../component-wiring-check/references/component-wiring.md#component-variables-must-be-declared).
 - **Icons** use the `icon-ic_fluent_<name>_<size>_<style>` identifier set (Fluent icons), e.g. `icon-ic_fluent_arrow_upload_20_regular`, `icon-ic_fluent_arrow_download_20_regular`. Used on `buttonConfig.icon`, column `displayControl.imageConfig`, and other icon-taking fields.
+- **Injected CSS must be scoped.** Stylesheets injected at runtime from component flow code are document-global, so unscoped rules leak into every other component on screen. Scope rules to the owning component by anchoring selectors on a unique inline-style marker set imperatively (e.g. a distinctive `border-left-color` assigned in `on_init`, matched via `[style*="<rgb-value>"]`). Keep marker values distinct across states — attribute `*=` matching is substring-based, so overlapping RGB strings inherit each other's rules. Toolbar/action-bar buttons can be targeted through their stable wrapper attribute, `.toolContainer[data-cy="tool-id-<id>"]`.
 - **Tailoring overlay**. Grids can be extended by a tailored overlay (`baseConfiguration` + `onCustomization*FlowConfig`) without forking. See [`tailoring.md`](../../tailoring-overlay/references/tailoring.md) for the overlay model, the `fromBaseConfiguration: true` marker semantics, and the recipe for flattening a tailored grid into a standalone custom one.

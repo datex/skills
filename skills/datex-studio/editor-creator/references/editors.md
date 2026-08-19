@@ -170,6 +170,11 @@ The form-validation flow runs whenever any field changes. Typical pattern:
 2. Assigns `$editor.toolbar.save.control.readOnly = !is_valid`.
 3. Optionally writes per-field validation messages via each field's `control.validationMessage`.
 
+**The validation flow lives in `formValidationFlows[]`, NOT `flows[]`** — a separate top-level array that name-based scans of `flows[]` will miss. `onFormValidateFlowConfig.flowId` resolves against `formValidationFlows`. Two paid-for consequences (2026-07-20, Totes `totenization_configuration_editor`):
+
+- **Never author a `flows[]` entry named `validate_form`** (or whatever name `onFormValidateFlowConfig` points at). Codegen emits a class member per flow from BOTH arrays; a name collision produces `Duplicate function implementation` plus `TS2345` (`Promise<void>` vs `Promise<{[field]: string[]}>` — the validation contract expects a field-errors return, wired to every control change via `validateFormOnControlChange`). `dxs configuration validate` passes; only the Preview build fails.
+- **When cloning an editor, audit `formValidationFlows[]` too** — it carries live code (required-field gating, often a `set_config()` call) that inherits stale field references from the template invisibly.
+
 ### Embedded Private Datasource Keyed by the Entity Id
 
 Each editor embeds exactly one private, single-result flow datasource in its `datasources[]` array. Properties:

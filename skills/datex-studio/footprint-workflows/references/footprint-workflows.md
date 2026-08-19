@@ -41,7 +41,7 @@ Four top-level fields bind the config to its platform slot:
 | `apiSettingName` | The Footprint API connection setting on the branch | `"FootprintApi"` | branch settings (`dxs source branch settings`) |
 | `workflowDefinitionId` | Numeric id of the platform workflow slot | `18` | **workflowsMetadata API** → `id` |
 | `workflowDefinitionName` | Human name of the slot | `"Cartonization"` | **workflowsMetadata API** → `name` |
-| `workflowGUID` | A unique reference **you assign** to this workflow config | `"88c5baee-b316-4dce-bb07-fd624e11a922"` | **you generate it** (new) / **preserve it** (edit) — *not* in the metadata, matches nothing |
+| `workflowGUID` | The code callers pass to select this workflow | `"88c5baee-b316-4dce-bb07-fd624e11a922"` | **generate** (new workflow) / **preserve** (edit) / **reuse the legacy value** (drop-in replacement) — *not* in the metadata |
 
 ### Discovering the slot catalog (authoritative source)
 
@@ -64,17 +64,35 @@ The response payload (`workflowsMetadataJson`) also carries:
 
 **Copy `id` → `workflowDefinitionId`, `name` → `workflowDefinitionName`, and the `inParams`/`outParams` verbatim** into your config body. The catalog is the source of truth for the slot signature — you don't invent or guess it.
 
-### `workflowGUID` — a unique reference you own
+### `workflowGUID` — the code callers pass
 
-`workflowGUID` is **not** in `workflowsMetadata` and does **not** have to match anything — it's a unique identifier **you assign** to the workflow config instance (analogous to a component GUID). The rule is simple:
+`workflowGUID` is **not** in `workflowsMetadata`, so nothing in the catalog dictates it. What it must match is
+**whatever callers already pass**: the value reaches the server as `ProcessingStrategyWorkflowCode` /
+`AllocationStrategyWorkflowId`, and the server dispatches to the workflow carrying it. Three cases:
 
-- **New workflow → generate a fresh GUID.** Any v4 UUID works:
+- **New workflow, new slot usage → generate a fresh GUID.** Nothing references it yet, so any v4 UUID works:
   ```bash
   python3 -c "import uuid; print(uuid.uuid4())"   # or: uuidgen | tr 'A-Z' 'a-z'
   ```
-- **Editing an existing workflow → keep the existing GUID.** The round-trip (`get -O envelope.json` → `jq .json > body.json`) preserves `workflowGUID` automatically — **don't regenerate it**. Changing the GUID on an edit makes the platform treat it as a different workflow.
+  Then configure the callers (strategy settings, order/carrier config) to pass the new value — a fresh GUID
+  that nobody passes is a workflow that never runs.
+- **Editing an existing workflow → keep the existing GUID.** The round-trip (`get -O envelope.json` →
+  `jq .json > body.json`) preserves `workflowGUID` automatically — **don't regenerate it**. Changing the GUID
+  on an edit orphans every caller still passing the old value.
+- **Drop-in replacement for a legacy workflow → reuse the legacy GUID deliberately.** When your config
+  supersedes an existing implementation of the same slot and the existing callers must keep working
+  untouched, carry the **legacy** `workflowGUID` across. This is the one case where a GUID is copied from
+  another config, and it is intentional: the GUID is the caller-side contract, so preserving it is what makes
+  the replacement drop-in. Confirm the workflow it replaces is being retired — two live configs sharing a
+  GUID is ambiguous dispatch.
 
-Getting the *slot* binding wrong (mismatched `workflowDefinitionId`/`workflowDefinitionName`, or a param contract that doesn't match the slot) means the platform won't wire the config to the slot — it validates clean but never runs. The GUID is independent of that wiring; it just needs to be present, unique to this config, and stable across edits.
+The distinction that matters is **new capability vs. replacing an existing one**. Generate when you own the
+callers and will point them at the new value; reuse when the callers already exist and must not change.
+
+Getting the *slot* binding wrong (mismatched `workflowDefinitionId`/`workflowDefinitionName`, or a param
+contract that doesn't match the slot) means the platform won't wire the config to the slot — it validates
+clean but never runs. The GUID is independent of that wiring; it selects *which* implementation of the slot
+runs.
 
 ## The Fixed Param Contract (the platform owns the signature)
 

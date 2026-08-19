@@ -27,6 +27,15 @@ Every component's name carries a type indicator that makes its kind legible at a
 
 **`_dd` reserved for dropdown backing.** The `_dd` suffix is reserved for datasources (and their selectors) dedicated to backing a dropdown selector. General-purpose datasources — even ones that happen to be queried by key or return a collection — do not use `_dd`. Reserve the suffix for the selector-backing case so the name signals intent at a glance.
 
+## Parameter and Variable Ids Are snake_case
+
+New `inParams[].id` / `outParams[].id` entries on any component (grid, datasource, flow, form, hub, selector, editor, action, etc.) — including embedded flows and datasources — use **snake_case**: `warehouse_id`, `project_ids`, `capture_date`, not `warehouseId` / `projectIds` / `captureDate`. The same rule covers:
+
+- `configParameters[].parameter.id` on caller references — these mirror the target's inParam ids verbatim, so wiring a caller's `warehouse_id` at the reference site means the target grid/selector/datasource must also declare `warehouse_id`.
+- Component-level `vars[].id` and `rowVars[].id` — snake_case for new declarations.
+
+Many existing components carry camelCase param ids (`fullTextSearch`, `warehouseId`, `captureDate`, `projectIds`). Those are **legacy** — do not replicate the casing when adding new params next to them; new ids are snake_case even when every neighbor is camelCase. Conversely, don't rename existing camelCase params when only *adding* new ones nearby — renames ripple into every caller and belong in their own dedicated change.
+
 ## Tailored and Custom Prefixes — Grid Provenance Variants
 
 Grids (and the flows/datasources authored alongside them) come in three provenance variants. The same convention extends by analogy to other tailorable component types:

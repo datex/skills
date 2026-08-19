@@ -1,0 +1,90 @@
+{
+  "skill_name": "function-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"function-creator-eval-{timestamp}\" --description \"Temporary branch for function-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "simple-create-lifecycle",
+      "prompt": "On connection 9, branch {branch_id}: create a function that takes a list of order totals (numbers) and a discount percentage, and returns the discounted grand total plus the count of orders over 1000 (after discount). Reference name: eval_discount_totals_flow.",
+      "expected_output": "A generated, validated, and upserted function config with snake_case in/out params, code that assigns $flow.outParams (no bare return), and the full generate/context/validate/upsert lifecycle in order.",
+      "files": [],
+      "expectations": [
+        "The transcript contains a 'dxs function generate' command with --code-file, -r eval_discount_totals_flow, and -o",
+        "Every in-param and out-param id in the generate command matches ^[a-z][a-z0-9_]*$ (snake_case; no camelCase ids)",
+        "The generate command includes a -d description that is non-empty and at most 100 characters",
+        "The transcript contains a 'dxs function context' command run before the last write of the code file that fed the final generate/upsert (intellisense phase precedes final code)",
+        "In the code of the FINAL generated config (the one validated and upserted), outputs are set by assigning to $flow.outParams.<param>; there is no bare 'return;' statement (an early-exit 'return $flow.outParams;' is acceptable)",
+        "The transcript contains a 'dxs function validate' command run before upsert",
+        "The transcript contains a 'dxs configuration upsert flow' command after validation",
+        "The reference name ends with the _flow suffix and is a valid JS identifier"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "modify-existing-with-signature-change",
+      "prompt": "On connection 9, branch {branch_id}: there should be a function eval_discount_totals_flow on the branch (if it does not exist, first create it exactly as: in-params order_totals number[] and discount_percent number; out-param grand_total number; code that sums order_totals, applies the discount, and assigns the result). Then modify it: add a new optional in-param rounding_mode (string) that when set to 'floor' floors the grand total before returning it. Keep existing behavior when the param is absent.",
+      "expected_output": "The agent fetches the existing function, extracts code from stepConfig.executeCodeConfig.code, checks callers before the signature change, updates code + params, revalidates and re-upserts.",
+      "files": [],
+      "expectations": [
+        "The transcript contains a 'dxs function get eval_discount_totals_flow' command (or equivalent fetch of the existing config) before modifying",
+        "The transcript shows the code being extracted from stepConfig.executeCodeConfig.code (not from a top-level code field)",
+        "Before changing the signature, the transcript shows a caller/impact check (impact-analysis skill or an explicit reverse-trace/caller search for eval_discount_totals_flow)",
+        "The new in-param id is snake_case (rounding_mode)",
+        "The modified code still assigns $flow.outParams.grand_total (no bare 'return;')",
+        "The transcript contains 'dxs function validate' after the modification",
+        "The transcript contains 'dxs configuration upsert flow' after validation",
+        "The final code preserves the original discount behavior when rounding_mode is absent (conditional application, not a rewrite)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "flow-calling-datasource",
+      "prompt": "On connection 9, branch {branch_id}: create a function eval_warehouse_summary_flow that takes a warehouse_id (number) and returns the warehouse's name plus how many active shipments it has. Use whatever existing datasources or entities make sense — explore the branch/schema rather than guessing. If you need a supporting datasource, create it first.",
+      "expected_output": "A function whose code calls a datasource via $datasources, unwraps .result before field access, with intellisense-verified symbol scoping and the full validate/upsert lifecycle.",
+      "files": [],
+      "expectations": [
+        "The transcript contains a 'dxs function context' command and the agent read the available imports before writing code (did not guess symbol availability)",
+        "The function code accesses data via $datasources.<name>.get() or .getList() — it does not attempt raw HTTP/OData calls from function code",
+        "The function code unwraps the datasource response (e.g. const x = resp.result) before accessing entity fields",
+        "The function code reads inputs via $flow.inParams.warehouse_id and assigns outputs to $flow.outParams.*",
+        "Any helper constants or lookup tables in the code are declared inside the executing function body or before their first use — no const/let declarations placed after the final statement of the main body (TDZ trap)",
+        "The function code does not use module-level mutable state to accumulate results across invocations (no counters/arrays expected to persist between calls)",
+        "The transcript shows schema or branch exploration (dxs schema search/describe-entity, or exploring existing datasources) before building the query/datasource",
+        "The transcript contains 'dxs function validate' and 'dxs configuration upsert flow' for the function",
+        "The function code does not reference frontend-only symbols ($shell, $frontendFlows)"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "lookup-table-tdz-trap",
+      "prompt": "On connection 9, branch {branch_id}: create a function eval_status_label_flow that maps a numeric order status id to a human label: 1=Created, 2=Processing, 4=Completed, 8=Cancelled, anything else 'Unknown'. In-param: status_id (number). Out-param: status_label (string). Structure the code with a helper function that does the lookup.",
+      "expected_output": "A function whose helper + lookup-table structure avoids the post-return TDZ trap: the lookup table lives inside the helper (or before the main body's final statement), and output is assigned to $flow.outParams.",
+      "files": [],
+      "expectations": [
+        "The lookup table (map/object of status codes to labels) is declared INSIDE the helper function or before its first use in the main body — not as a const/let after the main body's final statement or return",
+        "The code assigns $flow.outParams.status_label (no bare 'return;' as the output mechanism)",
+        "The in/out param ids are snake_case (status_id, status_label)",
+        "The generate command includes a -d description that is non-empty and at most 100 characters",
+        "The transcript contains 'dxs function validate' and 'dxs configuration upsert flow'",
+        "The default/fallback branch returns 'Unknown' for unmapped ids (e.g. 3, 5, 999)"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "transactional-request-dispatch",
+      "prompt": "On connection 9, branch {branch_id}: I need something that cancels a sales order — it should set the order status to cancelled, cancel all its open shipments, and release any allocated inventory, all-or-nothing (if any step fails everything must roll back). Can you build that as a function? Call it eval_cancel_order_flow.",
+      "expected_output": "The agent recognizes the all-or-nothing multi-entity mutation as transactional work that belongs in an action (-footprintFlow, cti 18), surfaces the action-vs-function decision instead of silently building a non-transactional function.",
+      "files": [],
+      "expectations": [
+        "The transcript explicitly raises the action-vs-function decision: it identifies that all-or-nothing multi-entity mutation requires a transactional action (footprintFlow / configurationTypeId 18), not a function",
+        "The agent does NOT silently create a plain function that performs the multi-entity mutations without transactional protection or without flagging the rollback requirement",
+        "If the agent builds anything, the transactional core is an action (or it pauses to recommend the action route and asks/states the correct approach); a thin function wrapper around a transactional action is acceptable",
+        "The response mentions rollback/atomicity/transaction as the reason for the routing decision"
+      ]
+    }
+  ]
+}

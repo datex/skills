@@ -1,0 +1,117 @@
+{
+  "skill_name": "grid-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"grid-creator-eval-{timestamp}\" --description \"Temporary branch for grid-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "new-odata-grid-owned-datasource",
+      "prompt": "On connection 9, branch {branch_id}: create a grid that lists our warehouses — columns for the warehouse name, the type name, and the created date. Nothing else will ever consume this data; it exists only to feed this grid. Reference name: eval_warehouses_grid.",
+      "expected_output": "A validated and upserted OData-backed grid with an owned embedded datasource (isOwned: true), correct queryOptions.selects coverage, full component-identity envelope, build-required pageSize/columnSizingType, coerced text bindings, and a grid-validator pass.",
+      "files": [],
+      "expectations": [
+        "The transcript shows the pre-author rows-source decision: schema exploration (dxs schema search / dxs schema describe-entity or the schema-explorer agent) confirming the Warehouses entity BEFORE the grid body was authored — the agent did not default to a flow-type datasource for an obvious OData entity",
+        "The datasource is authored as an OWNED entry embedded in the grid's datasources[] array with datasourceConfig.isOwned: true — the transcript does NOT create a standalone datasource config (no separate 'dxs configuration upsert datasource') for this grid-only source",
+        "The embedded datasource has type 'oDataQuery' with getListFlow and getByKeysFlow null (the OData variant), and every column-bound field appears in datasources[0].queryOptions.selects (nested fields such as the type name in the appropriate expands[].queryOptions.selects) — the runtime-only location that actually retrieves the data",
+        "The entity fields appear in the applicable type-metadata locations: datasources[0].queryOptionsObjectTypeDef, datasources[0].outParams[result].objectTypeDef, and datasourceConfig.configOutParameters[result].objectTypeDef",
+        "pageSize is present as a concrete integer (e.g. 25) and columnSizingType is a valid camelCase member ('cellsWidth' / 'headersWidth' / 'fixedWidth' / 'fitedWidth') — neither is null or omitted (both are build-required: the grid imports without them and then fails the build)",
+        "The embedded datasource carries the full component-identity envelope: datasources[0].referenceName exactly equals datasourceConfig.configId, plus title, non-empty description ≤ 100 chars, hasKey: true, hasResult: true, and accessModifier 'private'",
+        "Non-string column bindings are coerced at the bind site (created date via $utils.date.format(...) or equivalent; any numeric field via ?.toString() or a template literal) — the entity schema's declared types are NOT changed to string to satisfy display bindings",
+        "The grid's referenceName is eval_warehouses_grid (snake_case, _grid suffix) and its description is non-empty and at most 100 characters",
+        "The transcript contains a 'dxs configuration validate grid' command run before 'dxs configuration upsert grid'",
+        "After authoring, the transcript shows a grid-validator invocation (the mandatory grid-specific gate) — not merely the generic component-validator"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "new-flow-grid-aggregated-rows",
+      "prompt": "On connection 9, branch {branch_id}: I want a grid eval_pick_velocity_grid that shows picks-per-day aggregated per warehouse — columns for warehouse name, pick date, and pick count. There is no single entity for this; the rows are computed by combining task data. Build the grid with whatever datasource type fits.",
+      "expected_output": "A flow-type embedded grid datasource (getListFlow/getByKeysFlow populated) with all five entity-shape locations in sync, $top/$skip pagination, matching key defs, all-or-nothing filter state, validated, upserted, and grid-validator-checked.",
+      "files": [],
+      "expectations": [
+        "The embedded datasource is flow-type (type: 'flows') with getListFlow and getByKeysFlow both populated (paginated shape), resultIsCollection: true, hasKey: true, hasResult: true — the agent recognized the computed/aggregated rowset as flow-type work rather than forcing an OData query",
+        "The row shape appears identically in all five entity-shape locations: datasources[0].queryOptionsObjectTypeDef, datasources[0].outParams[result].objectTypeDef, getListFlow.outParams[result].objectTypeDef, getByKeysFlow.outParams[result].objectTypeDef, and datasourceConfig.configOutParameters[result].objectTypeDef",
+        "$top and $skip are declared on getListFlow.inParams (normal pagination inputs), and the getListFlow code sets $flow.outParams.totalCount alongside $flow.outParams.result",
+        "keyDef on the embedded datasource and datasourceConfig.datasourceKeyDef agree (same ids and types)",
+        "Dynamic filter/sort is in an all-or-nothing state: either no dynamicFilters/dynamicOrderBys registrations at all, or registrations + per-column wiring + application inside getListFlow code — never the half-wired state where UI controls are registered but the flow ignores $filter/$orderby",
+        "No $filter or $orderby entries are manually declared in any inParams list (datasources[0].inParams, getListFlow.inParams, getByKeysFlow.inParams) or in datasourceConfig.configParameters",
+        "pageSize is present as an integer and columnSizingType is a valid camelCase member; the referenceName is eval_pick_velocity_grid ending in _grid; the description is non-empty and ≤ 100 characters",
+        "The transcript contains 'dxs configuration validate grid' run before 'dxs configuration upsert grid'",
+        "After authoring, the transcript shows a grid-validator invocation (the mandatory gate after every grid edit)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "add-dynamic-filter-five-locations",
+      "prompt": "On connection 9, branch {branch_id}: the grid eval_pick_velocity_grid should exist on the branch (if it does not, first create it: a flow-type embedded datasource whose row shape is { warehouse_name: string, pick_date: string, pick_count: number }, with columns for all three). Then make the warehouse name column filterable and sortable from its column header.",
+      "expected_output": "A dynamic filter added per the full grids.md checklist: field in all five entity-shape locations, identical registrations in both registration sites, four per-column wiring fields, no manual $filter/$orderby declarations, and getListFlow actually applying the inputs (state A).",
+      "files": [],
+      "expectations": [
+        "warehouse_name is present in all five entity-shape locations after the edit (datasources[0].queryOptionsObjectTypeDef, datasources[0].outParams[result].objectTypeDef, getListFlow.outParams[result].objectTypeDef, getByKeysFlow.outParams[result].objectTypeDef, datasourceConfig.configOutParameters[result].objectTypeDef) — verifiable by grepping a neighbor field id and comparing occurrence counts",
+        "The field is registered in BOTH registration sites with identical entries: datasources[0].dynamicFilters AND datasourceConfig.dynamicFilters (and likewise in both dynamicOrderBys lists for sorting) — no drift between the embedded-datasource side and the consumer side",
+        "The warehouse name column carries all four per-column wiring fields: dynamicFilter, dynamicOrderBy, dynamicFilterType (inParam-shaped leaf type), and dynamicFilterControl (textBox for a string field)",
+        "No $filter or $orderby entry was added to any inParams list (datasources[0].inParams, getListFlow.inParams, getByKeysFlow.inParams) or to datasourceConfig.configParameters — the platform auto-injects typed versions from the registrations and manual entries collide",
+        "getListFlow code applies both inputs to the row set (the canonical applyDynamicFilter / applyDynamicOrderBy helpers or equivalent, reading ($flow.inParams as any).$filter and ($flow.inParams as any).$orderby) — the edit does not leave the half-wired bug state where filter UI is registered but the data never responds",
+        "If the grid already existed on the branch, the modification used the corrected round-trip: 'dxs configuration get grid ... -O envelope.json', then extraction of the inner .json (jq .json envelope.json or equivalent) before editing — the envelope was never piped directly back into upsert",
+        "The transcript contains 'dxs configuration validate grid' run before the final 'dxs configuration upsert grid'",
+        "After the edit, the transcript shows a grid-validator invocation (mandatory after every grid edit, including filter/sort registration changes)",
+        "The grid's description remains non-empty and at most 100 characters"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "toolbar-button-and-row-flow",
+      "prompt": "On connection 9, branch {branch_id}: on eval_pick_velocity_grid (if it is not on the branch, first create it: flow-type embedded datasource, row shape { warehouse_name: string, pick_date: string, pick_count: number }), add a 'Delete selected' toolbar button that must only be clickable when rows are selected, and add per-row behavior that runs when each row's data loads and writes a 'No picks' note into a status cell for rows whose pick count is zero.",
+      "expected_output": "A destructive selection-gated toolbar button with the click handler inside buttonConfig, plus a $row-reading flow correctly registered in rowFlows[], imperatively-populated status cell left with an empty declarative binding, validated and grid-validator-checked.",
+      "files": [],
+      "expectations": [
+        "The per-row flow (the one whose body reads the $row global) is registered in rowFlows[], NOT in flows[] — pointing onRowDataLoadedFlowConfig at the flow is not sufficient on its own; the flow object itself must live in rowFlows[]",
+        "The toolbar button's click handler lives INSIDE the type-specific config block (buttonConfig.clickFlowConfig.flowId) — not at the toolbar entry's top level",
+        "The toolbar entry has type 'button' and its sibling *Config blocks are present and explicitly null (matching the platform convention), with the click flow declared in the grid's flows[]",
+        "The destructive delete button carries buttonDefaultStyleClass: 'destructive' inside its buttonConfig",
+        "The selection-gated button seeds readOnly: true statically in buttonConfig AND an on_select_row flow toggles its readOnly live (e.g. from the current selection / $grid.selectedRows) — both halves present, so the button mounts disabled before the first selection event",
+        "The status column written imperatively keeps an empty declarative displayControl value (e.g. \"\") — it is NOT bound to $row.entity.<field> for a field the entity does not carry",
+        "Every $grid.vars.<id> or $row.vars.<id> written in the new flow code is declared in the grid's top-level vars[] / rowVars[] arrays",
+        "If the grid already existed, the modification used the corrected round-trip (dxs configuration get grid -O envelope.json, then jq .json extraction before editing)",
+        "The transcript contains 'dxs configuration validate grid' run before 'dxs configuration upsert grid'",
+        "After the edit, the transcript shows a grid-validator invocation"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "cell-styling-two-targets",
+      "prompt": "On connection 9, branch {branch_id}: on eval_pick_velocity_grid (if missing, first create it: flow-type embedded datasource, row shape { warehouse_name: string, pick_date: string, pick_count: number }), style the rows: when pick count is 0 the pick count cell should get an attention-style background; the warehouse name cell should look clickable (pointer cursor and underline on hover); and zero-pick rows should show a warning icon in a cell.",
+      "expected_output": "Cell styling done through the correct APIs: setAttentionClass on ICellStyles for the background, hover/cursor styling on displayControl.styles (the inner control), no .icon on a text-typed cell, and correct flow registration — validated and grid-validator-checked.",
+      "files": [],
+      "expectations": [
+        "The attention background uses $row.cells.<col>.styles.setAttentionClass() — the only class toggle ICellStyles exposes. The code does NOT call setDestructiveClass / setPlannedClass / setCreationClass / setClass on a grid cell (those exist only on button styles, not on cells)",
+        "Cursor / hover / text-decoration styling is applied via $row.cells.<col>.displayControl.styles.setStyle(...) (the inner control element) — NOT via $row.cells.<col>.styles.setStyle(...) (the parent cell div), where control-level properties type-check but have zero visible effect",
+        "No .icon is assigned to a text-typed cell's displayControl (ITextModel has no .icon): either the icon-bearing column's displayControl.type is changed to 'button' before assigning displayControl.icon, or the warning is carried another way (e.g. in cell text) with the ITextModel constraint acknowledged in the transcript",
+        "Every flow whose body references the $row global is registered in rowFlows[]; styling implemented by iterating $grid.rows inside on_data_loaded may legitimately live in flows[]",
+        "If the grid already existed, the modification used the corrected round-trip (dxs configuration get grid -O envelope.json, then jq .json extraction before editing)",
+        "The transcript contains 'dxs configuration validate grid' run before 'dxs configuration upsert grid'",
+        "After the edit, the transcript shows a grid-validator invocation"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "full-text-search-wiring",
+      "prompt": "On connection 9, branch {branch_id}: eval_warehouses_grid (the OData-backed warehouses grid — if it is not on the branch, first create it with an owned OData datasource over Warehouses showing name, type name, and created date) needs the built-in search box so users can search warehouses by name. Wire it up end to end so typing in the box actually filters the rows.",
+      "expected_output": "fullTextSearch: true with an explicit configParameters entry valued $grid.fullTextSearch, a full_text_search inParam declared on the embedded OData datasource, and a conditional OData filter reading $datasource.inParams.full_text_search — validated and grid-validator-checked.",
+      "files": [],
+      "expectations": [
+        "fullTextSearch is set to the bare boolean true — not null and not an object like { \"enabled\": true } (both shapes fail import; the server expects a bare System.Boolean)",
+        "The embedded OData datasource declares a full_text_search inParam",
+        "datasourceConfig.configParameters contains an EXPLICIT entry whose parameter id is full_text_search and whose value is \"$grid.fullTextSearch\" — the wiring does not rely on auto-forwarding from the search box (there is none)",
+        "The OData datasource's filter expression reads the value via $datasource.inParams.full_text_search (the OData-variant access path — not $flow.inParams.full_text_search, which is the flow-datasource path)",
+        "The search filter is applied conditionally — when the search value is undefined/empty the base query still returns unfiltered rows (the conditional filter pattern)",
+        "If the grid already existed, the modification used the corrected round-trip (dxs configuration get grid -O envelope.json, then jq .json extraction before editing)",
+        "The transcript contains 'dxs configuration validate grid' run before 'dxs configuration upsert grid'",
+        "After the edit, the transcript shows a grid-validator invocation"
+      ]
+    }
+  ]
+}

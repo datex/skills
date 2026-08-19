@@ -75,6 +75,21 @@ The most common type:
 - `top` is a **string** (not number) controlling how many items to show.
 - **Sort by display label** — when creating a selector's backing datasource, sort results by the field used as the display label (the field referenced in `text`). For OData datasources, add an `orderBys` entry; for flow-style datasources, sort the array in code. Example: a `task_status_dd` selector displaying `Name` should have its datasource order by `Name` ascending.
 
+## Custom-Options Selectors — Consumers Must Not Assume String Values
+
+Besides the datasource-backed shape above, a selector can instead populate `customOptionsConfig` with a static options table baked into the component. The two flavors differ in what value type they emit:
+
+1. **Datasource-backed** (`dataType: "datasource"`) — emits whatever the backing datasource returns for the key field. Enum dropdowns built this way (a flow-type datasource exposing `Object.entries($types.<Pkg>.<enum>)`) emit the enum's string values (e.g. `"eligible"` / `"not-eligible"`).
+2. **Custom-options** (`customOptionsConfig` populated) — emits whatever the option table's Value column holds. That is frequently a **number**, because the author was thinking "1 = on, 2 = off" rather than semantic strings (e.g. an eligibility dropdown mapping `Eligible → 1`, `Not eligible → 2`).
+
+The trap: a consumer (engine flow, editor field handler, filter mapping) written against string enum values silently falls through its `switch` / mapping to the default branch when a shared custom-options selector emits `1` / `2` instead. Nothing errors — the behavior just stops responding to the dropdown ("I changed the selection and got the same results every time").
+
+Rules:
+
+- **Wiring a field to a shared selector you didn't author:** inspect the selector's configuration first — fetch it from the branch and check whether `customOptionsConfig` or `datasourceConfig` is populated, and what the option values actually are. Don't assume it emits strings.
+- **Authoring a new dropdown:** prefer an enum-customType-backed flow datasource (see [`flow-datasources.md` → Enum Dropdown Datasource Pattern](../../datasource-creator/references/flow-datasources.md#enum-dropdown-datasource-pattern)) over custom options — it aligns with string-typed interface fields and avoids numeric drift.
+- **Consuming a value from a possibly-shared selector:** be defensive — accept both the string and numeric forms in the switch/mapping (e.g. `v === "eligible" || v === 1`).
+
 ## Full-Text Search Wiring — Selector-Backing Datasources
 
 This rule applies to datasources authored **specifically to back a selector** (i.e. the datasource exists because the selector needs it). Standalone datasources used by other flows/actions are not subject to this rule.
@@ -143,3 +158,11 @@ $flow.outParams.result = Object.entries($types.<Package>.<enum>)
 The `formatKey` (and `capitalize`) helper functions live as nested function declarations inside each flow's `code` body — duplicate the same definitions in both flows; the platform compiles each flow independently and they don't share scope.
 
 OData-type backing datasources rarely hit this because their `getByKeys` is auto-generated from the `keyDef` and selects raw columns. But if you ever add computed columns or column-aliasing inside the OData query options, the same parity rule applies — the projection used at list-time must match the projection used at key-lookup time.
+
+## `getByKeysFlow` Contract — Self-Sufficient, Read-Only, Key-Faithful
+
+Three further rules for `getByKeysFlow`, each learned from a shipped defect:
+
+1. **Self-sufficient.** `getByKeysFlow` runs in a fresh datasource invocation — state populated by `onInitFlow` into `$datasource.inParams` (or any other per-invocation slot) is **undefined** when getByKeys fires. A getByKeys that depends on init-populated state fails with an empty result ("No data to display" on the control). The dependency can stay latent for a long time: single-select controls often resolve the display label from the option list, and only `allowMultiSelection: true` (or a re-hydration path) forces value resolution through getByKeys. Derive everything getByKeys needs from `$flow.inParams.$keys` and its own queries.
+2. **Read-only.** getByKeys is a lookup the platform may call at any re-hydration point — it must never perform writes. A selector whose getByKeys performed a copy-entity side effect created records on every form reload.
+3. **Key-faithful.** getByKeys must return records whose Value equals the **requested** keys. Returning a different id (e.g. the copy's new id) breaks the control's key reconciliation and persists stale/wrong ids through the form save.

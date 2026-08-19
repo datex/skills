@@ -232,7 +232,7 @@ dxs configuration upsert footprintflow -b <branchId> -D body.json
 
 If `inParams` / `outParams` are changing on an existing action, invoke the `impact-analysis` skill before push to surface every caller; reconcile each one (functions, other actions, backend tests) in the same edit pass or get explicit user approval for a breaking change.
 
-Validation surfaces missing required fields, malformed parameter-descriptor shapes, and reference errors before push. It does **not** catch the silent-swallow / `"Transaction must begin first"` class — that's behavioral and only surfaces at runtime. Walk the [references/actions.md → Pre-Flight Checklist](references/actions.md#pre-flight-checklist) before push, item 7 especially.
+Validation surfaces missing required fields, malformed parameter-descriptor shapes, and reference errors before push. It does **not** catch the silent-swallow / `"Transaction must begin first"` class — that's behavioral and only surfaces at runtime. Walk the [references/actions.md → Pre-Flight Checklist](references/actions.md#pre-flight-checklist) before push, the no-silent-swallow `try/catch` item especially.
 
 ### Phase 5: Verify in Studio (optional)
 
