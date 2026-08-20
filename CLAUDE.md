@@ -30,6 +30,13 @@ These hold across every Datex Studio skill — keep new or edited skills consist
 - **Runtime semantics** (globals, execution tiers, control types): `skills/datex-studio/datex-studio-runtime/`
 - **Cross-cutting workflow references** (branch setup, config round-trip, report authoring): `skills/datex-studio/datex-studio-shared/`
 
+## When the dxs CLI cuts a release
+
+These skills document a CLI they don't ship with, so every CLI release is a chance for them to go
+quietly stale — a changed exit code, a new config type, a rule that moved in a library skill but not
+in its copies. Walk [docs/cli-release-checklist.md](docs/cli-release-checklist.md) at each release
+rather than letting the drift pile up into a batch of issues.
+
 ## Adding a new component type
 
 Component reference docs (the `references/<type>.md` inside a creator skill) follow a standard shape. When documenting a component type that doesn't have a doc yet, start from [docs/component-doc-template.md](docs/component-doc-template.md) so the docs stay uniform. The forward-looking list of types not yet covered is the **"Not yet covered (roadmap)"** section of [README.md](README.md).
