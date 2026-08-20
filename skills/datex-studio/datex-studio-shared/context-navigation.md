@@ -122,4 +122,4 @@ Under the hood `nomenclature` wraps the customtype-specific endpoint `/applicati
 - **Never use a symbol from `appContext.vars` without checking it appears in `defaultContext.imports`** — `appContext` contains frontend-only symbols like `$shell` that cause validation errors in backend code.
 - **Never skip the context step** — the available services vary by branch, app, and config type.
 - **Never use the original name when an alias exists** — write `$services` not `$backendServices`, `$types` not `$customTypes`.
-- **When in doubt, validate** — run `dxs function validate` or `dxs datasource validate` to catch invalid references.
+- **When in doubt, validate** — run `dxs function validate` or `dxs datasource validate` to catch invalid references. **The two report differently:** `dxs datasource validate` exits **1** when it finds errors (that is a finding, not a broken CLI — read `validation_errors` and fix); `dxs function validate` exits **0** either way, so judge it by its output, never its exit status. See [configuration-roundtrip.md](configuration-roundtrip.md#validate-exit-codes--a-non-zero-exit-is-a-finding-not-a-malfunction).

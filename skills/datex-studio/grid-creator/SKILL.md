@@ -65,7 +65,7 @@ Grid authoring goes through `dxs configuration` — the generic CRUD primitive o
 
 ```bash
 # 1. Build body.json from scratch (see references/grids.md → Minimal Valid Skeleton)
-# 2. Validate (recommended)
+# 2. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate grid -b <branchId> -D body.json
 # 3. Create
 dxs configuration upsert grid -b <branchId> -D body.json
@@ -79,7 +79,7 @@ dxs configuration get grid <configId> -b <branchId> -O envelope.json
 # 2. EXTRACT THE INNER BODY (round-trip footgun guard — see "Round-trip rule" below)
 jq .json envelope.json > body.json
 # 3. Edit body.json
-# 4. Validate (recommended)
+# 4. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate grid -b <branchId> -D body.json
 # 5. Push
 dxs configuration upsert grid -b <branchId> -D body.json
@@ -253,7 +253,8 @@ Build `body.json` from the skeleton in [references/grids.md → Minimal Valid Sk
 ### Phase 4: Validate + push
 
 ```bash
-# Validate the body locally against the branch
+# Validate the body locally against the branch. Exit 1 = validation found errors
+# (read validation_errors, fix body.json, re-run) — not a broken CLI. Do not push on exit 1.
 dxs configuration validate grid -b <branchId> -D body.json
 
 # For a new grid

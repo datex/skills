@@ -77,7 +77,7 @@ Write or update TypeScript code in temp .ts file
          |
 [Phase 5: Generate + Validate + Upload]
 dxs function generate ... --code-file <file.ts> -o <config.json>
-dxs function validate <config.json> --branch <id>
+dxs function validate <config.json> --branch <id>   # exits 0 even on errors — READ the output
 dxs configuration upsert flow -D <config.json> --branch <id>
 ```
 
@@ -145,12 +145,22 @@ dxs function generate \
   --out-param <name>:<type> \
   -o <config.json>
 
-# Validate
+# Validate. NOTE: unlike `dxs configuration validate`, this command exits 0 even when it
+# finds errors — a zero exit means "the command ran", NOT "the function is valid".
+# Read the payload: proceed only on `status: "valid"`; a `validation_errors` list means stop.
 dxs function validate <config.json> --branch <id>
 
 # Upload
 dxs configuration upsert flow -D <config.json> --branch <id>
 ```
+
+> **`dxs function validate` does not gate on its exit code.** `dxs configuration validate` and
+> `dxs datasource validate` exit **1** when they report errors; `dxs function validate` still exits
+> **0** and reports `validation_errors` in its output (verified against the CLI source, 0.4.18). An
+> agent that has learned "validate fails loudly" from the other skills will read this command's
+> success exit as a green light and upload a broken function. **Always inspect the output**, not the
+> exit status. Full exit-code matrix:
+> [../datex-studio-shared/configuration-roundtrip.md](../datex-studio-shared/configuration-roundtrip.md#validate-exit-codes--a-non-zero-exit-is-a-finding-not-a-malfunction).
 
 ## Naming Convention
 

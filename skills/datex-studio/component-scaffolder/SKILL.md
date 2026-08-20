@@ -70,12 +70,17 @@ Creator skills (action-creator, function-creator, grid-creator, etc.) own author
 
 6. **Write the skeleton to a temp `body.json`.** This local file is scratch/temp storage only — the branch is the system of record, not the file. Any local working copy the caller keeps is a convenience mirror, never the source of truth.
 
-7. **Validate, then create on the branch via dxs:**
+7. **Validate, then create on the branch via dxs** — two steps, and the first gates the second:
 
    ```bash
-   dxs configuration validate <type> -b <branchId> -D body.json
+   dxs configuration validate <type> -b <branchId> -D body.json   # exit 1 = errors found
    dxs configuration upsert   <type> -b <branchId> -D body.json
    ```
+
+   `validate` exits **1** when it finds errors — that is validation reporting findings, not a
+   broken CLI. Read the `validation_errors` payload, fix the skeleton, re-validate; do not run the
+   `upsert` on a body that failed the gate. See
+   [../datex-studio-shared/configuration-roundtrip.md](../datex-studio-shared/configuration-roundtrip.md#validate-exit-codes--a-non-zero-exit-is-a-finding-not-a-malfunction).
 
    `upsert` resolves create-vs-update by `referenceName`; with nothing on the branch (step 5 confirmed this) it takes the create path. The minimal-valid component now lives on the branch.
 

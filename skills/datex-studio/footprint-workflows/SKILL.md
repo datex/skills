@@ -76,7 +76,8 @@ python3 -c "import uuid; print(uuid.uuid4())"
 #    the slot's inParams/outParams verbatim, configurationTypeId:23, id:0, your referenceName/title/description/code
 # 4. (Optional) read Input/result field shapes — contexts OR meta.json `types`
 dxs configuration contexts footprintworkflow -b <branchId> -D body.json
-# 5. Validate + upsert
+# 5. Validate, THEN upsert — these are two steps, not one. Validate exits 1 when it finds
+#    errors (read validation_errors, fix body.json, re-run); do not run the upsert on exit 1.
 dxs configuration validate footprintworkflow -b <branchId> -D body.json
 dxs configuration upsert  footprintworkflow -b <branchId> -D body.json
 ```
@@ -87,7 +88,7 @@ dxs configuration upsert  footprintworkflow -b <branchId> -D body.json
 dxs configuration get footprintworkflow <configId> -b <branchId> -O envelope.json
 jq .json envelope.json > body.json          # EXTRACT THE INNER BODY (round-trip footgun guard)
 # ... edit nodes[0].stepConfig.executeCodeConfig.code ...
-dxs configuration validate footprintworkflow -b <branchId> -D body.json
+dxs configuration validate footprintworkflow -b <branchId> -D body.json   # exit 1 = errors found; fix, do not push
 dxs configuration upsert  footprintworkflow -b <branchId> -D body.json
 ```
 

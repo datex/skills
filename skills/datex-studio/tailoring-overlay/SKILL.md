@@ -67,7 +67,7 @@ jq .json base-envelope.json > base.json
 #    - every inherited element carries fromBaseConfiguration: true (shadow copies; must match base exactly)
 #    - new elements carry fromBaseConfiguration: null
 #    - onCustomization<Slot>FlowConfig + ...ExecutionBehaviorType paired
-# 3. Validate (recommended)
+# 3. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate grid -b <branchId> -D body.json
 # 4. Create
 dxs configuration upsert grid -b <branchId> -D body.json
@@ -81,7 +81,7 @@ dxs configuration get grid <tailored_referenceName> -b <branchId> -O envelope.js
 # 2. EXTRACT THE INNER BODY (round-trip footgun guard — see "Round-trip rule" below)
 jq .json envelope.json > body.json
 # 3. Edit body.json (respect shadow-copy rules — do not hand-edit fromBaseConfiguration: true elements)
-# 4. Validate (recommended)
+# 4. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate grid -b <branchId> -D body.json
 # 5. Push
 dxs configuration upsert grid -b <branchId> -D body.json
@@ -97,7 +97,7 @@ jq .json envelope.json > body.json
 #    - rename to custom_<base>; drop baseConfiguration; flip every fromBaseConfiguration: true -> null;
 #      cut every removed: true entry; collapse onCustomization* hooks per behavior;
 #      consolidate datasources; resolve overlapping columns; etc.
-# 3. Validate (recommended)
+# 3. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate grid -b <branchId> -D body.json
 # 4. Create the custom (the flattened body is a brand-new component)
 dxs configuration upsert grid -b <branchId> -D body.json
@@ -270,7 +270,8 @@ Build `body.json` from the steps in [references/tailoring.md → Pre-Flight Chec
 ### Phase 4: Validate + push
 
 ```bash
-# Validate the body locally against the branch (type identifier matches the tailored component's base type — `grid` in the typical case)
+# Validate the body locally against the branch (type identifier matches the tailored component's base type — `grid` in the typical case).
+# Exit 1 = validation found errors (read validation_errors, fix body.json, re-run) — not a broken CLI. Do not push on exit 1.
 dxs configuration validate grid -b <branchId> -D body.json
 
 # For a new tailored overlay

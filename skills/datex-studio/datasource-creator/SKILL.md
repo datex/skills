@@ -355,7 +355,7 @@ Everything else — `queryOptions` / flow slots, `outParams`, `keyDef`, and the 
 Validate and push with the **`footprintdatasource`** CLI type (the `dxs datasource …` / `dxs configuration upsert datasource` path is hardwired to the cloud `datasource`/6 endpoint and cannot emit typeId 19):
 
 ```bash
-dxs configuration validate footprintdatasource -b <branch_id> -D ds_name.json
+dxs configuration validate footprintdatasource -b <branch_id> -D ds_name.json   # exit 1 = errors found
 dxs configuration upsert  footprintdatasource -b <branch_id> -D ds_name.json
 ```
 
@@ -382,6 +382,26 @@ dxs datasource validate <file.json> --branch <branch_id>
 ```
 
 Validates the datasource config against the branch. **Run for BOTH standalone and owned modes** before proceeding to upsert or report upload. This command validates the datasource in isolation — it does **not** catch consumer-shape mismatches, and a mis-shaped datasource with no consumer still validates clean here. The branch's separate server-side usage gate (grid/selector require `getList` + `getByKeys`; editor/form require `get` on a single result) only fires when the *consumer* is validated (`dxs configuration validate <consumer type>`) or at publish — not from this command.
+
+### Reading the report
+
+The command runs a **local flow-shape lint** and merges its findings with the server's, so one run reports both. Every item carries four fields:
+
+| Field | Values | Meaning |
+|---|---|---|
+| `origin` | `local` \| `server` | Which checker produced it. `local` is the CLI's own lint (reproducible offline); `server` came from the branch and can shift as the branch does. |
+| `severity` | `error` \| `warning` | Errors block; warnings are advisory. |
+| `source` | — | Which rule or subsystem flagged it. |
+| `message` | — | The finding. |
+
+**Exit codes:**
+
+- **Any error, local or server → exit 1**, with `validation_errors[]` carrying errors *and* warnings merged into one list. That non-zero exit means *validation found errors* — read the payload, fix the config, re-validate. It does **not** mean the CLI broke, and it is not a reason to halt or retry the command unchanged.
+- **Warnings alone → exit 0**, with `validation_result: {status: "valid", warnings: [...]}`. Still read them; they just don't block.
+
+`dxs configuration validate datasource` and `dxs configuration validate footprintdatasource` run the same local lint and report the same merged shape — the two commands are deliberately kept in sync. Other config types report server findings only. Full exit-code matrix across the CLI (including `dxs function validate`, which still exits 0 on errors): [../datex-studio-shared/configuration-roundtrip.md](../datex-studio-shared/configuration-roundtrip.md#validate-exit-codes--a-non-zero-exit-is-a-finding-not-a-malfunction).
+
+If the server call itself fails while local findings exist, the report keeps the local findings and adds a `validate API call failed (…)` item with `origin: server` — the local findings are still real and still worth fixing.
 
 ## Standalone Completion
 

@@ -18,14 +18,67 @@ jq .json envelope.json > body.json
 
 # 3. Edit body.json per the rules in the relevant creator skill's references/<type>.md
 
-# 4. Push the modified inner body (upsert resolves create-vs-update by referenceName)
-dxs configuration upsert <type> -b <branch> -D body.json
-
-# 5. (Optional) Validate before pushing in step 4
+# 4. Validate. Exit 1 means validation found errors — read validation_errors,
+#    fix body.json, re-run. Do not push a body that failed this gate.
 dxs configuration validate <type> -b <branch> -D body.json
+
+# 5. Push the modified inner body (upsert resolves create-vs-update by referenceName)
+dxs configuration upsert <type> -b <branch> -D body.json
 ```
 
 > **Which write verb?** The CLI ships `create` (POST), `update` (lock+PUT), and `upsert` (orchestrated create-or-update). Prefer `upsert` everywhere — it resolves the path by `referenceName` and manages the source-control lock for you, so you don't have to know whether the config already exists. Use the explicit `dxs configuration update <type> <id>` / `dxs configuration create <type>` only when you deliberately want one path.
+
+## Validate exit codes — a non-zero exit is a *finding*, not a malfunction
+
+**`dxs configuration validate` exits 1 whenever it reports any error** (every config type, not just
+datasources). So does `dxs datasource validate` and `dxs source branch validate`. This is the gate
+working as intended: it stops a `validate`-then-`upsert` sequence from pushing a body the server
+would refuse.
+
+**Read exit 1 as "validation found errors," never as "the CLI is broken."** The failure mode this
+note exists to prevent is an agent seeing a failed command and halting, retrying it unchanged, or
+reporting a broken tool — when the command in fact did its job and the payload names exactly what
+to fix. On exit 1: read the `validation_errors` payload, fix the body, re-validate. Do not proceed
+to `upsert`.
+
+| Command | On errors | Payload |
+|---|---|---|
+| `dxs configuration validate <type>` | **exit 1** | `validation_errors[]` |
+| `dxs datasource validate <file>` | **exit 1** | `validation_errors[]` |
+| `dxs source branch validate <id>` | **exit 1** | list of errors |
+| `dxs function validate <file>` | **exit 0** ⚠️ | `validation_errors[]` |
+
+> **`dxs function validate` is the exception — it still exits 0 with errors present** (verified in
+> the CLI source, 0.4.18). A success exit from it means *the command ran*, not *the function is
+> valid*. Never gate on its exit code; read the payload and check for `status: "valid"`. This is the
+> mirror image of the trap above, and the more expensive one: it pushes a broken function.
+
+### Report shape
+
+`dxs configuration validate` and `dxs datasource validate` emit one merged report. Every item carries
+`origin` (`local` | `server`), `severity` (`error` | `warning`), `source`, and `message`:
+
+- **Clean:** `validation_result: {status: "valid", message: "No validation errors", warnings: [...]}`,
+  exit 0. **Warnings alone keep exit 0** and ride in `warnings` — they are advisory, so read them,
+  but they do not block the push.
+- **Any error:** `validation_errors: [...]` with errors *and* warnings merged into the one list, exit 1.
+
+`origin` matters when triaging: `local` findings come from the CLI's own lint and are reproducible
+offline; `server` findings come from the branch and can shift as the branch does. A
+`validate API call failed (…)` item with `origin: server` means the server call itself errored
+while local findings existed — the local ones are still real.
+
+`dxs configuration validate datasource` and `dxs configuration validate footprintdatasource` also run
+the local flow-shape lint, so they report the same merged shape as `dxs datasource validate`. Other
+types report server findings only.
+
+### What exit 1 does *not* mean
+
+Validation and import/save are separate code paths, so a clean exit 0 is not a guarantee the push
+will land. Known cases where `validate` passes and the write still fails: a `description` over 256 characters
+(below), the fat `outParams` descriptor on an oDataQuery datasource
+([odata-datasources.md](../datasource-creator/references/odata-datasources.md)), and a wrong
+`configurationTypeId` ([file-format.md](../datex-studio-conventions/file-format.md#configurationtypeid-reference)). Exit 0 means "no findings," not "safe to publish."
 
 ## Reference names resolve to the branch's own config
 
@@ -82,7 +135,7 @@ For a new configuration (no existing id):
 
 ```bash
 # 1. Build body.json from scratch per the rules in the creator skill's references/
-# 2. (Optional) Validate
+# 2. Validate (exit 1 = errors found; fix before pushing)
 dxs configuration validate <type> -b <branch> -D body.json
 # 3. Upsert (same command — with no existing config on the branch, it takes the create path)
 dxs configuration upsert <type> -b <branch> -D body.json
@@ -92,23 +145,11 @@ No round-trip extraction needed — there's no envelope to unwrap.
 
 ## Type identifiers
 
-The dxs CLI normalizes type names to lowercase, no hyphens. Reference table:
-
-| Component | configurationTypeId | CLI type identifier |
-|---|---|---|
-| hub | 2 | `hub` |
-| grid | 3 | `grid` |
-| editor | 4 | `editor` |
-| form | 5 | `form` |
-| datasource | 6 | `datasource` |
-| selector | 7 | `selector` |
-| function (flow) | 9 | `flow` |
-| storage | 17 | `storage` |
-| action (footprintFlow) | 18 | `footprintflow` |
-| footprintDatasource | 19 | `footprintdatasource` |
-| customType (interface/enum) | 22 | `customtype` |
-| footprintWorkflow | 23 | `footprintworkflow` |
-| backendTest | 24 | `backendtest` |
+The dxs CLI normalizes type names to lowercase, no hyphens. The `configurationTypeId` ↔ CLI type
+name mapping for **every** platform type is the single table in
+[`../datex-studio-conventions/file-format.md`](../datex-studio-conventions/file-format.md#configurationtypeid-reference)
+— generated from `dxs api GET /configurationtypes`. It is not duplicated here; a partial copy in
+this file went stale once already.
 
 > See [`../footprint-workflows/`](../footprint-workflows/SKILL.md) for the `footprintworkflow` type — a TypeScript implementation bound to a named Footprint platform workflow extension point.
 
@@ -139,9 +180,10 @@ branch** — never against other files you are about to push. Consequences (each
   decouple you from the publish cycle — weigh that against type safety.)
 - **A reference bump can surface pre-existing, unrelated validation errors** from the stale branch
   baseline (e.g. a selector gained an input parameter and old consumer forms don't pass it). After
-  a sync/bump, `dxs source branch validate` may report errors your change did not cause — triage
-  by asking whether the implicated components are in your changeset before attempting to "fix"
-  anything; such errors typically clear when the branch is updated from main.
+  a sync/bump, `dxs source branch validate` may report errors your change did not cause — and it
+  now **exits 1** when it does. That non-zero exit is the expected outcome here, not a signal to
+  stop: triage by asking whether the implicated components are in your changeset before attempting
+  to "fix" anything; such errors typically clear when the branch is updated from main.
 
 ## Branch & lock lifecycle failure modes
 
