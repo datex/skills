@@ -141,6 +141,6 @@ The Datex Studio skill set was substantially expanded by the **Mitch skills merg
 
 Component types the platform supports but that no skill or reference doc covers yet. When feature work first touches one, add a skill and a reference doc following [docs/component-doc-template.md](docs/component-doc-template.md).
 
-- dashboards, widgets, notifications, workflows, events, layouts — and other platform config types not yet given a skill. The authoritative set of config types the CLI recognizes is `ConfigurationEndpoints.KNOWN_TYPES` in the dxs CLI.
+- `card`, `calendar`, `wizard`, `list`, `widget`, `visualization`, `codeeditor`, `localization`, `securitypolicy`, `shell`, `appconfig` — real, CLI-addressable config types with no skill covering them yet. The full platform enumeration, with each type's `configurationTypeId` and CLI type name, is the table in [`file-format.md`](skills/datex-studio/datex-studio-conventions/file-format.md#configurationtypeid-reference); regenerate it with `dxs api GET /configurationtypes`.
 - Reports and API endpoints appeared on the original backlog but are now covered by `report-creator` and `endpoint-creator`.
 - Custom Angular Components (type 36) are now covered by `custom-angular-component-creator`.

@@ -25,31 +25,65 @@ A component's JSON body is its canonical shape. The platform generates TypeScrip
 
 ## `configurationTypeId` Reference
 
-Every component JSON carries a numeric `configurationTypeId` identifying its component kind. The observed values:
+Every component JSON carries a numeric `configurationTypeId` identifying its component kind. This table is the platform's own enumeration, generated from `dxs api GET /configurationtypes` (verified 2026-08-19, dxs 0.4.18). Regenerate it rather than hand-editing rows:
 
-| ID | Component | File suffix |
-|---|---|---|
-| 2 | Hub | `-hub.json` |
-| 3 | Grid | `-grid.json` |
-| 4 | Editor | `-editor.json` |
-| 5 | Form | `-form.json` |
-| 6 | Datasource | `-datasource.json` |
-| 7 | Selector | `-selector.json` |
-| 9 | Function (top-level) **or** embedded flow step node | `-flow.json` (top-level); n/a (embedded) |
-| 17 | Storage | `-storage.json` |
-| 18 | Action (top-level) | `-footprintFlow.json` |
-| 19 | Footprint-datasource | `-footprintDatasource.json` |
-| 20 | Embed | `-embed.json` |
-| 22 | Custom type (interface or enum) | `-customType.json` |
-| 23 | Footprint-workflow | `-footprintWorkflow.json` |
-| 24 | Backend-test | `-backendTest.json` |
-| 27 | Frontend flow | `-frontendFlow.json` |
+```bash
+dxs api GET /configurationtypes --raw | jq -r 'sort_by(.id)[] | "| \(.id) | \(.name) |"'
+dxs configuration types      # the CLI type names, for the third column
+```
+
+| ID | Platform name | CLI type | File suffix |
+|---|---|---|---|
+| 1 | Shell | `shell` | — |
+| 2 | Hub | `hub` | `-hub.json` |
+| 3 | Grid | `grid` | `-grid.json` |
+| 4 | Editor | `editor` | `-editor.json` |
+| 5 | Form | `form` | `-form.json` |
+| 6 | Datasource | `datasource` | `-datasource.json` |
+| 7 | Selector | `selector` | `-selector.json` |
+| 8 | Widget | `widget` | — |
+| 9 | Flow — a **function** at top level, **or** an embedded flow step node | `flow` | `-flow.json` (top-level); n/a (embedded) |
+| 11 | Card | `card` | — |
+| 12 | Calendar | `calendar` | — |
+| 13 | Wizard | `wizard` | — |
+| 14 | List | `list` | — |
+| 15 | Report | `report` | n/a — folder authored via `dxs report` |
+| 16 | Localization | `localization` | — |
+| 17 | Storage | `storage` | `-storage.json` |
+| 18 | FootprintFlow — called an **action** in these skills | `footprintflow` | `-footprintFlow.json` |
+| 19 | FootprintDatasource | `footprintdatasource` | `-footprintDatasource.json` |
+| 20 | Embed | `embed` | `-embed.json` |
+| 21 | CodeEditor | `codeeditor` | — |
+| 22 | CustomType (interface or enum) | `customtype` | `-customType.json` |
+| 23 | FootprintWorkflow | `footprintworkflow` | `-footprintWorkflow.json` |
+| 24 | BackendTest | `backendtest` | `-backendTest.json` |
+| 25 | Visualization | `visualization` | — |
+| 26 | Endpoints | `endpoint` | n/a — managed via `dxs endpoint` |
+| 27 | FrontendFlow | `frontendflow` | `-frontendFlow.json` |
+| 28 | SecurityPolicy | `securitypolicy` | — |
+| 29 | FootprintQuery | — | — |
+| 30 | FootprintQueryFilterForm | — | — |
+| 31 | FootprintQueryManager | `footprintquerymanager` | — |
+| 32 | AppConfig | `appconfig` | — |
+| 33 | Replacements | — | — |
+| 34 | Authorization | — | — |
+| 35 | Dashboard | — | — |
+| 36 | CustomAngularComponent | `customangularcomponent` | n/a — `dxs ng` working folder |
+| 37 | UserConfig | — | — |
+
+Reading the table:
+
+- **ID 10 does not exist** — it is absent from the platform enumeration, not omitted here.
+- **The platform name is not always the skill vocabulary.** Most notably `FootprintFlow` (18) is what these skills call an **action**, and `Flow` (9) is what they call a **function**. Match on the ID, not the word.
+- **A `—` CLI type means the type is not addressable through `dxs configuration <verb>`.** Six platform types (29, 30, 33, 34, 35, 37) have no entry in `dxs configuration types`; they are managed by the platform or by a dedicated command family, not by the generic config CRUD surface.
+- **A `—` file suffix means no suffix is *verified*, not that none exists.** The convention is `-<camelCaseName>.json`, but per the repo's source-of-truth rule the local filename is scratch anyway — confirm against a working component of the same type before relying on it. `n/a` is different: that type genuinely has no single-file JSON body.
+- **A CLI type with no creator skill is a documented gap, not a nonexistent type.** `card`, `calendar`, `wizard`, `list`, `widget`, `visualization`, `codeeditor`, `localization`, `securitypolicy`, `shell`, and `appconfig` are all real and reachable, with no skill covering them yet — see the roadmap section of the repo README.
 
 `configurationTypeId: 9` is shared between top-level function files and embedded step nodes inside any flow's `nodes[]` — the file suffix (`-flow.json` vs no file) is the distinguisher. Actions use a different top-level id (`18`), so action vs function top-level files are unambiguously identifiable by `configurationTypeId` alone.
 
 **Frontend flows (`27`) share the function body shape but run client-side.** A `-frontendFlow` component has the exact `nodes[].stepConfig.executeCodeConfig.code` shape as a function (`9`) — only the cti differs. The cti is load-bearing: with `27` the flow registers under `$frontendFlows.<Pkg>` and executes in the browser (DOM/`document` access); with `9` it registers under `$flows.<Pkg>` as a backend function and `$frontendFlows.<Pkg>.<name>` can't resolve it (the dispatcher throws `Cannot read properties of undefined (reading '_<name>')` at call time). Upsert as dxs CLI type `frontendflow`, not `flow`. See [`runtime-globals.md`](../datex-studio-runtime/runtime-globals.md) for the `$frontendFlows` runtime global and [`frontend-flows.md`](../datex-studio-shared/frontend-flows.md) for the full component-type reference (static dispatch, browser keyboard handling, by-reference inParams).
 
-**Wrong cti is a Validate-clean / Preview-broken failure mode.** A component file whose `configurationTypeId` doesn't match its suffix (e.g. a `*-form.json` carrying `cti: 1` instead of `5`) imports without error and passes Studio's `Validate` cleanly. But codegen reads `configurationTypeId` to decide which method stubs to emit on the package-level service classes (`$shell.<Pkg>.openXxxFormDialog`, etc.). The wrong cti produces malformed stubs, which then cause TS1128 / "Cannot find name" cascades in every editor / hub / flow that calls the component. Symptom: Validate green, Preview red with the cascade rooted in code that NEVER touched the malformed file. Mitigation: when adding new component files, always copy the cti from another working component of the same type — don't guess, and don't trust Studio's import to coerce it.
+**Wrong cti is a Validate-clean / Preview-broken failure mode.** A component file whose `configurationTypeId` doesn't match its suffix (e.g. a `*-form.json` carrying `cti: 1` instead of `5`) imports without error and passes Studio's `Validate` cleanly. But codegen reads `configurationTypeId` to decide which method stubs to emit on the package-level service classes (`$shell.<Pkg>.openXxxFormDialog`, etc.). The wrong cti produces malformed stubs, which then cause TS1128 / "Cannot find name" cascades in every editor / hub / flow that calls the component. Symptom: Validate green, Preview red with the cascade rooted in code that NEVER touched the malformed file. Mitigation: take the cti from the table above — it is the platform's own enumeration, so every type has a verifiable value and there is no need to guess. Copying from another working component of the same type is a useful cross-check, not a substitute. Never trust Studio's import to coerce a wrong value.
 
 ## Declarative String Values Are TypeScript Expressions
 
