@@ -51,7 +51,7 @@ Type-definition authoring goes through `dxs configuration` — the generic CRUD 
 
 ```bash
 # 1. Build body.json from scratch (see references/type-definitions.md → Interfaces / Enums)
-# 2. Validate (recommended)
+# 2. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate customtype -b <branchId> -D body.json
 # 3. Create
 dxs configuration upsert customtype -b <branchId> -D body.json
@@ -65,7 +65,7 @@ dxs configuration get customtype <configId> -b <branchId> -O envelope.json
 # 2. EXTRACT THE INNER BODY (round-trip footgun guard — see "Round-trip rule" below)
 jq .json envelope.json > body.json
 # 3. Edit body.json
-# 4. Validate (recommended)
+# 4. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate customtype -b <branchId> -D body.json
 # 5. Push
 dxs configuration upsert customtype -b <branchId> -D body.json
@@ -165,7 +165,7 @@ new shape. Net-new types skip this step.
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish what the type represents (a shared data shape across multiple components, a fixed value set, or an anonymous nested structure on one parent type), the consumers that will reference it (flow params, datasource shapes, UI components), and whether `accessModifier` should be `public` or `private`.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the interface vs enum vs nested decision right up front avoids restructuring the type after consumers have already wired against it.
@@ -203,7 +203,8 @@ Build `body.json` (single-line minified JSON — don't pretty-print) from the sk
 ### Phase 4: Validate + push
 
 ```bash
-# Validate the body locally against the branch
+# Validate the body locally against the branch. Exit 1 = validation found errors
+# (read validation_errors, fix body.json, re-run) — not a broken CLI. Do not push on exit 1.
 dxs configuration validate customtype -b <branchId> -D body.json
 
 # For a new type definition

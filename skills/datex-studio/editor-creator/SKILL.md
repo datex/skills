@@ -57,7 +57,7 @@ Editor authoring goes through `dxs configuration` — the generic CRUD primitive
 
 ```bash
 # 1. Build body.json from scratch (see references/editors.md → Minimal Valid Skeleton)
-# 2. Validate (recommended)
+# 2. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate editor -b <branchId> -D body.json
 # 3. Create
 dxs configuration upsert editor -b <branchId> -D body.json
@@ -71,7 +71,7 @@ dxs configuration get editor <configId> -b <branchId> -O envelope.json
 # 2. EXTRACT THE INNER BODY (round-trip footgun guard — see "Round-trip rule" below)
 jq .json envelope.json > body.json
 # 3. Edit body.json
-# 4. Validate (recommended)
+# 4. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate editor -b <branchId> -D body.json
 # 5. Push
 dxs configuration upsert editor -b <branchId> -D body.json
@@ -154,7 +154,7 @@ hydration, toggle into edit mode, save commits, cancel restores
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish the entity being edited (and which key the host passes in), which fields are visible/editable, view-only-vs-edit-mode behavior, save semantics (which CRUD action persists changes), and whether the same editor handles create mode.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the entity shape and save semantics right up front avoids the dense round-trip that follows.
@@ -213,7 +213,8 @@ Build `body.json` from the skeleton in [references/editors.md → Minimal Valid 
 ### Phase 4: Validate + push
 
 ```bash
-# Validate the body locally against the branch
+# Validate the body locally against the branch. Exit 1 = validation found errors
+# (read validation_errors, fix body.json, re-run) — not a broken CLI. Do not push on exit 1.
 dxs configuration validate editor -b <branchId> -D body.json
 
 # For a new editor

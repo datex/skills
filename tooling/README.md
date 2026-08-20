@@ -35,3 +35,4 @@ The script creates one directory junction per skill (no admin rights needed) so 
 2. Docs use **dxs-branch-first framing** and cross-skill relative links only — no host-repo paths, no machine paths, no workspace names.
 3. Component-type docs follow the repo's `docs/component-doc-template.md`.
 4. New skill frontmatter: `name`, `description`, and `depends:` — all top-level (matching this repo's convention).
+5. **When the `dxs` CLI cuts a release, walk [`docs/cli-release-checklist.md`](../docs/cli-release-checklist.md)** before assuming the skills are still accurate. Changed exit codes, new config types, and rules that moved in a library skill but not in their copies all drift silently otherwise.

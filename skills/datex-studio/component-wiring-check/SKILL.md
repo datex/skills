@@ -104,7 +104,7 @@ Clean run = no findings.
 
 ### Phase 1: Setup + target components
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. **Identify the reference site.** A wiring audit is always about a specific pair (or chain) of components. Establish:
    - **Referencing component** (the caller): the hub that mounts a grid, the grid whose `datasourceConfig` points at a datasource, the selector whose datasource backs the dropdown, the action that opens a form via `$shell.<Package>.open<referenceName>Dialog(...)`.
    - **Target component** (the callee): the grid, selector, datasource, form, or editor on the receiving end of the reference.

@@ -48,7 +48,7 @@ Embed authoring goes through `dxs configuration` — the generic CRUD primitive 
 
 ```bash
 # 1. Build body.json from scratch (see references/embeds.md → Minimal Valid Skeleton)
-# 2. Validate (recommended) — catches the "HREF is required" failure before push
+# 2. Validate — gates the push; exit 1 = errors found, not a broken CLI. Catches the "HREF is required" failure before push
 dxs configuration validate embed -b <branchId> -D body.json
 # 3. Create (upsert creates or updates by referenceName)
 dxs configuration upsert embed -b <branchId> -D body.json
@@ -62,7 +62,7 @@ dxs configuration get embed <configId> -b <branchId> -O envelope.json
 # 2. EXTRACT THE INNER BODY (round-trip footgun guard)
 jq .json envelope.json > body.json
 # 3. Edit body.json
-# 4. Validate
+# 4. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate embed -b <branchId> -D body.json
 # 5. Push
 dxs configuration upsert embed -b <branchId> -D body.json

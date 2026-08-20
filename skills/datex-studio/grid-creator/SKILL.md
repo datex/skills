@@ -65,7 +65,7 @@ Grid authoring goes through `dxs configuration` — the generic CRUD primitive o
 
 ```bash
 # 1. Build body.json from scratch (see references/grids.md → Minimal Valid Skeleton)
-# 2. Validate (recommended)
+# 2. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate grid -b <branchId> -D body.json
 # 3. Create
 dxs configuration upsert grid -b <branchId> -D body.json
@@ -79,7 +79,7 @@ dxs configuration get grid <configId> -b <branchId> -O envelope.json
 # 2. EXTRACT THE INNER BODY (round-trip footgun guard — see "Round-trip rule" below)
 jq .json envelope.json > body.json
 # 3. Edit body.json
-# 4. Validate (recommended)
+# 4. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate grid -b <branchId> -D body.json
 # 5. Push
 dxs configuration upsert grid -b <branchId> -D body.json
@@ -185,7 +185,7 @@ mirror drift. Treat its blockers as must-fix.
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish the row entity (or aggregated row shape), which columns the grid renders, which fields are filterable/sortable, the host that mounts the grid, and any row-action / toolbar-action flows the user needs.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the row shape, filterability, and host mounting right up front avoids re-authoring the entity-shape locations and dynamic-filter registrations from scratch.
@@ -253,7 +253,8 @@ Build `body.json` from the skeleton in [references/grids.md → Minimal Valid Sk
 ### Phase 4: Validate + push
 
 ```bash
-# Validate the body locally against the branch
+# Validate the body locally against the branch. Exit 1 = validation found errors
+# (read validation_errors, fix body.json, re-run) — not a broken CLI. Do not push on exit 1.
 dxs configuration validate grid -b <branchId> -D body.json
 
 # For a new grid

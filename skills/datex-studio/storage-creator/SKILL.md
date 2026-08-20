@@ -54,7 +54,7 @@ Storage authoring goes through `dxs configuration` — the generic CRUD primitiv
 
 ```bash
 # 1. Build body.json from scratch (see references/storage.md → Minimal Valid Skeleton)
-# 2. Validate (recommended)
+# 2. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate storage -b <branchId> -D body.json
 # 3. Create
 dxs configuration upsert storage -b <branchId> -D body.json
@@ -68,7 +68,7 @@ dxs configuration get storage <configId> -b <branchId> -O envelope.json
 # 2. EXTRACT THE INNER BODY (round-trip footgun guard — see "Round-trip rule" below)
 jq .json envelope.json > body.json
 # 3. Edit body.json
-# 4. Validate (recommended)
+# 4. Validate — gates the push. Exit 1 = errors found (read validation_errors, fix, re-run), not a broken CLI
 dxs configuration validate storage -b <branchId> -D body.json
 # 5. Push
 dxs configuration upsert storage -b <branchId> -D body.json
@@ -162,7 +162,7 @@ doesn't break existing call sites
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish what data the storage holds (configuration values, business rules, daily snapshots, …), the column set with types, whether any columns are genuinely required at rest, the consuming surfaces (functions that write, datasources that read for UI), and the feature package the storage belongs to.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the column set and `required` decisions right up front avoids painful schema migrations later — once a storage ships, `required: true` is effectively additive-only (existing callers haven't been updated to echo new required columns).
@@ -210,7 +210,8 @@ Build `body.json` from the skeleton in [references/storage.md → Minimal Valid 
 ### Phase 4: Validate + push
 
 ```bash
-# Validate the body locally against the branch
+# Validate the body locally against the branch. Exit 1 = validation found errors
+# (read validation_errors, fix body.json, re-run) — not a broken CLI. Do not push on exit 1.
 dxs configuration validate storage -b <branchId> -D body.json
 
 # For a new storage
