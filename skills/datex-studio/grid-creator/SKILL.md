@@ -185,7 +185,7 @@ mirror drift. Treat its blockers as must-fix.
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish the row entity (or aggregated row shape), which columns the grid renders, which fields are filterable/sortable, the host that mounts the grid, and any row-action / toolbar-action flows the user needs.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the row shape, filterability, and host mounting right up front avoids re-authoring the entity-shape locations and dynamic-filter registrations from scratch.

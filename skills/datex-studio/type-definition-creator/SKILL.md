@@ -165,7 +165,7 @@ new shape. Net-new types skip this step.
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish what the type represents (a shared data shape across multiple components, a fixed value set, or an anonymous nested structure on one parent type), the consumers that will reference it (flow params, datasource shapes, UI components), and whether `accessModifier` should be `public` or `private`.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the interface vs enum vs nested decision right up front avoids restructuring the type after consumers have already wired against it.

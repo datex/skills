@@ -186,7 +186,7 @@ shows the same display label getList showed (getByKeys parity)
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish what the dropdown represents (an entity, an enum, a computed list), the display label users see, the underlying Key/Value the saved selection persists, where the selector mounts (form field / hub filter / grid filter cell), and whether autocomplete behavior is required.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the display label, the saved Key, and the mount site right up front avoids re-authoring `text`, `datasourceKeyDef`, and the host's `configParameters`.

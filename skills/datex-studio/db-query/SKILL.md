@@ -126,7 +126,7 @@ Schema change in flight? -> invoke `impact-analysis` with
 
 ### Phase 1: Setup + Context
 
-1. If the parent skill (typically `function-creator`) hasn't already established branch and connection, follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for selection. **Never assume a branch ID** — confirm with the user or run `dxs source branch list --all-repos --status feature`.
+1. If the parent skill (typically `function-creator`) hasn't already established branch and connection, follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for selection. **Never assume a branch ID** — confirm with the user.
 2. **Identify the storage being accessed.** The access path is `$db.<Package>.<storage_referenceName>`:
    - `<storage_referenceName>` matches the `-storage.json` filename stem (e.g. `widget_rule_storage`).
    - `<Package>` is the storage component's package placement — typically the feature package (`Acme`), not the default `Utilities`. Read the storage file's package declaration directly; never infer from the feature folder name.

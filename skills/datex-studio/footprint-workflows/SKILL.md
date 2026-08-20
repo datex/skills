@@ -148,7 +148,7 @@ the result/mutation lands. Re-fetch (jq .json) and diff against body.json.
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md). **Never assume a branch id** — confirm with the user, or run `dxs source branch list --all-repos --status feature` for selection. Author on a **feature branch**; PublishedMain workflow configs are `readonly: true`.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md). **Never assume a branch ID** — confirm with the user. Author on a **feature branch**; PublishedMain workflow configs are `readonly: true`.
 2. Check for a **requirements brief** in context. The brief should establish: which platform slot, the custom behavior, what package actions/datasources it dispatches to, and the target package. No brief → invoke `requirements-gathering`.
 
 ### Phase 2: Identify the platform slot

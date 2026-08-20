@@ -154,7 +154,7 @@ hydration, toggle into edit mode, save commits, cancel restores
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish the entity being edited (and which key the host passes in), which fields are visible/editable, view-only-vs-edit-mode behavior, save semantics (which CRUD action persists changes), and whether the same editor handles create mode.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the entity shape and save semantics right up front avoids the dense round-trip that follows.

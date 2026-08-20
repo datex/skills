@@ -16,7 +16,7 @@ These hold across every Datex Studio skill — keep new or edited skills consist
 - **"Datex Studio," never "Wavelength."** Wavelength is a trademark of another party; use "Datex Studio" in skill names, docs, and prose. (It may legitimately appear only as the literal Azure DevOps work-item type "Wavelength Component.")
 - **DRY at the skill level.** Shared content lives once, in a library skill, and is linked — not copied across skills.
 - **Packaging quirk:** `npx skills` only ships directories that contain a `SKILL.md`. Cross-cutting reference material therefore lives inside real "library" skills — `datex-studio-shared`, `datex-studio-conventions`, `datex-studio-runtime` — not a bare `shared/` folder. These three are reference-only, **not invoked directly**; other skills link into their files via relative paths, so install them alongside any consumer skill (declared in each skill's `depends:`).
-- **Never assume a branch ID.** Confirm with the user, or run `dxs source branch list --all-repos --status feature` and let them pick.
+- **Never assume a branch ID.** Confirm with the user. Branch selection is org-scoped: `dxs auth status` → `dxs source repo list --org <organization_id>` → `dxs source branch list --repo <repo_id> --status feature -n 10` → ask. Never `--all-repos` — it sweeps every org and buries the branches that matter. Full procedure: [branch-setup.md](skills/datex-studio/datex-studio-shared/branch-setup.md).
 
 ## Two-tier skill model
 

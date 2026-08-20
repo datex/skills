@@ -217,7 +217,7 @@ tailored components]
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish the **base component** being tailored (its `referenceName`, package, what it does), the **customer-specific tweaks** needed (new columns / fields, new toolbar actions, base flows to hook with `before` / `after` / `replace` behavior, base elements to suppress), any **fields not in the base datasource's select list** that drive the need for a secondary enrichment datasource, and whether the goal is **author an overlay** or **flatten an existing overlay into a custom**.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the tailored vs custom decision right up front avoids re-authoring the file from scratch when the customer's actual needs diverge enough from the base that flattening is the better path.

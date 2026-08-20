@@ -134,7 +134,7 @@ tabs query, toolbar buttons fire
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief provides intent (what the hub is for), the scoping filters users need, the tabs/grids that should mount inside, role-gating rules, and any toolbar actions.
    - **No brief** — invoke the `requirements-gathering` skill first. Hubs are top-level entry points; getting the filter set and tab layout right up front saves rework.

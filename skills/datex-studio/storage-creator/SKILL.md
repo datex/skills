@@ -162,7 +162,7 @@ doesn't break existing call sites
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish what data the storage holds (configuration values, business rules, daily snapshots, …), the column set with types, whether any columns are genuinely required at rest, the consuming surfaces (functions that write, datasources that read for UI), and the feature package the storage belongs to.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the column set and `required` decisions right up front avoids painful schema migrations later — once a storage ships, `required: true` is effectively additive-only (existing callers haven't been updated to echo new required columns).

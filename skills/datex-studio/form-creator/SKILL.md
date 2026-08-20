@@ -160,7 +160,7 @@ return shapes
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm, or run `dxs source branch list --all-repos --status feature` for selection.
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch and connection selection. **Never assume a branch ID** — ask the user to confirm.
 2. Check whether a **requirements brief** already exists in the conversation context (produced by `requirements-gathering` or another calling skill).
    - **Brief exists** — use it. The brief should establish what inputs the form collects, the validity rules, what the caller does with the returned payload (which CRUD action — if any — runs on confirm), and how the form is opened (which host invokes the dialog).
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the input shape, validity rules, and confirm-vs-cancel semantics right up front avoids re-authoring the validate-then-gate-confirm flow.
