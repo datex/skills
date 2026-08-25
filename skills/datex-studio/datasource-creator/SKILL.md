@@ -30,6 +30,7 @@ Create OData or flow-based datasource configurations for Datex Studio.
 - [references/datasources.md](references/datasources.md) -- Datasource taxonomy: component variant (`-datasource.json` vs `-footprintDatasource.json`) × query type (OData vs flow), calling convention, tier restrictions, embedded datasources
 - [references/odata-datasources.md](references/odata-datasources.md) -- OData query-type platform reference: queryOptions tree, filter expressions, expands, result type shape, pre-flight schema validation, canonical skeleton
 - [references/flow-datasources.md](references/flow-datasources.md) -- Flow query-type platform reference: paginated vs single-result shapes, getFlow/getListFlow/getByKeysFlow slots, callsite syntax, entity-definition contract, canonical skeletons
+- [references/compatibility-rules.md](references/compatibility-rules.md) -- When a datasource is usable by a consumer and what must be self-consistent to publish: reference-snapshot fields the usage gate reads, EDatasourceShape matrix for all eleven consumers, linked-datasource rules, flow-slot rules, and the `validateQueryOptionsShape` / `validateOutputsContract` recipes
 
 ## Dependencies
 

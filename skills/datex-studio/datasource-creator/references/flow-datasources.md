@@ -37,10 +37,18 @@ server-side usage gate does not reach FPDS references.
 | **Collection, unkeyed** | `true` | empty | `null` | populated | `null` | List, calendar, pie-chart widget, `oneToMany` linked DS — **not** grid/selector |
 | **Collection, keyed** | `true` | required (`isKey` on output type) | `null` | populated | populated | Grid, selector, `oneToOneWithMerge` linked DS |
 
-Any other slot combination is malformed: a single-result shape with `getListFlow` or
-`getByKeysFlow` populated, a single-result shape with no `getFlow` at all (the config would
-generate no methods), a collection with `getFlow` populated, a collection without
-`getListFlow`, or `getByKeysFlow` without a `keyDef`.
+Author only these three combinations — the studio's `clearUnusedFlows()` produces exactly them.
+But note what validation actually rejects, so you neither ship a broken config nor report a false
+error on someone else's:
+
+- **Rejected at publish** (`validateFlowSlots`): a single-result shape with no `getFlow`, a
+  collection with no `getListFlow`, or a keyed collection (`hasKey: true`) with no `getByKeysFlow`.
+- **Not rejected, but off-convention:** a *stray* slot — `getListFlow`/`getByKeysFlow` on a
+  single-result shape, or `getFlow` on a collection. Codegen emits a method from any populated slot
+  and it generally works. Null them to match the designer; do not flag them as errors.
+- **Not rejected, and genuinely broken:** `getByKeysFlow` populated with an empty `keyDef`. Codegen
+  dereferences `keyDef.length` with no null guard and **throws during generation** — backend
+  validation passes, so this one only surfaces at codegen. Always pair the slot with a `keyDef`.
 
 **Why grid/selector require the keyed shape:** both call `getByKeys` at runtime — the grid to
 re-fetch a single row after an action, the selector to resolve the display label of an
@@ -59,7 +67,7 @@ When wiring an existing flow datasource into a consumer, read its implemented me
 
 List and calendar call `getList` and never `getByKeys`, so they sit with the unkeyed consumers:
 requiring a `keyDef` of them would reject datasources they can use perfectly well. The server-side
-usage gate mirrors this split exactly.
+usage gate mirrors this split exactly. For complete suitability matrix details, see [`compatibility-rules.md`](compatibility-rules.md).
 
 `onInitFlow` is `null` in all shapes unless explicit initialization logic is needed.
 

@@ -102,8 +102,8 @@ You validate a single Datex Studio component file against its type's authoring r
    | `*-selector.json` | `../selector-creator/references/selectors.md` |
    | `*-customType.json` | `../type-definition-creator/references/type-definitions.md` |
    | `*-backendTest.json` | `../backend-test-creator/references/backend-tests.md` |
-   | `*-datasource.json` | `../datasource-creator/references/odata-datasources.md` (and `flow-datasources.md` if the body shape is flow-backed) |
-   | `*-footprintDatasource.json` | `../datasource-creator/references/odata-datasources.md`, `../datasource-creator/references/flow-datasources.md` |
+   | `*-datasource.json` | `../datasource-creator/references/odata-datasources.md`, `../datasource-creator/references/flow-datasources.md`, `../datasource-creator/references/compatibility-rules.md` |
+   | `*-footprintDatasource.json` | `../datasource-creator/references/odata-datasources.md`, `../datasource-creator/references/flow-datasources.md`, `../datasource-creator/references/compatibility-rules.md` |
    | CAC working folder (`manifest.json` + `app.<ref>.component.ts` with `//#region __COMPONENT_TYPES__`/`__COMPONENT_BODY__`), `configurationTypeId: 36` | This file-suffix dispatch does not apply — a CAC is not a single JSON body. Audit per `../custom-angular-component-creator/SKILL.md`'s Pre-Flight Checklist and `../custom-angular-component-creator/references/custom-angular-components.md` instead of a suffix-matched rule doc. |
 
    If the suffix does not match anything in the table, reply `Cannot validate: unknown component suffix '<suffix>'. Supported: <list>.` and stop. If the file is recognized as a tailored overlay, also load `../tailoring-overlay/` rules.

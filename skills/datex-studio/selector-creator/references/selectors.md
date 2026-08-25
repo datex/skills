@@ -4,16 +4,27 @@ For the datasource taxonomy (component variant vs query type), see [`datasources
 
 A selector is named `<referenceName>-selector.json` (`configurationTypeId: 7`). The component lives on the branch — this is the naming convention, not a local `src/` path. A selector defines a dropdown/autocomplete control that can be bound to a form field or grid column.
 
-## Backing Datasource Variant — Hard Rule
+## Backing Datasource Variant & Shape — Hard Rules
 
-Selectors **must** be backed by a `-datasource.json` component (platform backend, `configurationTypeId: 6`). They **cannot** be backed by a `-footprintDatasource.json` (FPDS, `configurationTypeId: 19`). This is a hard platform rule with no exceptions.
+Selectors carry two independent backing-datasource requirements, enforced by two different mechanisms:
+
+1. **Component variant** — a selector **must** be backed by a `-datasource.json` component (platform backend, `configurationTypeId: 6`). It **cannot** be backed by a `-footprintDatasource.json` (FPDS, `configurationTypeId: 19`). Hard platform rule, no exceptions. This is a tier rule, not part of the shape gate.
+2. **Result shape** — the backing datasource must satisfy `EDatasourceShape.collectionWithKeys`, checked at publish by `ValidateDatasourceReferences`. Concretely, on the **selector's own** `datasourceConfig`: `configOutParameters` must carry a `result` entry with `isCollection: true`, and `datasourceKeyDef` must be non-empty. The gate reads this snapshot, not the target datasource's own `resultIsCollection`/`hasKey` flags — so if the snapshot is stale, refresh the reference. Failure message: `Datasource '<id>' cannot be used by a selector: it has no key definition, so getByKeys cannot resolve a row.`
+
+Because a selector calls `getList` for the dropdown pages and `getByKeys` to resolve the display
+label of an already-selected value, a **flow-type** backing datasource must implement both
+`getListFlow` and `getByKeysFlow` (`validateFlowSlots` requires the pair once `hasKey` is set), and
+any label transformation applied in `getListFlow` must be applied identically in `getByKeysFlow` —
+otherwise a saved selection re-renders with a corrupted label. An **OData-type** backing datasource
+derives both methods automatically from `resultIsCollection: true` + `hasKey: true`; it has no flow
+slots.
 
 The **query type** inside the backing `-datasource.json` is unconstrained — it can be either:
 
 - **Flow type** (`type: "flows"`, embedded TS) — most common, e.g. enum dropdowns with `formatKey` helpers. See [`flow-datasources.md`](../../datasource-creator/references/flow-datasources.md).
 - **OData type** (`type: "oDataQuery"`, declarative) — used when the dropdown options come from a database entity. Wrap the OData query in the `-datasource.json` variant, not an FPDS. See [`odata-datasources.md`](../../datasource-creator/references/odata-datasources.md) for the OData query shape.
 
-Put another way: selectors care about the **component variant**, not the **query type**.
+See [`../../datasource-creator/references/compatibility-rules.md`](../../datasource-creator/references/compatibility-rules.md) for the complete suitability matrix.
 
 ## Datasource-Backed Selector
 

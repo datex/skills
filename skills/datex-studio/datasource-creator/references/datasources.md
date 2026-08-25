@@ -84,7 +84,29 @@ When generating datasource configs programmatically, use separate builders for i
 
 ## Selectors
 
-Selectors (`-selector.json`, `configurationTypeId: 7`) must be backed by a `-datasource.json` — the query type inside it can be OData or flow, whichever fits. Never back a selector with a `-footprintDatasource.json`. See [`../../selector-creator/references/selectors.md`](../../selector-creator/references/selectors.md) for the selector authoring spec.
+Selectors (`-selector.json`, `configurationTypeId: 7`) must be backed by a `-datasource.json` — the query type inside it can be OData or flow, whichever fits. Never back a selector with a `-footprintDatasource.json`. The backing datasource must also satisfy `EDatasourceShape.collectionWithKeys` — a collection result plus a non-empty key definition — and, if it is flow-type, must implement both the `getListFlow` and `getByKeysFlow` slots. See [`../../selector-creator/references/selectors.md`](../../selector-creator/references/selectors.md) and [`compatibility-rules.md`](compatibility-rules.md).
+
+## Datasource Compatibility & Consumer Suitability Rules
+
+A consumer component only publishes if the datasource it references has the shape that consumer
+requires (`EDatasourceShape`, evaluated by `DatasourceShapeRules.Satisfies()`):
+
+- **`single`** — editors, forms, large number widget, both gauge widgets.
+- **`collection`** — lists, calendars, pie chart widget.
+- **`collectionWithKeys`** — **grids and selectors, unconditionally.** A grid needs a key whether or
+  not it does inline editing: it calls `getList` for pages and `getByKeys` to refresh a row.
+- **`any`** (a result exists) — report bindings.
+
+Two traps worth knowing before you author either side:
+
+- The gate reads the **reference snapshot on the consumer** (`datasourceConfig.configOutParameters`
+  result entry + `datasourceConfig.datasourceKeyDef`), *not* `resultIsCollection` / `hasKey` on the
+  target datasource. Those flags matter elsewhere — method generation and flow-slot validation.
+- **Shape does not imply slots.** A single-result OData datasource has only `get`; flow datasources
+  get one method per authored slot, with its own presence rules.
+
+Full matrix (all eleven use cases), linked-datasource rules, flow-slot rules, and the
+self-consistency validators that gate the datasource itself: [`compatibility-rules.md`](compatibility-rules.md).
 
 ## Embedded Datasources
 
