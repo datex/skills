@@ -36,15 +36,16 @@ Cross-skill content used to live in a plain `shared/` directory. `npx skills` on
 
 ## Skill catalog
 
-**40 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities, workflow orchestration). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
+**42 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities, workflow orchestration). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
 
-### Datex Studio — Component creators (16)
+### Datex Studio — Component creators (17)
 
 Skills for authoring NEW component configurations on a branch. Each owns the rules and lifecycle for one component type.
 
 | Skill | What it creates | configurationTypeId |
 |---|---|---|
 | [`action-creator`](skills/datex-studio/action-creator/SKILL.md) | Server-tier transactional flows (`*-footprintFlow.json`) | 18 |
+| [`agent-creator`](skills/datex-studio/agent-creator/SKILL.md) | Agent configurations — commands and skills for the Footprint CLI (`fp`) | 38 |
 | [`backend-test-creator`](skills/datex-studio/backend-test-creator/SKILL.md) | Mocha test suites (`*-backendTest.json`) | 24 |
 | [`custom-angular-component-creator`](skills/datex-studio/custom-angular-component-creator/SKILL.md) | Custom Angular Components — bespoke coded UI via the `dxs ng` create → preview → push loop (a working folder, not a `*.json` body) | 36 |
 | [`datasource-creator`](skills/datex-studio/datasource-creator/SKILL.md) | OData and flow datasources (`*-datasource.json`, `*-footprintDatasource.json`) | 6 / 19 |
@@ -96,7 +97,7 @@ Reference-only library skills. **Not invoked directly.** Other skills link into 
 | [`datex-studio-conventions`](skills/datex-studio/datex-studio-conventions/SKILL.md) | File format invariants, naming conventions, defaults |
 | [`datex-studio-runtime`](skills/datex-studio/datex-studio-runtime/SKILL.md) | Runtime globals, three-tier execution model, control-type catalog |
 
-### Datex Studio — Utilities (14)
+### Datex Studio — Utilities (15)
 
 Workflow helpers consumed by creator skills or invoked standalone.
 
@@ -109,6 +110,7 @@ Workflow helpers consumed by creator skills or invoked standalone.
 | [`component-wiring-check`](skills/datex-studio/component-wiring-check/SKILL.md) | Audit the three silent-failure traps (moduleId, configParameters mirror, vars declaration) |
 | [`db-query`](skills/datex-studio/db-query/SKILL.md) | `$db` predicate DSL + flow-db-datasource patterns |
 | [`devops-requirements`](skills/datex-studio/devops-requirements/SKILL.md) | Extract requirements from Azure DevOps work items |
+| [`footprint-cli`](skills/datex-studio/footprint-cli/SKILL.md) | Run `fp` against a deployed agent app: auth, verb discovery, 401/404 diagnosis |
 | [`impact-analysis`](skills/datex-studio/impact-analysis/SKILL.md) | Reverse-trace caller analysis before contract changes (write-side / read-side split) |
 | [`odata-execution`](skills/datex-studio/odata-execution/SKILL.md) | Incremental OData query development with `dxs odata execute` |
 | [`post-edit-verification`](skills/datex-studio/post-edit-verification/SKILL.md) | Cheapest-first verification ladder after every component edit |
