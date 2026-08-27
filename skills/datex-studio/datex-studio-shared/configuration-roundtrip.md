@@ -101,6 +101,43 @@ in its own package instead). If a bare name isn't found on your branch but
 exists in a referenced package, the error names the package and shows the
 `Module/ref` form.
 
+### Upserting a package-owned reference name is refused (`--allow-external`)
+
+On dxs ≥ 0.4.19 `dxs configuration upsert` **refuses** when the bare
+`referenceName` in your body resolves to a config owned by a **referenced
+package** (`isExternal: true`) and this branch has no owned copy of it.
+Creating one there would silently *fork* the config into your application's
+namespace: the new local copy shadows the package's, and subsequent package
+updates stop flowing into it.
+
+That refusal is almost always right. The two legitimate answers are:
+
+1. **Edit it in its own package** and re-pin the consumer (`dxs cascade run`) —
+   the correct fix when the change belongs to everyone using the package.
+2. **Fork deliberately**, when the change is genuinely local to this
+   application, by passing the flag:
+
+   ```bash
+   dxs configuration upsert <type> -b <branch> -D body.json --allow-external
+   ```
+
+   Say out loud that this forks, and get the user's agreement first. It is not
+   a way to get past an error message.
+
+**Pre-flight before any edit to a config you did not create on this branch.**
+`dxs source explore config <ref> -b <branch>` reports `isExternal`,
+`applicationReferenceName`, and an `owner` block naming the owning application
+*and* its organization — at the point of editing, not buried in a list. Read
+that before you edit, and the refusal never surprises you.
+
+The guard fails **open**: if the ownership listing call itself fails, the upsert
+proceeds. A clean run is therefore not positive proof of local ownership —
+`source explore config` is.
+
+A third shape exists and is fine: a **tailored** variant
+(`tailored_<base>` / `custom_<base>`) is a *new* reference name owned by your
+branch, so it never trips this guard even though its base lives in a package.
+
 ## The bug this avoids
 
 `dxs configuration get -O envelope.json` writes the full server response shape (id, json, jsonString, version, modifiedDate, …). `dxs configuration upsert -D` expects only the inner `json` body. Piping the envelope directly results in the server silently wiping the configuration's content (Phase 0d smoke test on hub 655 — toolbar/flows/onInitFlowConfig all reset to null).
@@ -197,11 +234,17 @@ branch** — never against other files you are about to push. Consequences (each
   editor inherited from Main on a fresh branch. **Note the error text is nearly identical to the
   cross-branch case below but the fix is the opposite** — check whether *your* branch has a pending
   change for the component (`dxs source changes --branch`) before hunting for a foreign lock holder.
+  On dxs ≥ 0.4.19 **the error code tells the two apart**: the enrichment only fires when a lock
+  record actually matches the referenceName, so a foreign holder gives you `DXS-LOCK-002` naming
+  them, while this case — nobody holds it, your branch simply doesn't own it yet — still surfaces
+  the bare `DXS-API-400`. Bare message ⇒ use `upsert`; `DXS-LOCK-002` ⇒ a real holder to chase.
 - **Cross-branch single-writer lock.** `upsert` fails with `Cannot update configuration that is not
   locked` when the component is held as a **pending update on someone else's branch** — the lock is
-  repo-wide per component, not per branch. Diagnose with raw probes:
+  repo-wide per component, not per branch. On dxs ≥ 0.4.19 the CLI enriches that bare 400 into
+  **`DXS-LOCK-002`**, which names the lock holder, the holding branch and the date directly — read
+  it off the error rather than probing. Only on an older CLI do you need the raw route:
   `dxs api .../sourcecontrol/<branch>/config/<ref>/lock` (contradictory lock/unlock responses on
-  your branch expose the foreign lock; check `/sourcecontrol/<repo>/locks` for the holder, and
+  your branch expose the foreign lock; then `dxs source locks --repo <repo_id>` for the holder, and
   verify you leave no probe locks behind). The lock releases when the holding branch **commits**;
   then re-fetch the component (their committed body is the new baseline), re-apply your edit on
   top, and upsert.

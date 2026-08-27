@@ -206,7 +206,7 @@ dxs ng stop <folder>                 # stop-only disposal: server + browser sess
 
 ## Prerequisites
 
-1. **Datex API in Development** on `https://localhost:5101` (harness codegen is dev-only). `dxs config set api_base_url https://localhost:5101/api`; `dxs config set verify_ssl false`.
+1. **Datex API in Development** on `https://localhost:5101` (harness codegen is dev-only). `dxs settings set api_base_url https://localhost:5101/api`; `dxs settings set verify_ssl false`.
 2. **Authenticated** (`dxs auth status`, `@datexcorp.com`).
 3. **agent-browser** — the **unscoped** package: `npm install -g agent-browser` then `agent-browser install`. (Not `@anthropic-ai/agent-browser`.)
 
