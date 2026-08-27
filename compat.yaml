@@ -1,0 +1,15 @@
+# Which skills a given dxs CLI version gets (datex-studio-cli issue #95).
+#
+# Quartermaster resolves the running CLI's version line (major.minor) here and
+# serves the catalog and bundles from the resulting git ref. Resolution: the
+# exact line; else the next listed line ABOVE it; else `default`.
+#
+# Skills ship on main at their own pace. When a CLI release breaks the skills
+# the current line documents, cut a branch for that line (e.g. `cli-0.5`), add
+# its row here, and let main move on. A row is a branch cut when the *next*
+# line broke, so it covers every line back to the previous break — one row per
+# CLI break, nothing per skill.
+version: 1
+default: main
+lines:
+  "0.5": main
