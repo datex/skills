@@ -115,6 +115,21 @@ Unused config slots on a `controlConfig` (e.g. `buttonConfig` on a `textBox` fie
 | `onInitFlowConfig` | Flow to run on form load | Typical place to seed fields from `inParams` |
 | `onFormValidateFlowConfig` | Flow to run on validation pass | Typical place to gate toolbar `confirm.control.readOnly` |
 
+## Optional Datasource Wiring
+
+Most forms are parameter-driven and carry `datasourceConfig: null` / `linkedDatasources: null` — the skeleton above assumes that. A form *may* bind a datasource, and it may declare `linkedDatasources` to expand that datasource with related rows, exactly as an editor or grid does. Both slots are shape-gated server-side and block publish on a mismatch:
+
+| Slot | Requirement |
+|---|---|
+| `datasourceConfig` | A **single-result** datasource (`get`) — the same requirement as an editor. A collection-returning datasource is rejected. |
+| `linkedDatasources[]` with `type: "oneToOne"` | Target returns a single result. |
+| `linkedDatasources[]` with `type: "oneToMany"` | Target returns a collection. |
+| `linkedDatasources[]` with `type: "oneToOneWithMerge"` | Target returns a **keyed** collection — the link calls `getByKeys`, which needs both a collection result and a non-empty `keyDef`. |
+
+Which datasource shape satisfies which: [`flow-datasources.md` → Three Execution Shapes](../../datasource-creator/references/flow-datasources.md#three-execution-shapes).
+
+A link whose target can't satisfy its type generates a call the datasource never emits — a `oneToOneWithMerge` against a non-collection emits `getByKeys` on a datasource that has no such method, and the generated app fails to compile — which is why the gate blocks publish instead of letting it through. Every link entry also needs a real `datasourceConfig`: an entry with a null reference is reported as corruption, not silently skipped.
+
 ## Runtime Globals
 
 Inside any `executeCodeConfig.code` string on a form flow:
@@ -281,6 +296,7 @@ Both rules apply identically to editor flows — `$editor.vars.<name>` must be d
 9. If the caller needs to distinguish confirm from cancel, the target form emits an explicit `is_confirmed: boolean` outParam.
 10. `inParams` / `outParams` shapes are documented on each entry's `description` so consumers see the contract.
 11. No `value.required: true` outParam is written only conditionally — the type contract must match what every close path actually emits.
+12. If the form binds a datasource, `datasourceConfig` points at a **single-result** one, and every `linkedDatasources` entry has a real `datasourceConfig` whose shape satisfies its `type`. Both are gated server-side and block publish — see [Optional Datasource Wiring](#optional-datasource-wiring).
 
 ## Cross-References
 
@@ -288,6 +304,7 @@ Both rules apply identically to editor flows — `$editor.vars.<name>` must be d
 - [`calling-conventions.md`](../../datex-studio-runtime/calling-conventions.md) — UI-tier calling rules.
 - [`component-wiring.md`](../../component-wiring-check/references/component-wiring.md) — host reference contracts and var declarations.
 - [`defaults.md`](../../datex-studio-conventions/defaults.md) — default package, access modifier, description length cap.
+- [`flow-datasources.md`](../../datasource-creator/references/flow-datasources.md) — datasource shapes, for forms that bind one or declare linked datasources.
 - [`control-types.md`](../../datex-studio-runtime/control-types.md) — Per-`controlConfig.type` schema and authoring notes (codeBox detailed; other types stubbed).
 - [`selectors.md`](../../selector-creator/references/selectors.md) — selector-backed fields (dropdowns, autocomplete) are a common form control.
 - [`grids.md`](../../grid-creator/references/grids.md) — grids frequently open forms as dialogs from row actions and toolbar buttons.

@@ -22,14 +22,22 @@ designer enforces this imperatively (`createMissingFlows` / `clearUnusedFlows`);
 authored outside the designer must get it right by construction. `dxs datasource generate-flow`
 rejects every violation at authoring time; `dxs datasource validate` reports hand-edit
 corruption (`hasKey`↔`keyDef` mismatch, `getByKeysFlow` without `keyDef`, collection slots on
-a single-result config) as errors — which make it exit non-zero — and legacy shapes older CLI
-versions generated (`getFlow` on a collection, a collection without `getListFlow`, a keyed
-collection without `getByKeysFlow`) as advisory warnings, so deployed configs keep validating.
+a single-result config) as errors — which make it exit non-zero — along with two shapes older
+CLI versions generated: a collection without `getListFlow`, and a keyed collection without
+`getByKeysFlow`. Those two are errors rather than advisory warnings because the server's
+`validateFlowSlots` demands both slots and blocks publish without them, so no config holding
+either shape can be deployed. The one legacy shape that stays a warning is `getFlow` on a
+collection: `validateFlowSlots` checks for *missing* slots and ignores stray ones, so such a
+config still deploys.
 A **missing `resultIsCollection`** is an error rather than a warning even though older CLI
 versions produced it: the server refuses to save a flow datasource without the flag
 (`Use in ... is required`), so always stamp it. The same lint runs on the FootprintDatasource
-variant (`-footprintDatasource.json`) too — and there it is the *only* shape check, since the
-server-side usage gate does not reach FPDS references.
+variant (`-footprintDatasource.json`) too. There the server-side *usage* gate is still absent —
+it does not reach FPDS references — but the isolation checks are not: an FPDS gets the same
+`validateFlowSlots` treatment as a regular flow datasource, so the CLI lint is no longer the only
+shape check standing between it and a failed publish. FootprintQuery configs are the one
+exemption; they override the check to a no-op, since get/getList/getByKeys slot rules never
+applied to them.
 
 | Shape | `resultIsCollection` | `keyDef` | `getFlow` | `getListFlow` | `getByKeysFlow` | Suitable consumers |
 |---|---|---|---|---|---|---|
