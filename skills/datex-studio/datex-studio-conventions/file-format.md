@@ -25,7 +25,7 @@ A component's JSON body is its canonical shape. The platform generates TypeScrip
 
 ## `configurationTypeId` Reference
 
-Every component JSON carries a numeric `configurationTypeId` identifying its component kind. This table is the platform's own enumeration, generated from `dxs api GET /configurationtypes` (verified 2026-08-19, dxs 0.4.18). Regenerate it rather than hand-editing rows:
+Every component JSON carries a numeric `configurationTypeId` identifying its component kind. This table is the platform's own enumeration, generated from `dxs api GET /configurationtypes` (verified 2026-08-29, dxs 0.5.4). Regenerate it rather than hand-editing rows:
 
 ```bash
 dxs api GET /configurationtypes --raw | jq -r 'sort_by(.id)[] | "| \(.id) | \(.name) |"'
@@ -61,23 +61,23 @@ dxs configuration types      # the CLI type names, for the third column
 | 26 | Endpoints | `endpoint` | n/a — managed via `dxs endpoint` |
 | 27 | FrontendFlow | `frontendflow` | `-frontendFlow.json` |
 | 28 | SecurityPolicy | `securitypolicy` | — |
-| 29 | FootprintQuery | — | — |
+| 29 | FootprintQuery | `footprintquery` | — |
 | 30 | FootprintQueryFilterForm | — | — |
 | 31 | FootprintQueryManager | `footprintquerymanager` | — |
 | 32 | AppConfig | `appconfig` | — |
-| 33 | Replacements | — | — |
-| 34 | Authorization | — | — |
-| 35 | Dashboard | — | — |
+| 33 | Replacements | `replacements` | — |
+| 34 | Authorization | `authorization` | — |
+| 35 | Dashboard | `dashboard` | — |
 | 36 | CustomAngularComponent | `customangularcomponent` | n/a — `dxs ng` working folder |
-| 37 | UserConfig | — | — |
+| 37 | UserConfig | `userconfig` | — |
 
 Reading the table:
 
 - **ID 10 does not exist** — it is absent from the platform enumeration, not omitted here.
 - **The platform name is not always the skill vocabulary.** Most notably `FootprintFlow` (18) is what these skills call an **action**, and `Flow` (9) is what they call a **function**. Match on the ID, not the word.
-- **A `—` CLI type means the type is not addressable through `dxs configuration <verb>`.** Six platform types (29, 30, 33, 34, 35, 37) have no entry in `dxs configuration types`; they are managed by the platform or by a dedicated command family, not by the generic config CRUD surface.
+- **A `—` CLI type means the type is not addressable through `dxs configuration <verb>`.** Only **FootprintQueryFilterForm (30)** has no entry in `dxs configuration types` (35 of the 36 platform types do); it is managed by the platform, not by the generic config CRUD surface. The set has shrunk over time — 29, 33, 34, 35 and 37 became addressable after dxs 0.4.18 — so regenerate the third column rather than trusting a remembered gap.
 - **A `—` file suffix means no suffix is *verified*, not that none exists.** The convention is `-<camelCaseName>.json`, but per the repo's source-of-truth rule the local filename is scratch anyway — confirm against a working component of the same type before relying on it. `n/a` is different: that type genuinely has no single-file JSON body.
-- **A CLI type with no creator skill is a documented gap, not a nonexistent type.** `card`, `calendar`, `wizard`, `list`, `widget`, `visualization`, `codeeditor`, `localization`, `securitypolicy`, `shell`, and `appconfig` are all real and reachable, with no skill covering them yet — see the roadmap section of the repo README.
+- **A CLI type with no creator skill is a documented gap, not a nonexistent type.** `card`, `calendar`, `wizard`, `list`, `widget`, `visualization`, `codeeditor`, `localization`, `securitypolicy`, `shell`, `footprintquery`, `footprintquerymanager`, `appconfig`, `replacements`, `authorization`, `dashboard`, and `userconfig` are all real and reachable, with no skill covering them yet — see the roadmap section of the repo README.
 
 `configurationTypeId: 9` is shared between top-level function files and embedded step nodes inside any flow's `nodes[]` — the file suffix (`-flow.json` vs no file) is the distinguisher. Actions use a different top-level id (`18`), so action vs function top-level files are unambiguously identifiable by `configurationTypeId` alone.
 

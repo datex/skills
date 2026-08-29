@@ -41,6 +41,14 @@ actually changed). Produces both a Technical and a Customer variant.
   silently, names which side failed (`resolve_failed_sides`), and accepts
   `--extra-org` to index another org's repos. On an older build every one of
   those is manual work — see Phase 1b.
+- **dxs ≥ 0.5.4 if anything calls `dxs source release-notes` directly** (this
+  skill's own path is `release-tree`, which was never affected). Its dependency
+  diff compared `marketPlaceApplicationVersionId` on both sides — a field the
+  `AppConfig` migration dropped — so it compared `None` to `None` and a
+  dependency **bump was never reported as updated**. From 0.5.4 it diffs on the
+  resolved `version` through the same helper `source compare` and `deps-diff`
+  use, so the three agree, and a bump whose branches can't be resolved is
+  reported as unclassified rather than dropped.
 
 Both branch IDs are needed up front. If the user gave a **version name** instead
 (or a date, or only one), resolve it first — see *Resolving the root app &
