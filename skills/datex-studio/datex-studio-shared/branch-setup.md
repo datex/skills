@@ -63,14 +63,19 @@ Each item is an AppConfig setting record. A Footprint API connection setting loo
 ```yaml
 - name: FootprintApi              # ← this is the --api-setting-name value
   description: General Api connection for the Footprint WMS.
-  settingType: 1                  # 1 = ApiConnection (an INT, not the string "ApiConnection")
+  settingType: 1                  # 1 = ApiConnection (serialization caveat below)
   valueType: null
   value: null                     # null for connection settings
   apiConnectionType: 1            # 1 = FootPrintApi (8 = MongoDb, etc.)
   apiConnectionName: DSV          # ← the connection's NAME; match this to your -c connection
 ```
 
-Key facts: `settingType` and `apiConnectionType` are **integers** (`1`/`1` for a Footprint API connection), not enum strings. There is **no `apiConnectionId`** field -- the connection is identified by `apiConnectionName` (its name). `value` is `null` for connection settings. The value you pass to `--api-setting-name` is the setting's `name` (e.g. `FootprintApi`) -- **not** `apiConnectionName` (the connection name like `DSV`).
+Key facts:
+
+- **`settingType` and `apiConnectionType` are enums whose serialization is not guaranteed.** Live branches return integers today (`1`/`1` for a Footprint API connection), but the CLI's own resolver also accepts the string forms (`"ApiConnection"`, `"FootPrintApi"`) because the platform may serialize them either way. Accept both; never key a comparison on one form alone.
+- **Do not look for `apiConnectionId`.** Application settings and references were collapsed into a single source-controlled `AppConfig` configuration (datex-application-api PR 3754), which identifies the connection by *name*, in `apiConnectionName`. A legacy `apiConnectionId` / `settingTypeId` may survive in some environments -- treat either as a bonus, never as a field you can require.
+- `value` is `null` for connection settings.
+- The value you pass to `--api-setting-name` is the setting's `name` (e.g. `FootprintApi`) -- **not** `apiConnectionName` (the connection name like `DSV`).
 
 Present API connections using **AskUserQuestion** (skip if only one -- just inform the user). Store:
 - The `name` (used for `--api-setting-name`, or rely on auto-resolve -- see below)
@@ -78,7 +83,7 @@ Present API connections using **AskUserQuestion** (skip if only one -- just info
 
 ### Auto-resolving `--api-setting-name`
 
-`dxs datasource generate` will auto-resolve the API setting name from the branch's AppConfig if you omit `--api-setting-name`. It finds the branch's settings where `settingType == ApiConnection (1)` **and** `apiConnectionType == FootPrintApi (1)`, resolves your `-c` connection's name, and returns the `name` of the setting whose `apiConnectionName` matches. This works on host *and* ComponentModule branches, so omit-and-auto-resolve is the most portable choice. Pass `--api-setting-name` explicitly only to disambiguate when multiple API-connection settings exist -- pick the setting whose `apiConnectionName` matches your connection and use its `name`.
+`dxs datasource generate` will auto-resolve the API setting name from the branch's AppConfig if you omit `--api-setting-name`. It finds the branch's settings where `settingType == ApiConnection (1)` **and** `apiConnectionType == FootPrintApi (1)`, resolves your `-c` connection's name, and returns the `name` of the setting whose `apiConnectionName` matches. If the connection's name can't be fetched at all, it falls back to the lone Footprint API-connection setting when there is exactly one, and to nothing when there are several. This works on host *and* ComponentModule branches, so omit-and-auto-resolve is the most portable choice. Pass `--api-setting-name` explicitly only to disambiguate when multiple API-connection settings exist -- pick the setting whose `apiConnectionName` matches your connection and use its `name`.
 
 The resolver refuses to guess: if your `-c` connection isn't wired into the branch's AppConfig, `generate` fails with **`DXS-DS-021`** rather than inventing a default. If you hit that, pass `--api-setting-name` explicitly (find it with `dxs source branch settings <branch>`), or wire the Footprint API connection into the branch's AppConfig in Datex Studio and retry.
 

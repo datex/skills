@@ -185,9 +185,10 @@ existing skill (rather than duplicating) keeps both in sync as the SOP evolves.
 
 If the operator wants a single pre-enriched structured payload for the target
 skill to consume, `dxs source release-notes --from <…> --to <…>
---enrich-workitems --output json` is the command that returns it. Otherwise,
-passing just the branch IDs and letting `release-notes-generator` run its own
-commands is fine and is the default.
+--enrich-workitems --output json` is the command that returns it — on **dxs ≥
+0.5.4**, below which that payload silently reports no dependency updates at
+all. Otherwise, passing just the branch IDs and letting
+`release-notes-generator` run its own commands is fine and is the default.
 
 ### Step 5: Return the Notes
 
