@@ -21,11 +21,24 @@ materializes its command tree from it. Nothing is compiled per agent.
 skills repo, this workspace, or Datex Studio — it receives exactly what this configuration
 carries. Consequences you must design for:
 
-- Every skill the agent needs at runtime must be **owned** (`source: "owned"`) with the FULL
-  SKILL.md markdown inline in `content`. `source: "referenced"` only *names* a library skill
-  and will NOT install until server-side inlining exists — never rely on it for a demo.
+- Every skill must be **owned** (`source: "owned"`) with the FULL SKILL.md markdown inline in
+  `content`. `source: "referenced"` only *names* a library skill and installs nothing:
+  `fp skills install` writes `skills[].content` verbatim and has no library to resolve a name
+  against. The Studio designer no longer offers the choice (owned-only), and Validate now
+  reports any contentless skill — a referenced one included, because the runtime skips it
+  silently. The enum survives in the model so server-side inlining can land without a
+  migration; until it does, referenced is not a thing you can use.
 - Command `description` and `paramsDoc` become the CLI's `--help` text — they are the
-  agent's only documentation for each tool. Write them for an LLM operator.
+  agent's only documentation for each tool. Write them for an LLM operator. Both are
+  *optional* in the designer (a target config may carry no description of its own, and `fp`
+  falls back to `Execute function <ref>`), but a command with no description is a tool an
+  agent has to guess at — treat empty as a gap to fill, not a default. **Retargeting a
+  command resets them.** Changing a command's Reference in the designer overwrites
+  `description` from the new target and clears `paramsDoc` — unconditionally, because text
+  written for the previous config would otherwise go on describing something this command no
+  longer calls, in the manifest and in `fp <command> -h`. Rewrite `paramsDoc` after any
+  retarget. `fp <command> -h` also prints the parameter schema the deployed app declares,
+  which is the check on whether your prose still matches.
 - The skill markdown must refer to commands **by their alias** (that is the CLI surface),
   never by Studio reference names or file paths.
 
