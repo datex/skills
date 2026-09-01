@@ -206,8 +206,8 @@ dxs ng stop <folder>                 # stop-only disposal: server + browser sess
 
 ## Prerequisites
 
-1. **A reachable Datex API for the target branch.** Harness codegen runs **server-side and is not environment-gated**: the deployed image installs Node and `codegen/node_modules` in its runtime stage so the API can run codegen on demand, so `create` / `pull` work against dev, qa and prod. `-t` is a **top-level** option and must precede the subcommand — `dxs -t dev ng create …`, never `dxs ng create … -t dev` (that fails with `Error: No such option: -t`). Default target is `prod`. There is no `-t local`; a local API is for a **local** branch only: `dxs settings set api_base_url https://localhost:5101/api`; `dxs settings set verify_ssl false`. (App **publish** is dev-gated — delegated to Azure DevOps outside Development — but that gate does not apply to these harness endpoints.)
-2. **Authenticated** (`dxs auth status`, `@datexcorp.com`).
+1. **A reachable Datex API for the target branch.** Harness codegen runs **server-side and is not environment-gated**: the deployed image installs Node and `codegen/node_modules` in its runtime stage so the API can run codegen on demand, so `create` / `pull` work against whichever Datex Application API the CLI is configured for, dev, qa or prod alike. (App **publish** is dev-gated — delegated to Azure DevOps outside Development — but that gate does not apply to these harness endpoints.)
+2. **Authenticated** (`dxs auth status`).
 3. **agent-browser** — the **unscoped** package: `npm install -g agent-browser` then `agent-browser install`. (Not `@anthropic-ai/agent-browser`.)
 
 ## Timings (local, indicative)

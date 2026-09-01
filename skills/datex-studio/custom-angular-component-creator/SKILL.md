@@ -95,17 +95,10 @@ method**, the sanctioned override: to re-load the CAC when the container refresh
 
 The `dxs ng` loop needs a reachable Datex API — confirm these before starting (see [references/custom-angular-components.md → Prerequisites](references/custom-angular-components.md#prerequisites)):
 
-1. **A reachable Datex API for the branch you're targeting.** The harness endpoints run codegen **server-side and are not environment-gated** — the deployed image installs Node and `codegen/node_modules` in its *runtime* stage precisely so the API can run codegen on demand — so `create` / `pull` work against dev, qa and prod. Select the environment with the **top-level** `-t` flag, which must come **before** the `ng` subcommand:
-   ```
-   dxs -t dev ng create <Name> -b <branch>     # correct
-   dxs ng create <Name> -b <branch> -t dev     # WRONG: "Error: No such option: -t"
-   ```
-   Default target is `prod`. There is no `-t local`: point at a **local** API only for a **local** branch, via `dxs settings set api_base_url https://localhost:5101/api` and `dxs settings set verify_ssl false` (5101 is the API's own dev launch URL).
+1. **A reachable Datex API for the branch you're targeting.** The harness endpoints run codegen **server-side and are not environment-gated** — the deployed image installs Node and `codegen/node_modules` in its *runtime* stage precisely so the API can run codegen on demand — so `create` / `pull` work against whichever Datex Application API the CLI is configured for, dev, qa or prod alike.
    *(Not to be confused with app **publish**, which genuinely is dev-gated — outside Development it is delegated to an Azure DevOps pipeline. That gate does not apply to the harness endpoints.)*
-2. **Authenticated** — `dxs auth status` shows your `@datexcorp.com` identity.
+2. **Authenticated** — `dxs auth status` shows a signed-in identity.
 3. **agent-browser** (headless screenshots) — installed from the **unscoped** npm package: `npm install -g agent-browser` then `agent-browser install`. (It is **not** `@anthropic-ai/agent-browser` — that name 404s.)
-
-If the API is unreachable, `create` / `data generate` / `preview` / `push` all fail with `DXS-API-CONN`. **Check the target before assuming anything is down** — `dxs settings get api_base_url` and confirm it matches the environment the branch lives on. A `DXS-API-CONN` against a `localhost` URL when your branch is on dev/qa/prod means the target is wrong, not that a server is down; re-run with `dxs -t dev …`. Only ask the host to start an API when the branch really is local.
 
 ## CLI Lifecycle — the `dxs ng` family
 
@@ -126,7 +119,7 @@ The `<Name>` you pass to `create` is **PascalCase** (`OutboundCommandCenter`); t
 ```
 [Phase 1: Setup + Requirements]
 Follow branch-setup.md for branch selection (NEVER assume a branch ID)
-Confirm prerequisites (API in Dev, auth, agent-browser)
+Confirm prerequisites (API reachable, auth, agent-browser)
         |
 [requirements brief / TARGET SCREENSHOT in context?]
   +-----+-----+
@@ -164,7 +157,7 @@ dxs ng pull <name> -b <branch> -d ./roundtrip   (optional round-trip check)
 
 ### Phase 1: Setup + Requirements
 
-1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch selection. **Never assume or reuse a branch ID** — ask the user to confirm, even if one appeared earlier in the session. Confirm the prerequisites above (API reachable for that branch's environment — select it with `dxs -t dev|qa|prod …`, authenticated, `agent-browser` installed).
+1. Follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for branch selection. **Never assume or reuse a branch ID** — ask the user to confirm, even if one appeared earlier in the session. Confirm the prerequisites above.
 2. Check for a **requirements brief** in context. For a CAC, the highest-value input is a **concrete visual target** — a target screenshot or a precise description of the layout, data, and interactions. If none exists, invoke `requirements-gathering`. A target screenshot turns Phase 4 into an objective converge-to-target loop.
 
 ### Phase 2: Materialize the harness
@@ -240,7 +233,7 @@ dxs ng stop <folder>                 # done for now? dispose of the warm dev ser
 
 ## Pre-Flight Checklist
 
-1. **Branch confirmed with the user** (never assumed); prerequisites up (API in Dev, auth, `agent-browser`).
+1. **Branch confirmed with the user** (never assumed); prerequisites up (API reachable, auth, `agent-browser`).
 2. **Only the two regions + `.html` + `.scss` were edited** — the wrapper class line, `@Component`, constructor, and `//#region` sentinels are untouched.
 3. **No raw `HttpClient` / direct backend calls** — data comes through `this.$datasources` / `this.$flows`; UI actions through `$shell` / `$flows` (see calling-conventions).
 4. **Mocks seeded** (`dxs ng data generate`) and filled with representative values if the component reads `$datasources`/`$flows`, so the preview renders real-looking data.
