@@ -2,8 +2,8 @@
 name: schema-explorer
 description: |
   Use when exploring OData schema with dxs schema commands: searching entities,
-  describing entity structure, scanning properties, or building a field mapping
-  table for Datex Studio.
+  describing entity structure, scanning properties, checking which columns are
+  indexed before filtering, or building a field mapping table for Datex Studio.
 ---
 
 # Schema Explorer
@@ -81,6 +81,7 @@ Mark the **Binding** column:
 - If you only need one operation (e.g., one search, one describe), use the direct command — don't wrap it in `dxs schema batch` with a single `--request`.
 - If you need 2+ independent operations, combine ALL of them into a single `dxs schema batch` call. Don't split independent requests across multiple batch calls — each call is a separate HTTP roundtrip.
 - Only split into a second call when results from the first call determine what to query next.
+- **Scope every list command.** `entities`, `actions`, `properties` and `indexes` return the whole model when given no filter — on a real connection that is tens to hundreds of KB per call, and `indexes` is the largest of them. Narrow with `--entity-set` / `--entity-type` / `--search` / `--covering`, or page with `-n` and `--skip`. When all you need is the size, use `--count`.
 
 ## Workflow
 
@@ -147,6 +148,68 @@ Mark the **Binding** column:
 6. **Build field mapping table** — Compile all discovered fields into the field mapping template, separating root fields from navigation properties and expanded fields.
 
    **Address gaps explicitly.** If the user asked about a concept (e.g., "success/failure", "late orders", "priority") and the schema has no direct field for it, say so in the field mapping. Explaining what *doesn't* exist is as valuable as documenting what does — it saves the user from searching for something that isn't there, and lets them decide on a workaround (derived calculation, external lookup, etc.).
+
+## Index Awareness
+
+The metadata reports the physical database indexes behind each entity set. Check them whenever the
+schema you are mapping will be filtered or sorted on a large entity set — an unindexed predicate is
+the usual cause of a datasource that times out in production but looks fine on a small dev dataset.
+
+`describe-entity` already returns the entity set's indexes at no extra HTTP call, so if you ran
+step 2 you have them. Reach for the `indexes` command only for cross-entity questions:
+
+```bash
+dxs schema batch -c <id> \
+  --request 'indexes --entity-set Shipments' \
+  --request 'indexes --covering ModifiedSysDateTime'
+```
+
+`--covering COLUMN` is shorthand for `Columns/any(c: c/Name eq 'COLUMN')` — "is this column indexed
+anywhere?" without hand-writing the lambda.
+
+**Reading the output — three traps:**
+
+- **`key_ordinal` must be `1`** for a filter on that column alone to seek. An index on
+  `(StatusId, AccountId)` does not help a filter on `AccountId` by itself.
+- **`is_included: true` is not filterable.** The column rides along to satisfy a `$select` without a
+  lookup; filtering on it alone still scans.
+- **No indexes reported means unknown, not none.** An explicit empty result — `indexes: []` on
+  `describe-entity` or an empty `indexes` list, both carrying an `index_hint` — means the metadata is
+  silent about that entity set, not that its storage has none. Entity sets in this state are always
+  read-only in the API, but several look like ordinary keyed tables, so an index probably exists and
+  just is not reported. Do not conclude a filter there scans — or seeks. Say "no index information"
+  in the mapping.
+
+**How much an empty `--covering` result proves depends on whether you scoped it.** Scoped with
+`--entity-set`, it is definitive: a column that does not exist on that entity type fails with
+`DXS-SCHEMA-014` instead of coming back empty, so empty means "not indexed" and nothing else.
+Unscoped, there is no entity type to validate the name against — the column is either unindexed
+everywhere *or* misspelled, and the result cannot tell you which. A model-wide `--covering` is fine
+for "where is this column indexed?", but the moment the answer decides a `$filter`, re-run it
+scoped:
+
+```bash
+dxs schema indexes -c <id> --entity-set Shipments --covering ModifiedSysDateTime
+```
+
+Read the `index_hint` on any empty result — it names which of the three cases you hit (definitively
+not indexed / silent entity set / unattributable model-wide miss) instead of leaving you to infer it.
+
+When an intended filter column has no leading-column index, say so in the field mapping table
+alongside the field. That is a real constraint on the datasource design, not a footnote.
+
+**A guarded filter can vanish, taking the index with it.** Every way `dxs datasource generate`
+parameterizes a filter wraps the predicate in a `$utils.isDefined()` guard, so an absent parameter at
+runtime drops it — and the query you just index-checked becomes a full scan of the very table you
+were protecting. `--detect-params` is **not** an escape hatch: it applies the same guard, stamps the
+param `required: false`, and because the generator treats the whole `$filter` as one unit, an absent
+value there drops the static predicates alongside it. No generate flag emits a required, unguarded
+filter.
+
+So an index check on a parameterized filter is only as good as the binding behind it. Report the
+scoping parameter alongside the index finding, and hand off to `datasource-creator`, which carries
+the two ways to close the gap (patch `required: true` into the generated JSON, or enforce the bound
+in the consuming component).
 
 ## Subagent Usage
 

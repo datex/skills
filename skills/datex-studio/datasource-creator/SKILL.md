@@ -198,7 +198,7 @@ dxs datasource generate \
 | `-d` | Description (always provide) |
 | `--api-setting-name` | App-level setting `name` from `dxs source branch settings` (NOT the connection name like `DSV`). Optional -- omit and the CLI auto-resolves by matching your `-c` connection's name to the setting whose `apiConnectionName` equals it (works on host and ComponentModule branches). Pass explicitly only to disambiguate when multiple API-connection settings exist. |
 | `--param-keys` | For single-entity queries with `Entity(0)` pattern |
-| `--detect-params` | Detect required filter parameters using `${$datasource.inParams.paramName}` syntax |
+| `--detect-params` | Detect filter parameters using `${$datasource.inParams.paramName}` syntax (stamped `required: false`, guarded) |
 | `--dynamic-filter PROP:TYPE` | Optional UI filtering (generates conditional filter with `$utils.isDefined()` guard) |
 | `--dynamic-orderby PROP` | Optional UI sorting |
 | `--param-filter PROPERTY:OPERATOR:PARAM_NAME:TYPE` | Conditional filters with `$utils.isDefined()` guards. Operators: `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `in`, `contains`, `startswith`, `endswith` |
@@ -214,9 +214,9 @@ dxs datasource generate \
 | Need | Flag | Query syntax |
 |------|------|-------------|
 | Scope to one entity (detail/document) | `--param-keys` | `Entity(0)?$select=...` |
-| Required filter params (report passes values) | `--detect-params` | Use `${$datasource.inParams.paramName}` in `$filter` |
+| Report-supplied filter params | `--detect-params` | Use `${$datasource.inParams.paramName}` in `$filter`. Stamped `required: false` and `$utils.isDefined()`-guarded as one unit -- see the note below |
 | Optional UI list filtering | `--dynamic-filter PROP:TYPE` + `--dynamic-orderby PROP` | `Entity?$select=...` (no placeholders) |
-| Conditional filters with guards | `--param-filter PROPERTY:OPERATOR:PARAM_NAME:TYPE` | Auto-generates `$utils.isDefined()` guard |
+| Conditional filters with guards | `--param-filter PROPERTY:OPERATOR:PARAM_NAME:TYPE` | Auto-generates `$utils.isDefined()` guard on its own appended predicate, leaving the base `-q` filter unconditional |
 
 ## Flow Datasource Generation
 
@@ -485,7 +485,8 @@ DataSet.Name = "ds_my_report"                  # RDLX-JSON
 | Retrying blindly when `generate` fails to resolve the API setting | A `DXS-DS-021` error means your `-c` connection isn't wired to a Footprint API setting on the branch. Pass `--api-setting-name` explicitly (from `dxs source branch settings`), or wire the connection into the branch's AppConfig in Studio -- don't re-run the same command |
 | Copying a datasource config JSON from another branch/app and upserting it as-is | `apiSettingName` is **app-scoped** -- the copied value likely names a setting the target app never defined. Upsert accepts it silently; Studio then flags "Missing API Connection setting `<name>`" (and on CACs, `dxs ng push` fails the `DXS-NG-047` preflight). Check `dxs source branch settings <target-branch>` first, or regenerate against the target branch with `dxs datasource generate` (it auto-resolves; `DXS-DS-021` if no connection is wired). If the app has no API connection at all, wire one in Studio -- the CLI never creates connections |
 | `{Param}` instead of `${$datasource.inParams.Param}` in filter | `--detect-params` requires template literal syntax -- simple `{curly braces}` are silently ignored |
-| Using only `--dynamic-filter` for required params | Dynamic filters are optional UI filters -- use `--detect-params` with template literals for required params |
+| Using only `--dynamic-filter` for report-supplied params | Dynamic filters are optional UI filters -- use `--detect-params` with template literals for params the report passes in |
+| Assuming `--detect-params` makes a parameter required | It stamps `required: false` and guards the whole `$filter`; no generate flag emits a required unguarded filter. If the predicate bounds the query, patch `required: true` into the JSON or enforce the bound in the consumer -- see [references/odata-datasources.md](references/odata-datasources.md#the-index-check-is-undone-by-a-guarded-scoping-filter) |
 | Not verifying `in_params` after upsert | Always run `datasource-fields` and confirm `in_params` is populated, not empty |
 | Assuming inParam name is `id` | Check `datasource-fields` output -- might be `shipmentId`, `orderId`, etc. |
 | Datasource `-t` title differs from `-r` reference name | Title and reference must be identical (e.g., `-r ds_foo -t "ds_foo"`) |
