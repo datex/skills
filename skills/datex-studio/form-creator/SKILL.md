@@ -221,7 +221,7 @@ Build `body.json` from the skeleton in [references/forms.md → Minimal Valid Sk
 
 14. **Host contract audit.** The hub button, grid row action, or form that opens this form as a dialog must declare a full `configParameters` contract — every `inParam` the form declares gets an entry on the host, including unused ones with `value: null`. Invoke `component-wiring-check` to audit reference contracts before push. See [../component-wiring-check/references/component-wiring.md](../component-wiring-check/references/component-wiring.md).
 
-15. **Datasource and linked-datasource shapes, if the form binds any.** Most forms are parameter-driven and carry `datasourceConfig: null` / `linkedDatasources: null`. If this one binds a datasource, it must be **single-result** (`get`) — the same requirement as an editor — and every `linkedDatasources` entry needs a real `datasourceConfig` whose shape satisfies its link `type` (`oneToOne` → single, `oneToMany` → collection, `oneToOneWithMerge` → keyed collection, since it calls `getByKeys`). The branch's server-side usage gate enforces both at contract-validation time and blocks publish — without it a bad `oneToOneWithMerge` generates a `getByKeys` call the datasource never emits and the generated app fails to compile. See [references/forms.md → Optional Datasource Wiring](references/forms.md#optional-datasource-wiring).
+15. **Datasource and linked-datasource shapes, if the form binds any.** Most forms are parameter-driven and carry `datasourceConfig: null` / `linkedDatasources: null`. If this one binds a datasource it must be **single-result** (`get`), the same requirement as an editor, and every `linkedDatasources` entry must match its link `type`. The server-side usage gate blocks publish on either mismatch. See [references/forms.md → Optional Datasource Wiring](references/forms.md#optional-datasource-wiring).
 
 ### Phase 4: Validate + push
 
@@ -273,7 +273,7 @@ Before push, walk the full checklist in [references/forms.md → Pre-Flight Chec
 13. **No `$types.<Package>.e_<enum>`** in `vars` / `inParams` / `outParams` — primitives only at the param layer; cast at usage.
 14. **Calling-tier compliance** — form code calls functions via `$flows.<Package>.<fn>`; functions wrap CRUD actions via `$apis.<Package>.FootprintApi.extendedActions.<action_name>({...})`; no direct action calls from the form.
 15. **Host carries a full `configParameters` contract** — every inParam the form declares has an entry on the host; unused ones use `value: null`. Audit via `component-wiring-check`.
-16. **Datasource shapes gated** — if the form binds a `datasourceConfig` it is single-result, and every `linkedDatasources` entry carries a real reference whose shape matches its `type`. Both block publish otherwise.
+16. **Datasource shapes gated** — if the form binds a `datasourceConfig` it is single-result, and every `linkedDatasources` entry matches its link `type`. Both block publish otherwise.
 
 ## Common Mistakes
 

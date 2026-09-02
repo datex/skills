@@ -383,10 +383,10 @@ dxs datasource validate <file.json> --branch <branch_id>
 
 Validates the datasource config against the branch. **Run for BOTH standalone and owned modes** before proceeding to upsert or report upload. This command validates the datasource in isolation — it does **not** catch consumer-shape mismatches, so a datasource whose shape no consumer can use still passes here.
 
-The branch runs **two** separate server-side gates that this command does not stand in for. Both fire at publish, and via `dxs configuration validate`:
+The branch runs **two** separate server-side gates. Both fire at publish and via `dxs configuration validate`; this command only partly stands in for them:
 
-- **Usage gate** — grid/selector require `getList` + `getByKeys`; editor/form require `get` on a single result; linked datasources are checked against their link type. It only fires when the *consumer* is validated (`dxs configuration validate <consumer type>`), so it says nothing about a datasource you validate on its own.
-- **Isolation gate** — `validateFlowSlots` on flow datasources, `validateQueryOptionsShape` on OData ones, `validateOutputsContract` on both. This one fires on the datasource itself, so a mis-shaped datasource with **no** consumer at all no longer publishes clean the way it used to. It also reaches owned/embedded and FootprintDatasource configs. See [`references/flow-datasources.md` → Three Execution Shapes](references/flow-datasources.md#three-execution-shapes).
+- **Usage gate** — grid/selector require `getList` + `getByKeys`; editor/form require `get` on a single result; each `linkedDatasources` entry must match its link `type` (see [`references/flow-datasources.md` → Linked datasource link types](references/flow-datasources.md#linked-datasource-link-types)). It only fires when the *consumer* is validated (`dxs configuration validate <consumer type>`), so it says nothing about a datasource you validate on its own.
+- **Isolation gate** — checks the datasource's own shape, so a mis-shaped datasource with **no** consumer at all no longer publishes clean the way it used to. It reaches FootprintDatasource configs too. The flow-slot rules are the part this repo documents, and this command's local lint reproduces them offline — see [`references/flow-datasources.md` → Three Execution Shapes](references/flow-datasources.md#three-execution-shapes). The gate also checks OData query options and the outputs contract; those rules are not documented here yet.
 
 ### Reading the report
 

@@ -117,18 +117,10 @@ Unused config slots on a `controlConfig` (e.g. `buttonConfig` on a `textBox` fie
 
 ## Optional Datasource Wiring
 
-Most forms are parameter-driven and carry `datasourceConfig: null` / `linkedDatasources: null` — the skeleton above assumes that. A form *may* bind a datasource, and it may declare `linkedDatasources` to expand that datasource with related rows, exactly as an editor or grid does. Both slots are shape-gated server-side and block publish on a mismatch:
+Most forms are parameter-driven and carry `datasourceConfig: null` / `linkedDatasources: null` — the skeleton above assumes that. A form *may* bind a datasource, and it may declare `linkedDatasources` to expand it with related rows, exactly as an editor or grid does. Both slots are gated by the server-side usage gate when the form is validated, and a mismatch blocks publish:
 
-| Slot | Requirement |
-|---|---|
-| `datasourceConfig` | A **single-result** datasource (`get`) — the same requirement as an editor. A collection-returning datasource is rejected. |
-| `linkedDatasources[]` with `type: "oneToOne"` | Target returns a single result. |
-| `linkedDatasources[]` with `type: "oneToMany"` | Target returns a collection. |
-| `linkedDatasources[]` with `type: "oneToOneWithMerge"` | Target returns a **keyed** collection — the link calls `getByKeys`, which needs both a collection result and a non-empty `keyDef`. |
-
-Which datasource shape satisfies which: [`flow-datasources.md` → Three Execution Shapes](../../datasource-creator/references/flow-datasources.md#three-execution-shapes).
-
-A link whose target can't satisfy its type generates a call the datasource never emits — a `oneToOneWithMerge` against a non-collection emits `getByKeys` on a datasource that has no such method, and the generated app fails to compile — which is why the gate blocks publish instead of letting it through. Every link entry also needs a real `datasourceConfig`: an entry with a null reference is reported as corruption, not silently skipped.
+- `datasourceConfig` must point at a **single-result** datasource (`get`) — the same requirement as an editor. A collection-returning datasource is rejected.
+- Each `linkedDatasources[]` entry must point at a target whose shape matches its link `type`. The type → shape table, and why a mismatch fails the generated app, live in [`flow-datasources.md` → Linked datasource link types](../../datasource-creator/references/flow-datasources.md#linked-datasource-link-types).
 
 ## Runtime Globals
 
@@ -296,7 +288,7 @@ Both rules apply identically to editor flows — `$editor.vars.<name>` must be d
 9. If the caller needs to distinguish confirm from cancel, the target form emits an explicit `is_confirmed: boolean` outParam.
 10. `inParams` / `outParams` shapes are documented on each entry's `description` so consumers see the contract.
 11. No `value.required: true` outParam is written only conditionally — the type contract must match what every close path actually emits.
-12. If the form binds a datasource, `datasourceConfig` points at a **single-result** one, and every `linkedDatasources` entry has a real `datasourceConfig` whose shape satisfies its `type`. Both are gated server-side and block publish — see [Optional Datasource Wiring](#optional-datasource-wiring).
+12. If the form binds a datasource, `datasourceConfig` is single-result and every `linkedDatasources` entry matches its link `type` — see [Optional Datasource Wiring](#optional-datasource-wiring).
 
 ## Cross-References
 
