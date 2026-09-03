@@ -33,7 +33,9 @@ actually changed). Produces both a Technical and a Customer variant.
 - **dxs ≥ 0.4.9** — needs `source release-tree` and cross-org dependency
   resolution. Older builds' `deps-diff`/`compare` silently report **zero**
   dependency changes (they compared a field the AppConfig payload dropped) and
-  cannot resolve a customer app's own-org packages. If `dxs source release-tree
+  cannot resolve a customer app's own-org packages. `dxs source release-notes`
+  had the same blind spot in its own dependency section until 0.5.5, as did
+  `source deps --tree` and `source graph`, which returned empty trees. If `dxs source release-tree
   --help` fails, stop and say so — don't fall back to the blind path.
 - **dxs ≥ 0.4.24 strongly preferred.** From that build `release-tree` resolves
   **Service-Pack-pinned** dependencies itself, reports a skipped sub-tree

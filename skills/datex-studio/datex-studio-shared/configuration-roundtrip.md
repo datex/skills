@@ -80,6 +80,23 @@ will land. Known cases where `validate` passes and the write still fails: a `des
 ([odata-datasources.md](../datasource-creator/references/odata-datasources.md)), and a wrong
 `configurationTypeId` ([file-format.md](../datex-studio-conventions/file-format.md#configurationtypeid-reference)). Exit 0 means "no findings," not "safe to publish."
 
+## Exit 141 and transport errors — the network or the pipe, not the config
+
+Two more non-zero outcomes that are not findings about the body you sent (dxs 0.5.5):
+
+- **Exit 141 with no output** means the consumer of stdout went away — `dxs … | head`, or a pipe
+  the caller closed early. The command ran; its output was truncated by the reader, not by dxs. A
+  `set -o pipefail` script sees 141 rather than 0 so it can tell truncated from complete. Do not
+  retry the command or report the CLI as broken; if you need the full payload, drop the pipe or
+  write to a file with `-O`.
+- **`DXS-API-CONN`, `DXS-API-TLS`, `DXS-API-TIMEOUT`, `DXS-API-NET`** are transport failures raised
+  before any HTTP response existed: host unreachable, TLS handshake dropped (almost always a proxy or
+  firewall on the caller's own network), timeout budget exceeded, connection dropped mid-request.
+  They say nothing about the query or body. Every one carries `suggestions[]` naming the check to
+  run — read those instead of rewriting the request. `DXS-API-TIMEOUT` can be raised with
+  `dxs settings set api_timeout <seconds>`. Before 0.5.5 the `dxs odata` commands surfaced these as
+  a raw Python traceback; the codes are the same failures, now structured.
+
 ## Reference names resolve to the branch's own config
 
 `get`, `update`, `delete`, and `upsert` resolve a bare reference name to **this

@@ -25,7 +25,7 @@ A component's JSON body is its canonical shape. The platform generates TypeScrip
 
 ## `configurationTypeId` Reference
 
-Every component JSON carries a numeric `configurationTypeId` identifying its component kind. This table is the platform's own enumeration, generated from `dxs api GET /configurationtypes` (verified 2026-08-29, dxs 0.5.4). Regenerate it rather than hand-editing rows:
+Every component JSON carries a numeric `configurationTypeId` identifying its component kind. This table is the platform's own enumeration, generated from `dxs api GET /configurationtypes` (verified 2026-09-03, dxs 0.5.5). Regenerate it rather than hand-editing rows:
 
 ```bash
 dxs api GET /configurationtypes --raw | jq -r 'sort_by(.id)[] | "| \(.id) | \(.name) |"'
