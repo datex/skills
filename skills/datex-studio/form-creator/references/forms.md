@@ -115,6 +115,13 @@ Unused config slots on a `controlConfig` (e.g. `buttonConfig` on a `textBox` fie
 | `onInitFlowConfig` | Flow to run on form load | Typical place to seed fields from `inParams` |
 | `onFormValidateFlowConfig` | Flow to run on validation pass | Typical place to gate toolbar `confirm.control.readOnly` |
 
+## Optional Datasource Wiring
+
+Most forms are parameter-driven and carry `datasourceConfig: null` / `linkedDatasources: null` — the skeleton above assumes that. A form *may* bind a datasource, and it may declare `linkedDatasources` to expand it with related rows, exactly as an editor or grid does. Both slots are gated by the server-side usage gate when the form is validated, and a mismatch blocks publish:
+
+- `datasourceConfig` must point at a **single-result** datasource (`get`) — the same requirement as an editor. A collection-returning datasource is rejected.
+- Each `linkedDatasources[]` entry must point at a target whose shape matches its link `type`. The type → shape table, and why a mismatch fails the generated app, live in [`flow-datasources.md` → Linked datasource link types](../../datasource-creator/references/flow-datasources.md#linked-datasource-link-types).
+
 ## Runtime Globals
 
 Inside any `executeCodeConfig.code` string on a form flow:
@@ -281,6 +288,7 @@ Both rules apply identically to editor flows — `$editor.vars.<name>` must be d
 9. If the caller needs to distinguish confirm from cancel, the target form emits an explicit `is_confirmed: boolean` outParam.
 10. `inParams` / `outParams` shapes are documented on each entry's `description` so consumers see the contract.
 11. No `value.required: true` outParam is written only conditionally — the type contract must match what every close path actually emits.
+12. If the form binds a datasource, `datasourceConfig` is single-result and every `linkedDatasources` entry matches its link `type` — see [Optional Datasource Wiring](#optional-datasource-wiring).
 
 ## Cross-References
 
@@ -288,6 +296,7 @@ Both rules apply identically to editor flows — `$editor.vars.<name>` must be d
 - [`calling-conventions.md`](../../datex-studio-runtime/calling-conventions.md) — UI-tier calling rules.
 - [`component-wiring.md`](../../component-wiring-check/references/component-wiring.md) — host reference contracts and var declarations.
 - [`defaults.md`](../../datex-studio-conventions/defaults.md) — default package, access modifier, description length cap.
+- [`flow-datasources.md`](../../datasource-creator/references/flow-datasources.md) — datasource shapes, for forms that bind one or declare linked datasources.
 - [`control-types.md`](../../datex-studio-runtime/control-types.md) — Per-`controlConfig.type` schema and authoring notes (codeBox detailed; other types stubbed).
 - [`selectors.md`](../../selector-creator/references/selectors.md) — selector-backed fields (dropdowns, autocomplete) are a common form control.
 - [`grids.md`](../../grid-creator/references/grids.md) — grids frequently open forms as dialogs from row actions and toolbar buttons.
