@@ -89,3 +89,4 @@ dxs odata execute -c <id> -q 'Entity(0)?$select=Id,Field1&$expand=Status($select
 | Double quotes for `$` values | Use single quotes — shell expands `$` in double quotes |
 | Not using `$top=1` during query testing | Large queries timeout — always limit during development |
 | Testing with `Entity(0)` and panicking at 404 | 404 is expected — validate structure via `$top=1` first |
+| Rewriting the query after `DXS-API-CONN` / `DXS-API-TLS` / `DXS-API-TIMEOUT` / `DXS-API-NET` | Those are transport failures, not query errors — follow the payload's `suggestions[]`. See [configuration-roundtrip.md → Exit 141 and transport errors](../datex-studio-shared/configuration-roundtrip.md#exit-141-and-transport-errors--the-network-or-the-pipe-not-the-config) |
