@@ -250,7 +250,7 @@ Modifications to an existing datasource carry the same obligation: if you change
 
 Name validation catches a datasource that *errors*. It does not catch one that *works but times out* — the failure that only shows up against production data volumes, long after the config was accepted.
 
-Ask `schema-explorer` for the indexes on the entity set whenever `filters` or `orderBys` touch a large entity set (Tasks, Shipments, OrderLines, BillingTasks, Materials and friends). It returns the physical database indexes, with column names that are the same OData property names you write in the query tree.
+Ask `schema-explorer` for the indexes on the entity set whenever `filters` or `orderBys` touch a large entity set (Tasks, Shipments, OrderLines, BillingTasks, Materials and friends). It returns the physical database indexes, with column names that are the same OData property names you write in the query tree. (This needs a dxs build that ships `dxs schema indexes` — not in 0.5.5; on an older build there is no index information to ask for.)
 
 Three things to check, none of which is "does an index mention this column":
 
@@ -276,7 +276,7 @@ An absent `projectId` here drops **both** predicates: the whole table, cancelled
 
 **There is no generate flag that emits a required, unguarded filter.** `--param-keys` is the only path that stamps `required: true`, and it applies to key segments (`Entity(0)`) only — not to a collection query's `$filter`. So pick one of these two, deliberately:
 
-- **Patch the generated JSON before upsert** — set the scoping param to `required: true` and remove `hasCondition` / `condition` from its filter entry, then re-run `dxs datasource validate`. `required: true` makes the generated TypeScript service demand the argument, so a mis-wired consumer fails at build rather than leaking.
+- **Patch the generated JSON before upsert** — set the scoping param to `required: true` and set `hasCondition` / `condition` on its filter entry back to `null` (both `null`, not deleted — the canonical skeleton below writes every null-slot), then re-run `dxs datasource validate`. `required: true` makes the generated TypeScript service demand the argument, so a mis-wired consumer fails at build rather than leaking.
 - **Accept the guard and enforce the bound one level up** — declare the parameter required in the consuming grid/hub `inParams` and never render the component unscoped. If you choose this, `component-wiring-check` on the consumer is not optional: the binding is the only thing standing between you and a full scan.
 
 Either way, say which one you chose in the datasource `description`. On a large table an unbounded fail-open is not just slow — if the scoping column is a tenant, project, or account key, it is a cross-scope data leak.

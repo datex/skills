@@ -383,6 +383,13 @@ dxs datasource validate <file.json> --branch <branch_id>
 
 Validates the datasource config against the branch. **Run for BOTH standalone and owned modes** before proceeding to upsert or report upload. This command validates the datasource in isolation — it does **not** catch consumer-shape mismatches, and a mis-shaped datasource with no consumer still validates clean here. The branch's separate server-side usage gate (grid/selector require `getList` + `getByKeys`; editor/form require `get` on a single result) only fires when the *consumer* is validated (`dxs configuration validate <consumer type>`) or at publish — not from this command.
 
+**Two things this command cannot check on a filtered query**, both worth a minute before upsert:
+whether the filter column is indexed, and whether the predicate that bounds the query can vanish at
+runtime — every `generate` flag that parameterizes a filter wraps it in a `$utils.isDefined()` guard,
+so an absent parameter fails *open* against the whole table. See
+[references/odata-datasources.md → Also check: is the filter column indexed?](references/odata-datasources.md#also-check-is-the-filter-column-indexed)
+and [→ The index check is undone by a guarded scoping filter](references/odata-datasources.md#the-index-check-is-undone-by-a-guarded-scoping-filter).
+
 ### Reading the report
 
 The command runs a **local flow-shape lint** and merges its findings with the server's, so one run reports both. Every item carries four fields:
