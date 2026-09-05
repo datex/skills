@@ -95,7 +95,7 @@ method**, the sanctioned override: to re-load the CAC when the container refresh
 
 The `dxs ng` loop needs a live dev environment — confirm these before starting (see [references/custom-angular-components.md → Prerequisites](references/custom-angular-components.md#prerequisites)):
 
-1. **Datex API running in Development** on `https://localhost:5101` (the harness codegen endpoints are dev-only). `dxs config set api_base_url https://localhost:5101/api` and `dxs config set verify_ssl false`.
+1. **Datex API running in Development** on `https://localhost:5101` (the harness codegen endpoints are dev-only). `dxs settings set api_base_url https://localhost:5101/api` and `dxs settings set verify_ssl false`.
 2. **Authenticated** — `dxs auth status` shows your `@datexcorp.com` identity.
 3. **agent-browser** (headless screenshots) — installed from the **unscoped** npm package: `npm install -g agent-browser` then `agent-browser install`. (It is **not** `@anthropic-ai/agent-browser` — that name 404s.)
 

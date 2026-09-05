@@ -243,4 +243,5 @@ Rules already embedded in the workflow steps above are not repeated here. See [r
 
 - Always check the `keys:` section — some entities have composite keys (no `Id` field)
 - `describe-properties` takes **one property name at a time** — not comma-separated; for bulk discovery use `describe-entity --compact --no-udf` or batch multiple calls
+- A `DXS-API-CONN` / `DXS-API-TLS` / `DXS-API-TIMEOUT` / `DXS-API-NET` error from any `schema` command is a network failure, not a bad entity name — follow the payload's `suggestions[]`; see [configuration-roundtrip.md → Exit 141 and transport errors](../datex-studio-shared/configuration-roundtrip.md#exit-141-and-transport-errors--the-network-or-the-pipe-not-the-config)
 - **Batch eliminates the "run sequentially" constraint** — unlike parallel tool calls (which abort siblings on failure), batch handles individual request failures gracefully

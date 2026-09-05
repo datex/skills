@@ -19,17 +19,27 @@ Flow datasources come in three legitimate shapes. The generated methods (`get` /
 `getByKeys`) exist **iff the corresponding flow slot is populated** — nothing derives them from
 the flags — so slot population must match `resultIsCollection` / `keyDef` exactly. The Studio
 designer enforces this imperatively (`createMissingFlows` / `clearUnusedFlows`); configs
-authored outside the designer must get it right by construction. `dxs datasource generate-flow`
-rejects every violation at authoring time; `dxs datasource validate` reports hand-edit
-corruption (`hasKey`↔`keyDef` mismatch, `getByKeysFlow` without `keyDef`, collection slots on
-a single-result config) as errors — which make it exit non-zero — and legacy shapes older CLI
-versions generated (`getFlow` on a collection, a collection without `getListFlow`, a keyed
-collection without `getByKeysFlow`) as advisory warnings, so deployed configs keep validating.
-A **missing `resultIsCollection`** is an error rather than a warning even though older CLI
-versions produced it: the server refuses to save a flow datasource without the flag
-(`Use in ... is required`), so always stamp it. The same lint runs on the FootprintDatasource
-variant (`-footprintDatasource.json`) too — and there it is the *only* shape check, since the
-server-side usage gate does not reach FPDS references.
+authored outside the designer must get it right by construction.
+
+`dxs datasource generate-flow` rejects every violation at authoring time. `dxs datasource
+validate` runs a local lint over the same rules and reports:
+
+- **Errors** (exit non-zero) — hand-edit corruption: `hasKey`↔`keyDef` mismatch, `getByKeysFlow`
+  without `keyDef`, collection slots on a single-result config. Also two shapes older CLI versions
+  generated: a **collection without `getListFlow`** and a **keyed collection without
+  `getByKeysFlow`**. Those two are errors rather than advisory warnings because the server's
+  isolation gate demands both slots and blocks publish without them (*"'Get list' flow is required
+  when the result is a collection"*, *"'Get by keys' flow is required when the datasource has a
+  key definition"*), so no config holding either shape can be deployed.
+- **Error** — a missing `resultIsCollection`, even though older CLI versions produced it: the server
+  refuses to save a flow datasource without the flag (`Use in ... is required`), so always stamp it.
+- **Warning** (exit zero) — `getFlow` populated on a collection. The server checks for *missing*
+  slots and ignores stray ones, so this legacy shape still deploys.
+
+The same lint runs on the FootprintDatasource variant (`-footprintDatasource.json`). The
+server-side *usage* gate does not reach FPDS references, but the isolation gate does: an FPDS gets
+the same flow-slot check at publish as a regular flow datasource, so the CLI lint is not the only
+shape check between it and a failed publish.
 
 | Shape | `resultIsCollection` | `keyDef` | `getFlow` | `getListFlow` | `getByKeysFlow` | Suitable consumers |
 |---|---|---|---|---|---|---|
@@ -37,10 +47,11 @@ server-side usage gate does not reach FPDS references.
 | **Collection, unkeyed** | `true` | empty | `null` | populated | `null` | List, calendar, pie-chart widget, `oneToMany` linked DS — **not** grid/selector |
 | **Collection, keyed** | `true` | required (`isKey` on output type) | `null` | populated | populated | Grid, selector, `oneToOneWithMerge` linked DS |
 
-Any other slot combination is malformed: a single-result shape with `getListFlow` or
-`getByKeysFlow` populated, a single-result shape with no `getFlow` at all (the config would
-generate no methods), a collection with `getFlow` populated, a collection without
-`getListFlow`, or `getByKeysFlow` without a `keyDef`.
+Any other slot combination is malformed. These block publish: a single-result shape with
+`getListFlow` or `getByKeysFlow` populated, a single-result shape with no `getFlow` at all (the
+config would generate no methods), a collection without `getListFlow`, a keyed collection without
+`getByKeysFlow`, or `getByKeysFlow` without a `keyDef`. A collection with `getFlow` populated is
+the one malformed shape that still publishes — the lint reports it as a warning, as above.
 
 **Why grid/selector require the keyed shape:** both call `getByKeys` at runtime — the grid to
 re-fetch a single row after an action, the selector to resolve the display label of an
@@ -59,7 +70,27 @@ When wiring an existing flow datasource into a consumer, read its implemented me
 
 List and calendar call `getList` and never `getByKeys`, so they sit with the unkeyed consumers:
 requiring a `keyDef` of them would reject datasources they can use perfectly well. The server-side
-usage gate mirrors this split exactly.
+usage gate mirrors this split exactly; the shape itself is checked separately by the isolation gate
+(see the lint severities above).
+
+### Linked datasource link types
+
+A datasource, or a component that binds one, may declare `linkedDatasources[]` to expand the
+result with related rows. Each entry's `type` fixes the shape its target must have, because the
+link calls a specific generated method:
+
+| Link `type` | Target shape | Method the link calls |
+|---|---|---|
+| `oneToOne` | Single-result | `get` |
+| `oneToMany` | Collection (keyed or unkeyed) | `getList` |
+| `oneToOneWithMerge` | Collection, **keyed** — needs a non-empty `keyDef` | `getByKeys` |
+
+The server-side usage gate checks every entry against this table when the consumer is validated
+and blocks publish on a mismatch. A link whose target can't satisfy its type would generate a call
+the datasource never emits — `oneToOneWithMerge` against an unkeyed target emits `getByKeys` on a
+datasource with no such method, and the generated app fails to compile. Every entry also needs a
+real `datasourceConfig` reference: a null reference is reported as corruption, not silently
+skipped.
 
 `onInitFlow` is `null` in all shapes unless explicit initialization logic is needed.
 

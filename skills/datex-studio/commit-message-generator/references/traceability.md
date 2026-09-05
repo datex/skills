@@ -72,6 +72,11 @@ dxs crm odata msdyn_projecttasks \
   -s "msdyn_projecttaskid,msdyn_subject,statecode,cr0c5_commit"
 ```
 
+> **`dxs crm odata` caps at 100 records by default** (dxs ≥ 0.4.19); `--all` (or `--limit 0`)
+> auto-paginates everything. A branch-id filter this narrow will never approach the cap, so the
+> default is right here — but check `metadata` for the truncation flag on any broader sweep, and
+> don't read a capped result as "that's all there is".
+
 **Run this even when step 2 already found a reference.** It is the only check
 that can catch a branch pointing at one ticket while a *different* ticket claims
 the branch. If the two disagree, don't pick — report both to the user.
@@ -168,7 +173,7 @@ dxs crm odata msdyn_projecttasks \
   -f "contains(msdyn_subject,'Net Weight') and statecode eq 0" \
   -s "msdyn_projecttaskid,msdyn_subject,statecode" --limit 10
 
-# CRM Cases by title
+# CRM Cases by title (descriptions come back as 300-char previews — see note below)
 dxs crm case search "net weight" --status active --limit 10
 
 # Azure DevOps work items by title
@@ -196,7 +201,7 @@ describes intent; one written from diffs alone only describes mechanics.
 Base URL and DevOps org come from CLI config, not hardcoded:
 
 ```bash
-dxs config list          # dynamics_crm_url, default_devops_org
+dxs settings list          # dynamics_crm_url, default_devops_org
 ```
 
 ### Adapter: CRM Project Task (`msdyn_projecttask`) — primary
@@ -356,7 +361,7 @@ When you resolved from a bare ID rather than a URL, construct the link:
 <dynamics_crm_url>/main.aspx?appid=<appid>&forceUCI=1&pagetype=entityrecord&etn=<entity>&id=<guid>
 ```
 
-`dynamics_crm_url` comes from `dxs config list`.
+`dynamics_crm_url` comes from `dxs settings list`.
 
 The `appid` is the CRM model-driven app the team uses. Most repos have **no** branch
 carrying a link to copy from — a sweep of 25 FootprintManager branches found zero —
@@ -426,10 +431,12 @@ correct link. Divergence is different in kind: it says the link itself may be wr
 | Treating a regex match as compliance | Resolve the record; `PR-999999_999` matches the shape and exists nowhere |
 | Trusting a single case on a ticket number | Ticket numbers are not unique — read every entry in `cases[]` and cross-check the title against the commit title |
 | Reading `cases` as a single object | `dxs crm case get` always returns an array; check `metadata.count` and disambiguate 2+ against `commitTitle` |
+| Reading a truncated `case search` description as the full case body | Since dxs 0.4.19 `crm case search` returns **300-char previews**. Use `--max-description-length <n>` for more, `--no-description` to drop them, or `dxs crm case get <number>` for the real body |
+| Treating a 100-row `crm odata` result as the complete set | CRM list/search/query commands cap at 100 by default (dxs ≥ 0.4.19). Pass `--all` (or `--limit 0`) for a full sweep and check the truncation flag in `metadata` |
 | Emitting a URL with `&amp;` instead of `&` | Deep links must be raw and clickable; HTML-escaping breaks them |
 | Blocking output until a ticket is supplied | This check warns, never blocks — always emit the message |
 | Inventing a plausible ticket ID or link | Only reference records you actually resolved, or the user supplied |
 | Putting `Ref:` after a blank line | It lands in Release Notes, invisible to the developer — keep it in the Description paragraph |
-| Hardcoding the CRM host or DevOps org | Read `dynamics_crm_url` / `default_devops_org` from `dxs config list` |
+| Hardcoding the CRM host or DevOps org | Read `dynamics_crm_url` / `default_devops_org` from `dxs settings list` |
 | Searching endlessly for a ticket that isn't there | Cap at ~3 searches, ask once, then record `MISSING` |
 | Using ticket context but not the diffs | The ticket says what was *asked for*; the diffs say what was *done*. Describe what was done |
