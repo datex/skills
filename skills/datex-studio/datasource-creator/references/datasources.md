@@ -120,3 +120,51 @@ Three distinct messages come out of this area — read them as pointing at three
 | `Invalid contract. '<id>' is marked as owned, but this component cannot hold owned configurations` | `isOwned: true` on a component type that has no owned-contract path (anything outside grid / editor / form / report). | Promote the datasource to standalone and reference it by `configId` + `moduleId`. |
 
 **Tailoring caveat.** Although `moduleId` is inert for *validation* on an owned reference, it is load-bearing for *customization identity*: a tailoring overlay identifies a datasource reference by the `{configId, moduleId, isOwned}` triple, so adding or stripping `moduleId` on a tailored config re-classifies the reference as a new one and changes how the overlay merges. Keep whatever the round-trip produced — don't normalize the field either direction on a config with a `baseConfiguration`. (Distinct rule, easily conflated: an owned **`baseConfiguration`** — a tailoring base, not a datasource — *does* always carry a null `moduleId`.)
+
+### Creating an Owned Datasource
+
+Scaffold it with `dxs datasource generate-flow`, then splice the result into the host's `datasources[]`. Don't hand-author the block: the generator emits `queryOptionsObjectTypeDef` correctly, and that is the entity-shape site most often missed when writing one by hand.
+
+This section covers grids, editors, and forms. **Reports use a different mechanic** — the owned datasource stays its own file, registered in the report folder's manifest; see [`../../datex-studio-shared/report-authoring/deploy-patterns.md`](../../datex-studio-shared/report-authoring/deploy-patterns.md).
+
+**1 — Generate.** `--type-def` must be a top-level **list**; the intuitive `field: type` mapping fails with `DXS-DS-005: --type-def must contain a YAML/JSON list of type definitions, got dict`.
+
+```yaml
+# types.yaml
+- id: id
+  type: number
+- id: shipment_number
+  type: string
+```
+
+```bash
+# Grid — paginated, keyed
+dxs datasource generate-flow -r ds_x -t "ds_x" -d "<purpose>" \
+  --type-def types.yaml --get-list-flow getList.ts --get-by-keys-flow getByKeys.ts \
+  --collection --key id:number --branch <branchId> -o ds_x.json
+
+# Editor / form — single-result
+dxs datasource generate-flow -r ds_x -t "ds_x" -d "<purpose>" \
+  --type-def types.yaml --get-flow get.ts \
+  --single --branch <branchId> -o ds_x.json
+```
+
+**2 — Name it after the host's reference.** Set `referenceName` (and `title`) to the host's `datasourceConfig.configId`. This is the lookup key on the owned path; a mismatch fails with `Referenced own configuration <id> does not exist or has been renamed`.
+
+**3 — For a grid only, add the `totalCount` out-param.** `generate-flow` derives `outParams` from `--type-def` — the *row* shape — so it never emits the second out-param a grid's paginated contract expects, even though the `getList` code returns one. Without it the host fails with `Outdated contract. Type mismatch for output parameters`.
+
+```json
+{ "id": "totalCount", "type": "number", "isCollection": false, "required": false, "objectType": null, "isSecured": false }
+```
+
+Editors and forms are single-result and need nothing here — `--single --get-flow` already produces the shape they require (`resultIsCollection: false`, `getFlow` populated, `getListFlow` / `getByKeysFlow` null, `outParams[0].isCollection: false`).
+
+**4 — Apply the envelope delta.** The generated file carries 30 of the 32 fields an embedded block uses and nothing extra to strip. Set `accessModifier: "private"`, `hasResult: true`, `id: null`, `outputResultAsSingleObject: false`, and reorder to the canonical key order in [`../../grid-creator/references/grids.md` → Embedded Datasource Component-Identity Envelope](../../grid-creator/references/grids.md#embedded-datasource-component-identity-envelope). None of these is validation-gating — splices with and without them validate identically — but they keep diffs readable and round-trips stable, and `accessModifier: "private"` is what stops the datasource being callable from outside its host.
+
+**5 — Splice and validate the host.** Put the block in the host's `datasources[]`, set `datasourceConfig.isOwned: true`, and mirror the entity shape across every location the host requires — five for a grid ([grids.md → Datasource Wiring](../../grid-creator/references/grids.md#datasource-wiring--five-places-must-stay-in-sync)), two for an editor.
+
+```bash
+dxs configuration validate grid -b <branchId> -D body.json   # or editor / form
+```
+
+**Validating the host is the gate.** `dxs datasource validate` takes a standalone file and cannot see an embedded block, so it has nothing to say about one. The host's validation is what reports the embedded datasource's own contract errors — both `Referenced own configuration …` and `Outdated contract. Type mismatch for output parameters` surface here, and nowhere else.
