@@ -2,8 +2,8 @@
 name: schema-explorer
 description: |
   Use when exploring OData schema with dxs schema commands: searching entities,
-  describing entity structure, scanning properties, or building a field mapping
-  table for Datex Studio.
+  describing entity structure, scanning properties, checking which columns are
+  indexed before filtering, or building a field mapping table for Datex Studio.
 ---
 
 # Schema Explorer
@@ -81,6 +81,7 @@ Mark the **Binding** column:
 - If you only need one operation (e.g., one search, one describe), use the direct command — don't wrap it in `dxs schema batch` with a single `--request`.
 - If you need 2+ independent operations, combine ALL of them into a single `dxs schema batch` call. Don't split independent requests across multiple batch calls — each call is a separate HTTP roundtrip.
 - Only split into a second call when results from the first call determine what to query next.
+- **Scope every list command.** `entities`, `actions`, `properties` and `indexes` return the whole model when given no filter — on a real connection that is tens to hundreds of KB per call, and `indexes` is the largest of them. Each has its own narrowing flag: `--entity-type` on `properties` / `navigation-properties`, `--entity-set` and `--covering` on `indexes`, `--search` and `--filter` on all of them. Page with `-n` and `--skip`; when all you need is the size, use `--count`.
 
 ## Workflow
 
@@ -147,6 +148,96 @@ Mark the **Binding** column:
 6. **Build field mapping table** — Compile all discovered fields into the field mapping template, separating root fields from navigation properties and expanded fields.
 
    **Address gaps explicitly.** If the user asked about a concept (e.g., "success/failure", "late orders", "priority") and the schema has no direct field for it, say so in the field mapping. Explaining what *doesn't* exist is as valuable as documenting what does — it saves the user from searching for something that isn't there, and lets them decide on a workaround (derived calculation, external lookup, etc.).
+
+## Index Awareness
+
+> **Needs a dxs newer than 0.5.5** — these commands merged after the 0.5.5 tag. On an older build
+> `dxs schema indexes` does not exist and `describe-entity` returns no `indexes` key. That absence is
+> the CLI's, not the metadata's, and says nothing about the storage.
+
+The metadata reports the physical database indexes behind each entity set. Check them whenever the
+schema you are mapping will be filtered or sorted on a large entity set — an unindexed predicate is
+the usual cause of a datasource that times out in production but looks fine on a small dev dataset.
+
+`describe-entity` already returns the entity set's indexes at no extra HTTP call, so if you ran
+step 2 you have them — `--compact`, `--no-udf` and `--properties-only` all keep them. Reach for the
+`indexes` command only for cross-entity questions:
+
+```bash
+dxs schema batch -c <id> \
+  --request 'indexes --entity-set Shipments' \
+  --request 'indexes --covering ModifiedSysDateTime'
+```
+
+`--covering COLUMN` is shorthand for `Columns/any(c: c/Name eq 'COLUMN')` — "is this column indexed
+anywhere?" without hand-writing the lambda.
+
+**Not every Footprint server reports indexes at all.** The schema service has to expose an `Indexes`
+entity set, and older versions do not. The CLI probes for it once per connection (cached 24h) and
+adapts rather than failing the request: `indexes` and `describe-index` refuse with
+**`DXS-SCHEMA-015`**, and `describe-entity` drops the optional expand, returning no `indexes` key.
+Direct `describe-entity` says why in a warning; **inside a batch it says nothing** — the key is
+simply absent, so on the batch path treat a missing `indexes` key as "ask this connection directly
+before concluding anything". In a batch, index-only requests are answered with that error locally
+and never sent, so one unsupported request cannot take the batch down with it. A capability gap is a
+fact about the server version and **not** a fourth kind of index finding: it says nothing whatever
+about the storage. Report it as "this server does not report index metadata", never as "no
+indexes".
+
+**Reading the output — three traps:**
+
+- **`key_ordinal` must be `1`** for a filter on that column alone to seek. An index on
+  `(StatusId, AccountId)` does not help a filter on `AccountId` by itself.
+- **`is_included: true` is not filterable.** The column rides along to satisfy a `$select` without a
+  lookup; filtering on it alone still scans.
+- **No indexes reported means unknown, not none.** An empty result — `indexes: []` on
+  `describe-entity`, or an empty `indexes` list — means the metadata is silent about that entity set,
+  not that its storage has none. Entity sets in this state are always read-only in the API, but
+  several look like ordinary keyed tables, so an index probably exists and just is not reported. Do
+  not conclude a filter there scans — or seeks. Say "no index information" in the mapping.
+
+**An empty `--covering` result has three readings, and scoping rules out only one of them.**
+`--entity-set` rules out *misspelled*: a column that does not exist on that entity type fails with
+`DXS-SCHEMA-014` instead of coming back empty. It does **not** rule out *silent* — if the entity set
+reports no indexes at all, a scoped miss is still "unknown", exactly as in the third trap. The
+definitive reading — "this column is not indexed, a filter on it scans" — needs both: scoped, **and**
+an entity set that reports at least one index. Unscoped there is no entity type to validate the name
+against, so unindexed-everywhere and misspelled are indistinguishable. A model-wide `--covering` is
+fine for "where is this column indexed?", but the moment the answer decides a `$filter`, re-run it
+scoped:
+
+```bash
+dxs schema indexes -c <id> --entity-set Shipments --covering ModifiedSysDateTime
+```
+
+**Let the CLI say which of the three you hit** instead of inferring it — but know where it puts the
+answer, because that differs by path:
+
+| Path | Where the wording lands |
+|------|-------------------------|
+| `dxs schema indexes`, empty and scoped by `--entity-set` / `--covering` | `metadata.index_hint` |
+| `indexes` inside `dxs schema batch`, same case | that request's `warnings[]` |
+| `describe-entity` with `indexes: []`, direct | `metadata.index_hint` |
+| `describe-entity` with `indexes: []`, in a batch | that request's `warnings[]` |
+| An **unscoped** `indexes` list that comes back empty | nothing — scope it before reading anything into it |
+| No `indexes` key at all | direct `describe-entity`: a warning naming the server. In a batch, or on a CLI older than the feature: nothing — not a finding about the entity set either way |
+
+Every empty result you can actually reason from carries its wording; the one that does not is the
+unscoped miss, which is also the one that proves least.
+
+When an intended filter column has no leading-column index, say so in the **Notes** column of the
+root-field table, next to the field. That is a real constraint on the datasource design, not a
+footnote.
+
+**A guarded filter can vanish, taking the index with it.** Every way `dxs datasource generate`
+parameterizes a filter wraps the predicate in a `$utils.isDefined()` guard, so an absent parameter at
+runtime drops it and the query you just index-checked scans the whole table. No generate flag emits a
+required, unguarded filter — `--detect-params` least of all, despite the name.
+
+So an index check on a parameterized filter is only as good as the binding behind it. Report the
+scoping parameter alongside the index finding and hand off to `datasource-creator`: its
+`references/odata-datasources.md` → "The index check is undone by a guarded scoping filter" carries
+the mechanics and the two ways to close the gap.
 
 ## Subagent Usage
 
