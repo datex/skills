@@ -90,9 +90,33 @@ Selectors (`-selector.json`, `configurationTypeId: 7`) must be backed by a `-dat
 
 Some UI component types carry a **private, embedded datasource inside their own JSON file** rather than referencing a separate standalone `-datasource.json`. The embedded block uses the exact same shape as a standalone flow datasource — `type: "flows"`, `configurationTypeId: 6`, full `getListFlow` / `getByKeysFlow` / `getFlow` slots, `outParams`, `keyDef` — but declares `accessModifier: "private"` so it isn't importable or callable from anywhere except the hosting component.
 
-Two places this shows up:
+Four component types can hold one:
 
-- **Grids** — each grid embeds a paginated flow datasource (the `getListFlow` + `getByKeysFlow` pair) that backs the grid's rows. See [`../../grid-creator/references/grids.md`](../../grid-creator/references/grids.md).
-- **Editors** — each editor embeds a single-result flow datasource (the `getFlow` slot) keyed by the entity id. See [`../../editor-creator/references/editors.md`](../../editor-creator/references/editors.md).
+- **Grids** — a paginated flow datasource (the `getListFlow` + `getByKeysFlow` pair) backing the grid's rows. See [`../../grid-creator/references/grids.md`](../../grid-creator/references/grids.md).
+- **Editors** — a single-result flow datasource (the `getFlow` slot) keyed by the entity id. See [`../../editor-creator/references/editors.md`](../../editor-creator/references/editors.md).
+- **Forms** — optional; most forms are parameter-driven and carry `datasourceConfig: null`. See [`../../form-creator/references/forms.md`](../../form-creator/references/forms.md).
+- **Reports** — a different mechanic: the owned datasource stays a separate standalone-shaped file registered in the report folder's manifest via `dxs report datasource add --owned FILE:ALIAS`, not a block spliced into the host JSON. See [`../../datex-studio-shared/report-authoring/deploy-patterns.md`](../../datex-studio-shared/report-authoring/deploy-patterns.md).
 
 An embedded datasource is **not** a discoverable standalone component — no other caller can reach it via `$datasources.<Package>.<name>`. It exists purely to hydrate the hosting component's own `datasourceConfig`. When a query needs to be shared across multiple hosts, promote it to a standalone `-datasource.json` instead.
+
+### Resolving an Owned Reference — `isOwned` Alone Decides
+
+`datasourceConfig.isOwned` is the **only** field that determines how the platform resolves the reference. All four host types gate on it identically:
+
+- `isOwned: true` → resolved **by `referenceName` against the host's own `datasources[]`**. `moduleId` is never read on this path.
+- `isOwned` absent or `false` → resolved **by `configId` + `moduleId` against other applications**.
+
+Two consequences that trip authors up:
+
+- **`moduleId` is not an alternative to `isOwned`.** They coexist. The canonical grid skeleton sets `configId`, `moduleId`, and `isOwned: true` together, and that is the shape the platform expects. Setting `moduleId` on an owned reference is inert, not an error.
+- **A missing `isOwned: true` is the actual cause of the "referenced configuration does not exist" failure**, because the reference falls through to the cross-application path and can't find a private embedded datasource there. Removing `moduleId` does not fix it.
+
+Three distinct messages come out of this area — read them as pointing at three different mistakes:
+
+| Message | What it means | Fix |
+|---|---|---|
+| `Invalid contract. Referenced configuration <id> does not exist or has been renamed` | Took the **external** path: `isOwned` is absent/false and no other application exposes `<id>` under that `moduleId`. | Set `isOwned: true` (if the datasource is embedded), or correct `moduleId` (if it really is standalone elsewhere). |
+| `Invalid contract. Referenced own configuration <id> does not exist or has been renamed` | Took the **owned** path correctly (note the word **own** — this is the only difference from the row above), but no entry in the host's `datasources[]` has `referenceName == configId`. | Fix the name mismatch — `datasourceConfig.configId` must equal the embedded datasource's `referenceName`. |
+| `Invalid contract. '<id>' is marked as owned, but this component cannot hold owned configurations` | `isOwned: true` on a component type that has no owned-contract path (anything outside grid / editor / form / report). | Promote the datasource to standalone and reference it by `configId` + `moduleId`. |
+
+**Tailoring caveat.** Although `moduleId` is inert for *validation* on an owned reference, it is load-bearing for *customization identity*: a tailoring overlay identifies a datasource reference by the `{configId, moduleId, isOwned}` triple, so adding or stripping `moduleId` on a tailored config re-classifies the reference as a new one and changes how the overlay merges. Keep whatever the round-trip produced — don't normalize the field either direction on a config with a `baseConfiguration`. (Distinct rule, easily conflated: an owned **`baseConfiguration`** — a tailoring base, not a datasource — *does* always carry a null `moduleId`.)
