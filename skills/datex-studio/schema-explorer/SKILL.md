@@ -151,9 +151,9 @@ Mark the **Binding** column:
 
 ## Index Awareness
 
-> **Needs a dxs build that ships `dxs schema indexes` — not in 0.5.5.** On an older build the command
-> does not exist and `describe-entity` returns no `indexes` key at all. That absence is the CLI's,
-> not the metadata's, and says nothing about the storage.
+> **Needs a dxs newer than 0.5.5** — these commands merged after the 0.5.5 tag. On an older build
+> `dxs schema indexes` does not exist and `describe-entity` returns no `indexes` key. That absence is
+> the CLI's, not the metadata's, and says nothing about the storage.
 
 The metadata reports the physical database indexes behind each entity set. Check them whenever the
 schema you are mapping will be filtered or sorted on a large entity set — an unindexed predicate is
@@ -171,6 +171,18 @@ dxs schema batch -c <id> \
 
 `--covering COLUMN` is shorthand for `Columns/any(c: c/Name eq 'COLUMN')` — "is this column indexed
 anywhere?" without hand-writing the lambda.
+
+**Not every Footprint server reports indexes at all.** The schema service has to expose an `Indexes`
+entity set, and older versions do not. The CLI probes for it once per connection (cached 24h) and
+adapts rather than failing the request: `indexes` and `describe-index` refuse with
+**`DXS-SCHEMA-015`**, and `describe-entity` drops the optional expand, returning no `indexes` key.
+Direct `describe-entity` says why in a warning; **inside a batch it says nothing** — the key is
+simply absent, so on the batch path treat a missing `indexes` key as "ask this connection directly
+before concluding anything". In a batch, index-only requests are answered with that error locally
+and never sent, so one unsupported request cannot take the batch down with it. A capability gap is a
+fact about the server version and **not** a fourth kind of index finding: it says nothing whatever
+about the storage. Report it as "this server does not report index metadata", never as "no
+indexes".
 
 **Reading the output — three traps:**
 
@@ -203,13 +215,15 @@ answer, because that differs by path:
 
 | Path | Where the wording lands |
 |------|-------------------------|
-| `dxs schema indexes`, empty result | `metadata.index_hint` |
-| `indexes` inside `dxs schema batch`, empty result | that request's `warnings[]` — and only when scoped by `--entity-set` or `--covering` |
-| `dxs schema describe-entity` with `indexes: []` | `metadata.index_hint` |
-| `describe-entity` inside a batch with `indexes: []` | **nothing** — a bare `[]`; read it with the third trap |
+| `dxs schema indexes`, empty and scoped by `--entity-set` / `--covering` | `metadata.index_hint` |
+| `indexes` inside `dxs schema batch`, same case | that request's `warnings[]` |
+| `describe-entity` with `indexes: []`, direct | `metadata.index_hint` |
+| `describe-entity` with `indexes: []`, in a batch | that request's `warnings[]` |
+| An **unscoped** `indexes` list that comes back empty | nothing — scope it before reading anything into it |
+| No `indexes` key at all | direct `describe-entity`: a warning naming the server. In a batch, or on a CLI older than the feature: nothing — not a finding about the entity set either way |
 
-The two paths that carry no wording are the cheap ones, so the bare `[]` is the result you are most
-likely to meet. It is the silent case, not the unindexed one.
+Every empty result you can actually reason from carries its wording; the one that does not is the
+unscoped miss, which is also the one that proves least.
 
 When an intended filter column has no leading-column index, say so in the **Notes** column of the
 root-field table, next to the field. That is a real constraint on the datasource design, not a

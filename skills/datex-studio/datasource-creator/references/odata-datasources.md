@@ -250,7 +250,7 @@ Modifications to an existing datasource carry the same obligation: if you change
 
 Name validation catches a datasource that *errors*. It does not catch one that *works but times out* — the failure that only shows up against production data volumes, long after the config was accepted.
 
-Ask `schema-explorer` for the indexes on the entity set whenever `filters` or `orderBys` touch a large entity set (Tasks, Shipments, OrderLines, BillingTasks, Materials and friends). It returns the physical database indexes, with column names that are the same OData property names you write in the query tree. (This needs a dxs build that ships `dxs schema indexes` — not in 0.5.5; on an older build there is no index information to ask for.)
+Ask `schema-explorer` for the indexes on the entity set whenever `filters` or `orderBys` touch a large entity set (Tasks, Shipments, OrderLines, BillingTasks, Materials and friends). It returns the physical database indexes, with column names that are the same OData property names you write in the query tree. (This needs a dxs newer than 0.5.5, and a Footprint server whose schema service exposes an `Indexes` set — where either is missing there is no index information to ask for, which is not the same as the columns being unindexed.)
 
 Three things to check, none of which is "does an index mention this column":
 
