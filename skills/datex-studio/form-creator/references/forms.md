@@ -122,6 +122,13 @@ Most forms are parameter-driven and carry `datasourceConfig: null` / `linkedData
 - `datasourceConfig` must point at a **single-result** datasource (`get`) — the same requirement as an editor. A collection-returning datasource is rejected.
 - Each `linkedDatasources[]` entry must point at a target whose shape matches its link `type`. The type → shape table, and why a mismatch fails the generated app, live in [`flow-datasources.md` → Linked datasource link types](../../datasource-creator/references/flow-datasources.md#linked-datasource-link-types).
 
+A bound form datasource is **owned by default**, embedded in the form's own `datasources[]` exactly as a grid's or editor's is — `accessModifier: "private"`, with `datasourceConfig.isOwned: true`. Promote it to a standalone `-datasource.json` only when another component needs the same query. The ownership rule, the resolution mechanics, and the failure messages are in [`../../datasource-creator/references/datasources.md` → Embedded Datasources](../../datasource-creator/references/datasources.md#embedded-datasources).
+
+Two rules are **specific to forms**, because a form's datasource is optional where a grid's and editor's are mandatory:
+
+- **An owned reference must name one of the form's own datasources.** If `datasourceConfig.isOwned` is `true` and no entry in `datasources[]` has a matching `referenceName`, validation fails with `Owned datasource '<configId>' was not found among this form's datasources`. Grids and editors get this check for free from their "datasource is required" rule; forms need it stated because there is no such rule to catch a reference that stopped resolving. Left unvalidated, the designer renders an empty selector and the next save silently drops the reference.
+- **A form with no datasource carries a true `null`, not an empty object.** An identity-less `{"configId": null}` is rejected with `Empty datasource reference — select a datasource or clear it`. It is not equivalent to "no datasource": codegen treats any object in the slot as present and generates ghost datasource wiring.
+
 ## Runtime Globals
 
 Inside any `executeCodeConfig.code` string on a form flow:
