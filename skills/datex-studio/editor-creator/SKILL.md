@@ -44,7 +44,7 @@ Author or modify a Datex Studio editor (configurationTypeId=4) on a branch — a
 
 - **`requirements-gathering`** skill — invoked to produce a requirements brief if one doesn't already exist in the conversation context
 - **`form-creator`** / **`grid-creator`** skills — invoked when the requirement is actually transient input collection (form) or a multi-record list (grid), not a single-entity detail screen
-- **`datasource-creator`** skill — invoked when the single-result flow datasource backing the editor needs to be authored as a standalone config (rare — the embedded private datasource is the usual shape)
+- **`datasource-creator`** skill — invoked when the single-result flow datasource backing the editor needs to be authored as a standalone config (rare — the embedded private datasource is the usual shape). To author the embedded one, follow [../datasource-creator/references/datasources.md → Creating an Owned Datasource](../datasource-creator/references/datasources.md#creating-an-owned-datasource) — `generate-flow --single --get-flow` already emits the shape an editor requires, so only the envelope delta applies.
 - **`component-wiring-check`** skill — invoked to audit `configParameters` ↔ target `inParams` contracts on the editor's host (hub tab / grid row action / form) before push
 - **`type-definition-creator`** skill — invoked when the editor's bound entity interface or a related type definition needs authoring or extension (e.g. adding a field to the schema that the editor must mirror with a new binding)
 - **`tailoring-overlay`** skill — invoked when customer-specific extensions to the editor (added fields, modified bindings) need to live in a tailored overlay rather than the base config
