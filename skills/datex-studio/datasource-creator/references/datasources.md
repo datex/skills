@@ -97,7 +97,22 @@ Four component types can hold one:
 - **Forms** — optional; most forms are parameter-driven and carry `datasourceConfig: null`. See [`../../form-creator/references/forms.md`](../../form-creator/references/forms.md).
 - **Reports** — a different mechanic: the owned datasource stays a separate standalone-shaped file registered in the report folder's manifest via `dxs report datasource add --owned FILE:ALIAS`, not a block spliced into the host JSON. See [`../../datex-studio-shared/report-authoring/deploy-patterns.md`](../../datex-studio-shared/report-authoring/deploy-patterns.md).
 
-An embedded datasource is **not** a discoverable standalone component — no other caller can reach it via `$datasources.<Package>.<name>`. It exists purely to hydrate the hosting component's own `datasourceConfig`. When a query needs to be shared across multiple hosts, promote it to a standalone `-datasource.json` instead.
+An embedded datasource is **not** a discoverable standalone component — no other caller can reach it via `$datasources.<Package>.<name>`. It exists purely to hydrate the hosting component's own `datasourceConfig`.
+
+### Owned by Default
+
+**When a grid, editor, form, or report needs a datasource, author it owned.** Reach for a standalone `-datasource.json` only when one of the override conditions below applies.
+
+The default holds because an owned datasource keeps every entity-shape location inside one file — a row-shape edit touches one config instead of two, and the host's own validation catches drift immediately. It also prevents accidental reuse: a standalone datasource created for a single grid is indistinguishable from one meant to be shared, so the next author binds to it, and the row-shape edit that used to be local now breaks someone else's component.
+
+Choose **standalone** when any of these is true:
+
+- **A second consumer needs the same query.** Two components binding one datasource is exactly what standalone is for. Speculative reuse doesn't count — promote when the second consumer actually exists, since promoting later is a mechanical change and un-sharing later is not.
+- **The consumer can't hold one.** Only grids, editors, forms, and reports have an owned-contract path. Selectors, lists, calendars, cards, dashboard widgets and every other consumer must reference a standalone datasource; marking their reference `isOwned: true` fails with `Invalid contract. '<id>' is marked as owned, but this component cannot hold owned configurations`.
+- **A flow datasource calls it.** Flow code reaches its dependencies through `$datasources.<Package>.<name>`, which resolves only for standalone configs. A flow datasource may itself be owned, but every OData datasource it queries must be standalone on the branch.
+- **It ships in a library package** for other applications to install — an embedded datasource isn't importable.
+
+The mechanic differs by host even though the policy doesn't: grids, editors, and forms embed the block in their own `datasources[]` with `datasourceConfig.isOwned: true`, while reports keep the datasource as a separate file registered in the report folder's manifest. Both are "owned". See [Creating an Owned Datasource](#creating-an-owned-datasource) for the procedure.
 
 ### Resolving an Owned Reference — `isOwned` Alone Decides
 
