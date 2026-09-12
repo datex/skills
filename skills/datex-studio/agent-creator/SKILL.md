@@ -39,8 +39,41 @@ carries. Consequences you must design for:
   longer calls, in the manifest and in `fp <command> -h`. Rewrite `paramsDoc` after any
   retarget. `fp <command> -h` also prints the parameter schema the deployed app declares,
   which is the check on whether your prose still matches.
-- The skill markdown must refer to commands **by their alias** (that is the CLI surface),
-  never by Studio reference names or file paths.
+- The skill markdown must refer to commands **by their alias**, never by Studio reference
+  names or file paths.
+
+### Skills describe the work, not the surface (hard rule)
+
+**A manifest skill must never mention CLI syntax.** No `--params`, `--top`, `--select`,
+`--skip`, no `fp <command> -h`, no `fp commands`, and no `fp ` prefix on an alias. The same
+manifest is consumed by more than one harness — `fp` at a shell today, a tool-calling
+orchestrator that turns each command into a tool — and a skill written for one of them is
+wrong on the other. A skill that says "pass `--select`" instructs an agent to use something
+a tool caller does not have; an agent that follows it either fails or invents a parameter.
+
+Write the intent and let each surface document its own syntax:
+
+| Instead of | Write |
+|---|---|
+| ``Run `fp warehouses --params '{"fullTextSearch":"Dallas"}'`` | ``Run `warehouses` with `fullTextSearch: "Dallas"`` |
+| "Keep `--top` small, page with `--skip`" | "Cap the rows you ask for; narrow with filter parameters rather than pulling everything" |
+| "Pass `--select Id,LookupCode`" | "Ask for only the fields the answer needs" |
+| "Run `fp commands` at the start of a session" | *nothing* — discovery is the harness's job, not the agent's |
+
+**Parameter names are fair game; flag names are not.** `warehouseId`, `statusIds`,
+`fullTextSearch` are what the command declares, so they belong in the skill — and must match
+the target's `inParams` exactly, camelCase included. A skill that says `full_text_search`
+where the config declares `fullTextSearch` sends an agent to a parameter the app ignores.
+`fp <command> -h` prints the schema the deployed app actually declares; check the skill's
+parameter names against it.
+
+The same rule applies to `profile.systemPrompt`, which is handed to the harness verbatim.
+
+### Say what a row *is* when it is not what the command is called
+
+A command named `unslotted-orders` whose rows are *shipments* will be miscounted, because
+`metadata.total_count` counts rows. State it in the command's `description` — the text the
+agent reads at the moment it chooses and interprets the call — not only in the skill.
 
 ## CLI-first — no workarounds (hard rule)
 

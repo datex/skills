@@ -65,7 +65,7 @@ fp use <agent> --branch <id> --env <env> --consent        # 3. select agent, res
 fp status                                                 # 4. confirm app_url / app_version / spec
 fp commands                                               # 5. the whole surface in one read
 fp <command> -h                                           # 6. its parameters, before calling it
-fp <command> --params '{...}' --top 10                    # 7. run
+fp <command> --params '{...}' --top 10                    # 7. run (see the quoting trap)
 ```
 
 Prefer `fp commands` over `fp --help` when you are an agent: one table with every alias, its
@@ -240,15 +240,40 @@ Two rules decide whether delegated auth works:
    customer tenant. The grant is persisted in the tenant, so it is genuinely one-time — every
    later `fp` call mints its token silently.
 
-After those two steps `fp` works with **no copied token and no code change** — rule 2 is
-`fp use … --consent`. If you find yourself trying to paste a token from a browser or a
-`/documentation/login/getToken` call, you have skipped rule 1 or rule 2.
+After those two steps `fp` works **on a laptop** with no copied token and no code change —
+rule 2 is `fp use … --consent`. If you are at a shell and find yourself trying to paste a
+token from a browser or a `/documentation/login/getToken` call, you have skipped rule 1 or
+rule 2. (In *hosting* a supplied token is the correct path — see below.)
 
 `fp` mints the token itself, from the scope resolved by `fp use --env` (or
-`DXS_FP_APP_SCOPE`), falling back to the plain dxs token when no app scope is known. There is
-deliberately **no env var for pasting a token in**: a hand-pasted token hides the two things
-that decide whether a call works — which tenant issued it, and whether the caller consented —
-so failures stop being explainable.
+`DXS_FP_APP_SCOPE`). **On a laptop, do not paste a token in**: a hand-pasted token hides the
+two things that decide whether a call works — which tenant issued it, and whether the caller
+consented — and a human who can paste one can simply log in properly instead. If you find
+yourself reaching for a token here, you skipped rule 1 or rule 2.
+
+**In hosting the rule inverts, because nothing interactive can run.** There, whoever holds the
+session acquires the token and hands it to `fp`, which then only *calls*:
+
+| Env var | Use |
+|---|---|
+| `DXS_FP_TOKEN` | The default for hosting. A parent process spawns a short-lived `fp` per call and passes the token in the **child environment** — nothing on disk, fresh every spawn. |
+| `DXS_FP_TOKEN_FILE` | A long-lived `fp` that must outlive one token (CI, operator-driven). Re-read on every call, so it can be rotated in place. Wins if both are set. |
+
+Precedence: **provided token → mint from the resolved scope → `DXS-FP-021`.** A provided token
+is used *ahead of* the scope check, so a worker that never ran `fp use` can still call.
+
+A provided token is **checked, not trusted**: `fp` decodes it (without verifying the
+signature — the app does that) and refuses one whose `aud` does not match the app
+(`DXS-FP-025`), that has expired (`DXS-FP-026`), or that is not a JWT at all (`DXS-FP-027`,
+usually the whole JSON response pasted instead of its `accessToken` field). `tid` and
+`appidacr` are reported in the error but never enforced — `fp` cannot know the app's tenant.
+
+> **Never hand `fp` a token inside a sandbox that also runs agent-authored commands.** A shell
+> there can read the file or `/proc/self/environ`, and agent tool output reaches the model
+> provider — so the credential ends up somewhere it must never be. The Kubernetes
+> projected-service-account precedent does *not* transfer: there the reader is trusted
+> application code, not an LLM running arbitrary commands. Where an agent has a shell, run
+> `fp` in a process the agent cannot reach and return only its results.
 
 ```bash
 fp use <agent> --branch <id> --env <env> --consent   # once per user, per tenant, per app
@@ -297,14 +322,44 @@ the app's Angular and Swagger UI logins produce).
 ## 3. Call commands
 
 Parameters are one flat JSON object — the same names the datasource/function declares as
-inParams. There is no per-parameter flag.
+inParams. There is no per-parameter flag; two ways in:
 
 ```bash
 fp waves --params '{"statusIds":[1,2]}' --top 10 --select Id,Description
 fp wave-orders --params '{"waveId":1042}' --top 25
 fp wave-progress --params '{"filters":{"wave_ids":[1042]}}'
-fp <command> -D params.json            # same thing from a file
+fp <command> -D params.json            # the same JSON from a file
 ```
+
+> **Run `fp` from bash — then none of this applies.** `--params` takes JSON, JSON needs
+> double quotes, and **Windows PowerShell 5.1 removes inner double quotes** when it passes
+> an argument to a native executable. `--params '{"orderIds": [1]}'` arrives as
+> `{orderIds: [1]}` and the CLI correctly reports invalid JSON at column 2 — nothing is
+> wrong with what you typed, the shell ate the quotes before `fp` started.
+>
+> In bash every form works **as typed, nested JSON included, with no temp file**. Claude
+> Code has a Bash tool on Windows, so for an agent this costs nothing and is strictly
+> better than escaping or writing files. Prefer it.
+>
+> | Where you are | Use |
+> |---|---|
+> | **bash / zsh / Git Bash** ← prefer | `--params '{"orderIds": [1]}'` — as typed, any depth |
+> | PowerShell, must stay there | `--params '{\"orderIds\": [1]}'` — the backslashes are consumed by the shell; `fp` receives plain `"` |
+> | large or reused payloads, any shell | `-D params.json` |
+>
+> `-D` is a fallback, not the answer: it is right when the payload is big enough to want a
+> file of its own, not merely because the shell mangles quotes. Switching shell is cheaper.
+>
+> Note `bash -c "..."` **from** PowerShell does not help — PowerShell mangles the outer
+> string first. Use an actual bash prompt.
+>
+> **Nested parameters make the shell choice matter most.** `$filter`, `$orderby` and objects
+> like `filters: {…}` need real JSON; there is no quote-free flag syntax for them. In bash
+> they are ordinary; in PowerShell they need the escaped form or `-D`.
+>
+> `fp` **cannot repair a mangled payload**: once the quotes are gone, `{"code": "00123"}`
+> and `{"code": 123}` are the same characters, so un-mangling would silently retype a
+> lookup code as a number. It reports the shell as the cause instead.
 
 - `--top` (default **25**) is sent to the server as `$top`; `--skip` pages. **Datasource
   commands only** — a function command rejects them.
@@ -312,7 +367,8 @@ fp <command> -D params.json            # same thing from a file
   it does not reduce what the server computes. Datasource commands only.
 - When the row count hits `--top`, the envelope carries `truncation_hint`. Say so in your
   answer instead of presenting a capped list as complete.
-- On Windows/Git Bash, single-quote any `--params` containing `$`.
+- In Git Bash, single-quote any `--params` containing `$` so the shell does not expand it.
+  In PowerShell see the quoting trap above — the failure mode there is different.
 
 Read `fp <command> -h` before the first call to any command: its epilog prints the declared
 parameters (`Parameters: …`) and the underlying config (`Executes: datasource Waves/ds_…`).
@@ -353,6 +409,41 @@ POST /api/<module>/functions/<ref>               -> { "<outParamName>": … , �
   unwraps it into one row; the envelope is never the row.
 - `204 No Content` is a documented response: empty result, not an error.
 - Every `/api/*` route requires `Authorization: Bearer <token>`.
+
+### API-type applications use a different URL shape
+
+The paths above are what **Web / Portal / Mobile / ComponentModule** apps mount — every
+config is reachable because the module routers are always mounted. An **API-type**
+application exposes only what its **Endpoints configuration** lists, at a flat
+`POST /api/<alias>` where the ref is *not recoverable from the path*.
+
+**Do not template the URL yourself.** The manifest carries `target`, resolved by the
+platform, which is the only place that knows the application's type:
+
+```
+target: { path: "/api/Waves/datasources/ds_x", appendVerb: true }   # module route
+target: { path: "/api/orders",                 appendVerb: false }  # API endpoint
+```
+
+POST to `path`, appending `/<verb>` only when `appendVerb` is true. A manifest with no
+`target` is older and still templates the module shape.
+
+Two states that look alike and need different fixes:
+
+| | Meaning | Fix |
+|---|---|---|
+| `resolved: false` → `DXS-FP-023` | no such config on the branch | check the ref, or refresh the manifest |
+| `resolved: true`, `target: null` → `DXS-FP-029` | the config exists but this API app does not route it | **add it to the Endpoints configuration** — not a redeploy |
+
+**What a flat endpoint cannot do.** `TransformAs_list_top_skip_count` is applied only to
+`getList`, so an API endpoint declares neither `$top` nor `$skip` — and the app has no runtime
+type check and no validation middleware, so it **silently ignores** both. A cap that looks
+applied would be a cap that never was, so `fp`:
+
+- omits `--verb` entirely (`DXS-FP-035` if you pass it) — one verb was bound at build time;
+- refuses `--skip` (`DXS-FP-034`) rather than faking paging over rows already fetched;
+- applies `--top` **client-side**, and says so in the hint. If the hint mentions the client,
+  the server sent everything — do not try to page.
 
 ## 5. Traps
 
