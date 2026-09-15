@@ -2,9 +2,10 @@
 name: agent-creator
 description: |
   Use when creating or modifying an Agent configuration (ConfigurationType 38) on a
-  Datex Studio branch. An Agent is a capability consumed by the dynamic Footprint CLI
-  (`fp`): its commands become CLI commands mapped to the branch's functions/datasources,
-  and its skills become SKILL.md files installed into the agent harness. Trigger for:
+  Datex Studio branch. An Agent is a capability consumed by more than one runtime: the
+  dynamic Footprint CLI (`fp`) at a shell, and the in-process agent host that codegen emits
+  into the generated app. Its commands map to the branch's functions/datasources and its
+  skills travel with the manifest. Trigger for:
   "author an agent", "create an agent configuration", "make an agent for X",
   "add a command/skill to the agent", "agent for the Footprint CLI".
 depends:
@@ -46,10 +47,18 @@ carries. Consequences you must design for:
 
 **A manifest skill must never mention CLI syntax.** No `--params`, `--top`, `--select`,
 `--skip`, no `fp <command> -h`, no `fp commands`, and no `fp ` prefix on an alias. The same
-manifest is consumed by more than one harness — `fp` at a shell today, a tool-calling
-orchestrator that turns each command into a tool — and a skill written for one of them is
-wrong on the other. A skill that says "pass `--select`" instructs an agent to use something
-a tool caller does not have; an agent that follows it either fails or invents a parameter.
+manifest is consumed by three harnesses now — `fp` at a shell, and the **in-process agent
+host inside the generated app**, which turns each command into a tool call and dispatches it
+straight onto the generated services — and a skill written for one of them is wrong on the
+others. A skill that says "pass `--select`" instructs an agent to use something a tool caller
+does not have; an agent that follows it either fails or invents a parameter.
+
+**The in-process host makes the rule stricter, not looser.** It is tempting to write
+`$datasources.Module.ds_x.getList(...)` into a skill now that the host calls the generated
+services directly. Do not. The agent never writes code — it emits a tool call named by the
+**alias**, and the host resolves the alias to a service on the other side of that call. Naming
+`$datasources` or `$flows` in a manifest skill is the same mistake as naming `--select`,
+pointed the other way, and it breaks `fp` as well.
 
 Write the intent and let each surface document its own syntax:
 
@@ -162,9 +171,37 @@ dxs api GET /applications/<BRANCH_ID>/agentconfigurations/referenceName/<ref>/ma
 - [ ] Aliases are kebab-case and unique; each command has `description` (+ `paramsDoc` when
       the target takes inputs)
 - [ ] All runtime skills are `owned` with complete, self-contained markdown (no references
-      to files, repos, or Studio — the harness only has the CLI and this content)
-- [ ] Skill workflow steps name command aliases; includes the --top/--select shaping rule
-- [ ] systemPrompt names the aliases and instructs CLI-only operation + end-of-run summary
+      to files, repos, or Studio — a harness has only this content and its own tool surface)
+- [ ] Skill workflow steps name command aliases and say nothing about any surface — no
+      `--select`, and equally no `$datasources` / `$flows`
+- [ ] systemPrompt names the aliases and instructs the agent to work only through its
+      commands + end a run with a summary
+- [ ] If the app has been generated since, the **baked** manifest also reports the command
+      (see below — it answers a stricter question than the platform one)
+
+## Two manifests, and two meanings of `resolved`
+
+The platform serves a manifest over its API — that is what `fp` fetches. Since the in-process
+host landed, **codegen also bakes a manifest into the generated app** (`src/agent.manifest.ts`),
+and it does so only when the branch has an Agent configuration: no agent config, no
+`/api/$agent` route in that application at all. That generation-time gate is why nothing needs
+an "agent mode" switch at deploy time.
+
+The two carry the same field with different meanings:
+
+| | Platform manifest (what `fp` reads) | Baked manifest (what the app runs on) |
+|---|---|---|
+| `resolved: true` means | the config exists **on the branch** | this application **actually generated** it |
+| `target` | the URL shape to POST to | absent — nothing goes over HTTP in-process |
+
+**The baked answer is the stricter one**, and it is the one that decides whether a deployed
+agent can really call a command: a ref can resolve on the branch and still be missing from a
+particular application, because module membership and tree-shaking are decided at generation
+time. A command that resolves on the branch but not in the app is offered as no tool at all,
+and the host reports why rather than failing silently.
+
+So `resolved: false` in a baked manifest is not necessarily a bad ref — check which question
+you are failing before changing the config.
 
 ## Commands target the cloud tier only
 
