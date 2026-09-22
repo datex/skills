@@ -24,5 +24,5 @@ The batch action's three full-spec requirements (packaging+amount, no serial-onl
 
 ## Cross-references
 
-- Dispatch cost of per-line action loops: [calling-conventions.md → Dispatch Cost](../../../datex-studio/datex-studio-runtime/calling-conventions.md#dispatch-cost) — the loop is a known platform cost; there is no batch CRUD primitive to swap in.
+- Dispatch cost of per-line action loops: look at calling-conventions.md from the 'datex-studio-runtime' skill — the loop is a known platform cost; there is no batch CRUD primitive to swap in.
 - Order/line status semantics: [footprint-status-codes.md](footprint-status-codes.md).
