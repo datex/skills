@@ -46,6 +46,7 @@ These tables are generated from the platform or the CLI. Regenerate and diff; ne
 | Artifact | Regenerate with |
 |---|---|
 | `configurationTypeId` table in [`datex-studio-conventions/file-format.md`](../skills/datex-studio/datex-studio-conventions/file-format.md#configurationtypeid-reference) | `dxs api GET /configurationtypes` + `dxs configuration types` |
+| Embeddable-kind table (`kind` allow-list for CAC `componentRefs`) in [`custom-angular-component-creator/references/custom-angular-components.md`](../skills/datex-studio/custom-angular-component-creator/references/custom-angular-components.md#generated-surface-per-kind) | `dxs ng --help` (the group help lists the kinds); source of truth `EMBEDDABLE_KINDS` in the CLI's `src/dxs/ng/manifest.py`, pinned equal to codegen and .NET — a new kind means a new table row **and** its generated tag/class/binding/mock columns |
 
 A new config type usually also means a new row in the **"Not yet covered (roadmap)"** section of
 [README.md](../README.md).
