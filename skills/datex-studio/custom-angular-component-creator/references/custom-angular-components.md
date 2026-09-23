@@ -78,7 +78,7 @@ export class app_<Ref>Component implements OnInit, OnChanges, OnDestroy {
 
 ## Runtime Globals (the injected `$`-context)
 
-The constructor injects the real, branch-typed platform services — use these, **never** raw `HttpClient`/`fetch`:
+The constructor injects the real, branch-typed platform services — use these, **never** `inject(HttpClient)` or `fetch`. Both **break authentication silently**: a CAC is standalone, so `imports: [SharedModule]` puts `HttpClientModule` in the component's own injector, and Angular does not merge `multi:` providers across injectors — the resulting `HttpClient` never sees `MsalInterceptor`, so the request goes out with no bearer and the app answers 401 with no diagnostic. For a genuine platform `$`-route, use `this.$utils.http` (root injector, `Promise`-returning). Full mechanism in the skill's *A CAC must not inject `HttpClient`*.
 
 | Global | Service | Use |
 |---|---|---|

@@ -203,6 +203,24 @@ and the host reports why rather than failing silently.
 So `resolved: false` in a baked manifest is not necessarily a bad ref — check which question
 you are failing before changing the config.
 
+## A bare ref is not always `app`
+
+`"ref": "ds_open_orders"` means *this application's own* config — and "this application" has a
+real name. It is `app` only when the application carries no reference name of its own, which is
+the case for Web, Mobile, Api and Portal definitions. **A ComponentModule (package/module)
+branch carries its own name**, so its bare refs resolve under that name and its generated app
+mounts `/api/<module-name>/…`, never `/api/app/…`.
+
+You never have to compute this: the manifest carries it as `ownModule`, and both `fp` and the
+in-process host read it from there rather than assuming.
+
+**Known gap — on a ComponentModule branch, author commands with module-qualified refs.**
+Publish-time contract validation still assumes a bare ref belongs to an unnamed application, so
+a bare ref on such a branch fails validation with *"Referenced configuration … does not exist or
+has been renamed"* — for a config that is plainly on the branch. If you hit that error on a ref
+you can see in `dxs configuration list`, this is why: qualify it (`MyModule/ds_open_orders`)
+instead of hunting for a rename.
+
 ## Commands target the cloud tier only
 
 A command's `type` maps to exactly one configuration type: `function` → `flow` (9),

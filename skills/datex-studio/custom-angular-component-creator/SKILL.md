@@ -197,7 +197,7 @@ You edit **only** the two author regions inside `<name>/angularapp/src/app/app.<
   //#endregion __COMPONENT_BODY__
 ```
 
-**Never** change the wrapper `class` line, the `@Component` decorator, the constructor, or the `//#region … //#endregion` sentinel lines — `push` extracts your work from **between** the sentinels, so damaging them breaks extraction. The constructor already injects the real context (`$datasources`, `$flows`, `$shell`, `$utils`, `$settings`, `$reports`, `$localization`, `$operations`, `$userSettings`, `$frontendFlows`) with real branch types, so body code uses `this.$datasources.…` etc. — never raw `HttpClient`. `SharedModule` is imported, so Angular directives (`*ngFor`, `*ngIf`, `[ngClass]`, `[style.*]`) and Material/AG-Grid/ApexCharts are available in the template.
+**Never** change the wrapper `class` line, the `@Component` decorator, the constructor, or the `//#region … //#endregion` sentinel lines — `push` extracts your work from **between** the sentinels, so damaging them breaks extraction. The constructor already injects the real context (`$datasources`, `$flows`, `$shell`, `$utils`, `$settings`, `$reports`, `$localization`, `$operations`, `$userSettings`, `$frontendFlows`) with real branch types, so body code uses `this.$datasources.…` etc. — **never `inject(HttpClient)`**, which compiles and runs but strips the signed-in user's bearer, producing a 401 with no diagnostic (see [A CAC must not inject `HttpClient`](#a-cac-must-not-inject-httpclient)). `SharedModule` is imported, so Angular directives (`*ngFor`, `*ngIf`, `[ngClass]`, `[style.*]`) and Material/AG-Grid/ApexCharts are available in the template.
 
 **Style to the Datex design system** — a CAC gets **no** styling for free, so it looks foreign unless you apply it. The non-negotiables: **mirror, don't invent** (copy the closest existing component's markup + classes); **use `var(--…)` theme tokens, never a hard-coded hex** (a hex breaks dark mode and the token the filled-control system pivots on); **compose the real `datex-*` class names** (`datex-button primary`, `field-container`, `grid-table-*`, `card datex-card`, `widget-container`, …) rather than bespoke CSS; **Fluent icons only on `<i>`**; sentence case, one primary button on screen. For the token variables, the full component class list, and the compiled-CSS traps, read [../datex-studio-shared/design-system/](../datex-studio-shared/design-system/README.md) (start with `02-tokens`, `03-components`, `06-traps`).
 
@@ -236,7 +236,7 @@ dxs ng stop <folder>                 # done for now? dispose of the warm dev ser
 
 1. **Branch confirmed with the user** (never assumed); prerequisites up (API in Dev, auth, `agent-browser`).
 2. **Only the two regions + `.html` + `.scss` were edited** — the wrapper class line, `@Component`, constructor, and `//#region` sentinels are untouched.
-3. **No raw `HttpClient` / direct backend calls** — data comes through `this.$datasources` / `this.$flows`; UI actions through `$shell` / `$flows` (see calling-conventions).
+3. **No `inject(HttpClient)` and no `fetch`** — grep the body for both; either one **breaks authentication silently**. Data comes through `this.$datasources` / `this.$flows`; UI actions through `$shell` / `$flows` (see calling-conventions); a genuine platform `$`-route through `this.$utils.http`.
 4. **Mocks seeded** (`dxs ng data generate`) and filled with representative values if the component reads `$datasources`/`$flows`, so the preview renders real-looking data.
 5. **`manifest.json` IO changes are followed by `preview --refresh -b <branch>`** (new `@Input`/`@Output` needs codegen re-wiring). A referenced datasource must already exist on the branch (create it with `datasource-creator` first, ideally before materializing) and is read with **typed** `$datasources` access — a missing datasource is a compile error to fix, never something to cast around; sample data stays in `mocks/`. See the datasource note in Phase 3.
 6. **The preview PNG matches the target** — the loop converged, and no compile/template errors remain in the render.
@@ -254,6 +254,70 @@ A materialized working folder weighs ~700 MB, ~85% of it `angularapp/node_module
 
 **Never full-delete an unpushed working copy** — the authored regions exist nowhere else.
 
+## A CAC must not inject `HttpClient`
+
+**This breaks authentication, and it is one of the hardest bugs in this codebase to detect.**
+
+`inject(HttpClient)` in a CAC body compiles, type-checks, passes `dxs ng push` validation, renders
+green in `dxs ng preview`, and sends a real request — which goes out **without the signed-in user's
+bearer**. The app answers `401`, and nothing anywhere explains why:
+
+- **the preview cannot catch it** — the harness has no backend and no MSAL, so auth is never
+  exercised until the component runs in the generated app;
+- **the app looks healthy** — every other `/api` call still carries a token, because they use the
+  root `HttpClient`. Only yours does not;
+- **there is no error to search for** — the interceptor's miss path is `return next.handle(req)`,
+  which forwards the request unauthenticated rather than throwing;
+- **the network tab shows an absence** — no `Authorization` request header, which is far easier to
+  overlook than a wrong value;
+- **the obvious suspects are all innocent** — the url, `protectedResourceMap`, the audience, the
+  route path. Expect to lose hours there if you do not know the mechanism below.
+
+The mechanism, because the symptom gives no clue:
+
+```
+your CAC (standalone)  ->  imports: [SharedModule]
+SharedModule           ->  imports/exports LoadingBarHttpClientModule
+LoadingBarHttpClientModule -> imports: [HttpClientModule]
+```
+
+A standalone component's `imports` register that module's providers in the **component's own**
+injector, so `HttpClientModule` builds a *second* `HttpClient` there. Angular does **not** merge
+`multi:` providers across injector levels — a child injector replaces the parent's set — so that
+instance resolves `HTTP_INTERCEPTORS` locally and never sees `MsalInterceptor`, which is
+registered up in `AppModule`. The app's own `/api` calls keep working, because they use the root
+`HttpClient`. Only yours is unauthenticated.
+
+**Use `this.$utils.http`** — the app's `HttpService`, already injected into every CAC through the
+constructor. It resolves `HttpClient` from the **root** injector, so `MsalInterceptor` attaches
+the bearer against the `/api` entry in `auth-config.ts`'s `protectedResourceMap`. Its
+`get/post/put/patch/delete` return `Promise<T>`, so no `firstValueFrom`:
+
+```ts
+const payload = await this.$utils.http.post<TResponse>('/api/$agent/turn', body);
+```
+
+`fetch` is worse again: it bypasses Angular's interceptor chain entirely, so it has the same
+missing-header failure with no DI explanation at all.
+
+**Diagnosing it, if you hit the 401 anyway.** MSAL is configured at `LogLevel.Verbose` but the
+`loggerCallback` in the generated `auth-config.ts` is an empty body. Uncomment it (in `dist/`,
+temporarily) and filter:
+
+```ts
+loggerCallback(logLevel: LogLevel, message: string) {
+  if (message.indexOf('Interceptor') >= 0) { console.log('[MSAL]', message); }
+},
+```
+
+Then read the console while the page loads and while your component calls:
+
+| What you see for YOUR request | Meaning |
+|---|---|
+| no `[MSAL]` line at all, while other `/api` calls log the full path | your client is not the intercepted one — this bug |
+| `Interceptor - no scopes for endpoint` | the chain ran; the url did not match `protectedResourceMap` |
+| `Interceptor - N scopes found` then still 401 | the token was attached; the backend rejected it (audience/roles) |
+
 ## Common Mistakes
 
 | Mistake | Fix |
@@ -266,7 +330,7 @@ A materialized working folder weighs ~700 MB, ~85% of it `angularapp/node_module
 | `preview` fails with `DXS-NG-053` (`agent-browser 'wait' timed out`) — assuming the component is broken | A screenshot timeout ≠ a render failure: the component usually compiled + served fine (contrast `DXS-NG-042` `ng serve did not become ready`, which is the compile failure). A warm serve can also be stale. Re-run with `--clean`, then verify the real render by opening the `.dxs-serve.lock` port with `agent-browser` and checking `app-<ref>` has content — don't chase phantom code bugs. |
 | Expecting to preview/open OTHER components (or `$shell` dialogs to them) | The harness makes only YOUR candidate a real component; `$shell.open<X>Dialog(...)` to other components are compilable stubs that won't open in preview. `$datasources`/`$flows` (real branch) and your own UI are fully live. |
 | Expecting the component to appear in Studio after `create` / `preview` | `create`/`pull`/`data generate`/`preview` are all transient. Only `push` writes to Studio (first push creates). |
-| Reaching for `HttpClient` or `fetch` in the body | Use the injected `$datasources` / `$flows`; they're real, typed, and mockable for preview. Raw HTTP won't have the branch's auth/context. |
+| Reaching for `HttpClient` or `fetch` in the body | Use the injected `$datasources` / `$flows`; they're real, typed, and mockable for preview. If you genuinely need HTTP (a platform `$`-route), use `this.$utils.http` — **never `inject(HttpClient)`**, which silently loses the app's auth. See [A CAC must not inject `HttpClient`](#a-cac-must-not-inject-httpclient). |
 | Component uses a datasource but preview renders empty | Run `dxs ng data generate` and fill `mocks/harness-mocks.json` — the harness `$datasources`/`$flows` read those fixtures during preview (no backend). |
 | Added an `@Input`/`@Output` but `preview` doesn't reflect it | IO changes need codegen re-wiring: update `manifest.json`, then `dxs ng preview <folder> --refresh -b <branch>`. |
 | Expecting `manifest.datasources` to create or wire a datasource | It does neither. Create the datasource first with `datasource-creator` (`dxs datasource generate`/`validate`/`configuration upsert datasource`), ideally **before** materializing so the harness types the `$datasources.<ref>` stub; `manifest.datasources` only declares the dependency. |
