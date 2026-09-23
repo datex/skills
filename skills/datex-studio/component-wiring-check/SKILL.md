@@ -22,6 +22,7 @@ depends:
   - selector-creator
   - post-edit-verification
   - component-validator
+  - custom-angular-component-creator
 ---
 
 # Component Wiring Check
@@ -36,6 +37,7 @@ Audit cross-component reference contracts on a Datex Studio branch — verify th
 - [references/component-wiring.md](references/component-wiring.md) — Authoritative wiring-rule reference: the three silent-failure traps, `moduleId` rule, `configParameters` ↔ `inParams` mirror, `vars` / `rowVars` declaration rule
 - [../datex-studio-conventions/defaults.md](../datex-studio-conventions/defaults.md) — Default package for *new* components (not for references to existing ones — important not to confuse the two)
 - [../tailoring-overlay/](../tailoring-overlay/) — Overlay-specific shadow-marker rules (the "outdated contract at import" symptom is a separate tailoring concern)
+- [references/component-wiring.md → Custom Angular Component `componentReferences`](references/component-wiring.md#custom-angular-component-componentreferences) — how the audit applies to a CAC's embedded components (same `moduleId` rule; no `configParameters` mirror; kind ∈ allow-list, target exists, required inParams bound in the template)
 
 ## Dependencies
 
@@ -158,6 +160,7 @@ When a user reports a symptom rather than a known broken contract, this table ma
 | Component resolves but behaves oddly | `moduleId` on the reference is wrong |
 | Var is undefined in flow code | Missing declaration in top-level `vars[]` (or `rowVars[]` for grid row flows) |
 | "Outdated contract" at import | Tailored overlay shadow has drifted from its base — hand off to `tailoring-overlay` |
+| A CAC's embedded component tag "is not a known element" (`NG8001`), or `dxs ng push` fails with `DXS-NG-056` | A `componentReferences` entry has the wrong `kind`, a `moduleId` that is not the target's owning module, or names a component that does not exist on the branch — see [component-wiring.md → Custom Angular Component `componentReferences`](references/component-wiring.md#custom-angular-component-componentreferences) |
 
 ## Pre-Flight Checklist
 
