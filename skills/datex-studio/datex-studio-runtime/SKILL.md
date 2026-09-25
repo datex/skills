@@ -16,6 +16,7 @@ description: |
   selector-creator, storage-creator, db-query, tailoring-overlay) so cross-skill
   references resolve.
 depends:
+  - feedback-reporting
   - action-creator
   - component-wiring-check
   - datasource-creator
@@ -28,6 +29,8 @@ depends:
 ---
 
 # Datex Studio — Runtime Semantics & Execution Model
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 This skill is a **library**, not a workflow. The Datex Studio component-creator skills cite the files here via relative paths (e.g. `../datex-studio-runtime/calling-conventions.md`). It exists as its own skill so that `npx skills` / `skills.sh` install it alongside its consumers — sibling non-skill directories are not copied by those tools.
 

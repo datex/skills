@@ -9,6 +9,7 @@ description: |
   single record", "add a field to xxx_editor", "add save/cancel buttons",
   "$editor.entity is undefined in onInit", "save button never enables".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -24,6 +25,8 @@ depends:
 ---
 
 # Editor Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or modify a Datex Studio editor (configurationTypeId=4) on a branch — a single-entity view/edit screen that hydrates one record, binds fields 1:1 to its properties, toggles between read-only and edit mode, and persists changes through a wrapping function that calls a CRUD action.
 

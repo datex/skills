@@ -16,6 +16,7 @@ description: |
   selector-creator, storage-creator, type-definition-creator, datasource-creator,
   backend-test-creator, tailoring-overlay) so cross-skill references resolve.
 depends:
+  - feedback-reporting
   - backend-test-creator
   - component-wiring-check
   - datasource-creator
@@ -25,6 +26,8 @@ depends:
 ---
 
 # Datex Studio — Component Authoring Conventions
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 This skill is a **library**, not a workflow. The Datex Studio component-creator skills cite the files here via relative paths (e.g. `../datex-studio-conventions/file-format.md`). It exists as its own skill so that `npx skills` / `skills.sh` install it alongside its consumers — sibling non-skill directories are not copied by those tools.
 

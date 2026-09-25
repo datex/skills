@@ -9,12 +9,15 @@ description: |
   hub", "wire a button that opens the Y report", "modify hub N", "change what
   the X button does", "launch report Y from a hub button".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - post-edit-verification
   - component-validator
 ---
 
 # Hub Editor
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Modify a Datex Studio hub configuration to add toolbar buttons, wire click flows, and integrate reports or other actions into a hub UI.
 

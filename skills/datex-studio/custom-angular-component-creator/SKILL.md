@@ -2,6 +2,7 @@
 name: custom-angular-component-creator
 description: Author or edit a Datex Studio Custom Angular Component (CAC, configurationTypeId=36) on a branch via the `dxs ng` command family — a screenshot-driven create → edit-regions → preview → push loop for bespoke Angular UI (charts, dashboards, custom widgets).
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -11,6 +12,8 @@ depends:
 ---
 
 # Custom Angular Component Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or edit a Datex Studio **Custom Angular Component** (CAC, `configurationTypeId: 36`) on a branch. A CAC is an **author-written standalone Angular component** — you write the actual `component.ts` / `.html` / `.scss`, not a declarative JSON config. It runs inside the generated app with the real platform context (`$datasources`, `$flows`, `$shell`, …) injected, so it's the escape hatch for UI the declarative components (grid / form / hub / selector / editor) can't express: bespoke charts, dashboards, visualizations, custom layouts.
 

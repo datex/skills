@@ -10,6 +10,7 @@ description: |
   "tab grid ignores filter value", "hub won't open", "dead wiring between hub
   filter and grid". For modifying an existing hub, see hub-editor.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -24,6 +25,8 @@ depends:
 ---
 
 # Hub Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author a NEW Datex Studio hub configuration (configurationTypeId=2) on a branch — top-level UI containers with filters, grouping options, tabs that mount grids/editors/forms/custom Angular components, toolbar buttons, and click flows.
 

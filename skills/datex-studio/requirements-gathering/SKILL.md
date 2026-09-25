@@ -7,9 +7,13 @@ description: |
   anything. If the goal is to create a report, datasource, or other artifact,
   use the appropriate creation skill as the entry point; it will invoke this
   skill when it needs requirements.
+depends:
+  - feedback-reporting
 ---
 
 # Requirements Gathering
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Gather and structure requirements from any source into a standardized brief that downstream skills (`schema-explorer`, `datasource-creator`, `report-creator`) can consume.
 

@@ -12,6 +12,7 @@ description: |
   configParameters mismatch", "declare a hub/form/editor/grid var",
   silent-failure dropdowns/filters/dialogs.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - tailoring-overlay
@@ -25,6 +26,8 @@ depends:
 ---
 
 # Component Wiring Check
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Audit cross-component reference contracts on a Datex Studio branch — verify that one component's reference to another (a hub tab mounting a grid, a hub filter pointing at a selector, a grid's `datasourceConfig` pointing at a datasource, a selector backed by a datasource, a form opened via `$shell.<Package>.open<referenceName>Dialog`) is contract-complete. This is a **read-only audit skill**: it reads configs, reports findings, and routes fixes to the matching creator skill. It never mutates configs on the branch.
 

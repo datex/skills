@@ -10,6 +10,7 @@ description: |
   datasource", "FPDS", "footprintDatasource", "a datasource an action can call",
   "standalone vs owned datasource".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - grid-creator
   - editor-creator
@@ -20,6 +21,8 @@ depends:
 ---
 
 # Datasource Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Create OData or flow-based datasource configurations for Datex Studio.
 

@@ -10,6 +10,7 @@ description: |
   skill asks you to "audit all callers" or "verify a contract change is
   safe" before proceeding.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - function-creator
   - datasource-creator
@@ -20,6 +21,8 @@ depends:
 ---
 
 # Impact Analysis
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Assess the impact of modifying or removing a configuration on a Datex Studio branch. This skill analyzes dependencies only — it does not make changes.
 

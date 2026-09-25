@@ -10,9 +10,13 @@ description: |
   rules that the OData metadata alone doesn't reveal. Use BEFORE building a
   flow datasource over a Footprint entity. Skip for non-Footprint apps (custom
   apps with no WMS data).
+depends:
+  - feedback-reporting
 ---
 
 # Footprint Entity Expert
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Reference for Footprint WMS domain knowledge that isn't derivable from OData metadata alone — navigation chains, business-rule filters, weight calculations, and other context you'd otherwise have to reverse-engineer from existing reports.
 

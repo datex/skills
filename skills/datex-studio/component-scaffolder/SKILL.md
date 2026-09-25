@@ -15,6 +15,7 @@ description: |
   interface/enum/backendTest/action/function/datasource", "starter
   <type> file", "new <type> from scratch".
 depends:
+  - feedback-reporting
   - datex-studio-conventions
   - action-creator
   - backend-test-creator
@@ -32,6 +33,8 @@ depends:
 ---
 
 # Component Scaffolder
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Scaffold a new Datex Studio component from a documented skeleton. This skill is the **routing layer** for "I need to start a new <X> component." It maps a requested component type to:
 

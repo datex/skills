@@ -15,6 +15,7 @@ description: |
   state". Consumed by impact-analysis, requirements-gathering,
   report-creator, and any skill needing grounded read-only inspection.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -22,6 +23,8 @@ depends:
 ---
 
 # Codebase Research
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Read-only investigation of a Datex Studio branch to answer questions about the current state of the code — components, flow source, type definitions, datasources, and configuration — without changing anything.
 

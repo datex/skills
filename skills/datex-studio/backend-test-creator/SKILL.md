@@ -11,6 +11,7 @@ description: |
   test", "refactor xxx_action into a backend test", "backend test won't
   run", "before_suite never fires", "suite hooks not firing".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -24,6 +25,8 @@ depends:
 ---
 
 # Backend-Test Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or modify a Datex Studio backend test (configurationTypeId=24) on a branch — a mocha test suite with four lifecycle hooks (`before_suite` / `after_suite` / `before_each` / `after_each`), a `testCaseFlows[]` array (each entry wrapped as one mocha `it()`), and suite-level state on the `$test` runtime global. Backend tests run at the function tier; actions are reached through the `FootprintApi.extendedActions` bridge.
 

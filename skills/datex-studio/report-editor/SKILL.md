@@ -7,12 +7,15 @@ description: |
   "change the label", "add a column", "update the report on branch X",
   "fix the report layout". For creating NEW reports from scratch, use `report-creator`.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - post-edit-verification
   - component-validator
 ---
 
 # Report Editor
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Workflow for modifying existing RDLX-JSON reports on a Datex Studio branch using the `dxs` CLI.
 

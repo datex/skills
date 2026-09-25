@@ -11,10 +11,13 @@ description: |
   never asks and delivers through a named tool. For reviewing the branch's code
   quality, use `branch-code-reviewer` instead.
 depends:
+  - feedback-reporting
   - datex-studio-shared
 ---
 
 # Commit Message Generator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Review a Datex Studio feature branch's pending changes and produce a quality
 commit message suitable for recording against the branch. This skill reads the

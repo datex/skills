@@ -11,11 +11,14 @@ description: |
   skill-based pattern. Triggers: invoked by every component-creator's
   closer; rarely invoked directly by users.
 depends:
+  - feedback-reporting
   - datex-studio-conventions
   - component-validator
 ---
 
 # Post-Edit Verification
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 After editing a component file, the natural instinct is to re-read the full file to confirm the edit landed. **Don't, by default.** Component JSON files are minified single-line documents, often 20–100 KB, and re-reading them after every edit consumes parent-conversation context that the actual work needs. Several lighter-weight signals do the same job — apply them in this order.
 

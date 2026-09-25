@@ -15,6 +15,7 @@ description: |
   "TypeScript accepted my predicate but it doesn't work at runtime". For
   authoring the calling function itself, see function-creator.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -29,6 +30,8 @@ depends:
 ---
 
 # `$db` Query Guide
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 `$db` is the function-tier runtime handle for reading and writing the cloud-persisted Mongo-backed storage components. Predicates use a **fluent operator DSL** that's compiled to a server-side query — **not** raw JavaScript evaluation. This is the single most important thing to understand before writing `$db` code, because native operators compile without error and silently misbehave at runtime.
 

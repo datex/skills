@@ -5,9 +5,13 @@ description: |
   commands: fetching work items, reviewing relations, downloading attachments,
   compiling raw requirements. This is a utility skill — it extracts and structures
   work item content but does not build reports, datasources, or other artifacts.
+depends:
+  - feedback-reporting
 ---
 
 # DevOps Requirements Extraction
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Extract and compile actionable requirements from Azure DevOps work items into a structured requirements brief.
 

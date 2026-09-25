@@ -4,9 +4,13 @@ description: |
   Use when building or testing OData queries with dxs odata execute: incremental
   query development, verifying $select/$expand/$filter clauses, or diagnosing
   query errors against a Footprint API connection.
+depends:
+  - feedback-reporting
 ---
 
 # OData Execution
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Build, test, and verify OData queries incrementally using `dxs odata execute`.
 

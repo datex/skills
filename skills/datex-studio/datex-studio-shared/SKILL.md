@@ -15,10 +15,13 @@ description: |
   (cti 14), and frontend flows (cti 27), and the Fluent 2 app design system
   (theme tokens, component class names, traps) for hand-authored UI.
 depends:
+  - feedback-reporting
   - function-creator
 ---
 
 # Datex Studio — Shared Reference
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 This skill is a **library**, not a workflow. The other `datex-studio-*` skills cite the files here via relative paths (e.g. `../datex-studio-shared/branch-setup.md`). It exists as its own skill so that `npx skills` / `skills.sh` can install it alongside its dependents — sibling non-skill directories (the old `shared/`) are not copied by those tools.
 

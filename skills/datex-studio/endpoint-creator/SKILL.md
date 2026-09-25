@@ -7,12 +7,15 @@ description: |
   flow as an API", "add an API for X", "modify endpoint", "remove endpoint",
   "change endpoint alias", "create an API that does X".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - post-edit-verification
   - component-validator
 ---
 
 # Endpoint Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Create, modify, or remove API endpoints on a Datex Studio branch. Endpoints expose
 flows or datasources as HTTP API routes. Only available for API Applications (type 6).

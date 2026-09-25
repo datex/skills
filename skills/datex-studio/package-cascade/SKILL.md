@@ -10,12 +10,15 @@ description: |
   dependents", "roll out the new version of <package> to its consumers", "who needs
   republishing after I published <package>".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - commit-message-generator
   - release-notes-generator
 ---
 
 # Package Cascade
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Propagate a **published** package change up the dependency graph: re-pin and republish every
 **package** (ComponentModule) that references it, recursively, **stopping at applications**

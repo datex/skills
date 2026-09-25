@@ -12,6 +12,7 @@ description: |
   contract mismatch", "grid renders blank", "tailored/custom grid variants",
   enrichment-datasource work.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -30,6 +31,8 @@ depends:
 ---
 
 # Grid Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or modify a Datex Studio grid (configurationTypeId=3) on a branch — the platform's primary data-density component. Grids render tabular rows from a backing datasource with optional inline editing, selection, toolbars, dynamic filters and sorting, and per-row/per-cell interactions. They are typically mounted inside hub tabs, and they carry more cross-location invariants than any other component — the five-location entity-shape rule, the two-site dynamic filter/sort registration mirror, and the OData runtime `selects` location all live here.
 

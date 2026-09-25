@@ -11,9 +11,13 @@ description: |
   week", "what shipped in <app> between <date> and <date>", "scheduled release
   notes run". For release notes between two explicitly-named branches, use
   `release-notes-generator` directly.
+depends:
+  - feedback-reporting
 ---
 
 # Prospective Release Notes
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Pick the two anchor branches for a time range, then hand off to the Release
 Notes SOP. The anchor picking is scoped to the application's **default

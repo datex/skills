@@ -11,6 +11,7 @@ description: |
   HTML", "embed a map/iframe", "show an external page in a dialog", "$embed iframe
   is blank", "print button does nothing in the preview".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -21,6 +22,8 @@ depends:
   - component-validator
 ---
 # Embed Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or modify a Datex Studio embed (configurationTypeId=20) on a branch — a thin UI component whose entire surface is a single `<iframe>`. An embed renders either an **external URL** (a hosted map, dashboard, document viewer) or an **in-memory HTML string** (a generated email/report preview) and is almost always opened as a dialog via `$shell.open<referenceName>Dialog(...)` (prefixed with the embed's package when it's registered under a module).
 

@@ -12,6 +12,7 @@ description: |
   type", "add a property to i_xxx", "add a value to e_xxx", authoring types
   for flow inParams/outParams/objectTypeDef.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -26,6 +27,8 @@ depends:
 ---
 
 # Type Definition Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or modify a Datex Studio type definition (configurationTypeId=22) on a branch — a `-customType.json` file that declares either an **interface** (`i_<name>`) or an **enum** (`e_<name>`). Both shapes live in the same component type and share the suffix, but the internal body differs substantially. Type definitions are consumed across the platform: flow `inParams` / `outParams`, datasource `objectTypeDef`, other type defs, and (with one important constraint) UI-component params.
 

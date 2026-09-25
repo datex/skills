@@ -11,6 +11,7 @@ description: |
   search doesn't filter the dropdown", "selector backing-datasource is wrong
   variant".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -26,6 +27,8 @@ depends:
 ---
 
 # Selector Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or modify a Datex Studio selector (configurationTypeId=7) on a branch — the platform's dropdown / autocomplete control. Selectors define an option list backed by a datasource, a display-label expression over each option, and a built-in full-text search box that forwards typed input into the backing datasource. They mount inside form fields, hub filter dropdowns, and grid filter cells; they don't render standalone.
 

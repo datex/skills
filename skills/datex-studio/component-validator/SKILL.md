@@ -11,6 +11,7 @@ description: |
   or modifying". For grid-specific gotchas (envelope shape, text-display
   coercion) use grid-validator instead.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -31,6 +32,8 @@ depends:
 ---
 
 # Component Validator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Audit a single Datex Studio component file against its type-specific authoring rules — the final read-only gate after a creator skill has finished writing or modifying a component, and before the change is upserted to the branch. This skill is a **generic dispatcher**: it reads the component file, picks the matching creator skill's reference document by file suffix, and runs the checklist from that document. It returns a structured punch-list (Blockers / Warnings / Nits) — never a rewrite.
 
