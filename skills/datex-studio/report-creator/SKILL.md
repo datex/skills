@@ -7,6 +7,7 @@ description: |
   Trigger for: "create a report", "build a report", "report from work item",
   "report from requirements". For modifying EXISTING reports, use `report-editor`.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - odata-execution
   - post-edit-verification
@@ -14,6 +15,8 @@ depends:
 ---
 
 # Report Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Workflow for building and deploying RDLX-JSON reports using the `dxs` CLI. Reports render in ActiveReportsJS within Datex Studio.
 

@@ -4,9 +4,13 @@ description: |
   Use when exploring OData schema with dxs schema commands: searching entities,
   describing entity structure, scanning properties, checking which columns are
   indexed before filtering, or building a field mapping table for Datex Studio.
+depends:
+  - feedback-reporting
 ---
 
 # Schema Explorer
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 OData schema discovery using `dxs schema` commands.
 

@@ -11,6 +11,7 @@ description: |
   rendering / filter / sort / toolbar bugs", "final gate after
   grid-creator". For non-grid components, use component-validator.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -22,6 +23,8 @@ depends:
 ---
 
 # Grid Validator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Audit a single Datex Studio grid file (`*-grid.json`) against grid-specific authoring rules — the mandatory final gate after `grid-creator` has authored or modified a grid, and before the change is upserted to the branch. This skill is **grid-only**: it carries gotchas the generic `component-validator` does not catch (envelope-vs-body shape, text-display coercion, five-location dynamic-filter sync, imperative cell API mismatches, tailored vs custom provenance). For non-grid component files, route to `component-validator` instead.
 

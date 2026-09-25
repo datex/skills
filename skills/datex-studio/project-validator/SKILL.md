@@ -15,6 +15,7 @@ description: |
   the project before merge". For single-file audits use
   `component-validator` instead.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -24,6 +25,8 @@ depends:
 ---
 
 # Project Validator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Project-wide lint for a Datex Studio **branch**. The branch is the source of truth: the validator enumerates the branch's configs via `dxs source explore configs` and bulk-exports them to a throwaway temp directory with `dxs source document build` (the CLI's offline-analysis path), then runs five cross-component checks against that temp export — checks that per-file validation cannot see in isolation. Returns a structured, read-only punch-list grouped by check type. Never modifies the branch, and never treats a local `src/` checkout as authoritative.
 

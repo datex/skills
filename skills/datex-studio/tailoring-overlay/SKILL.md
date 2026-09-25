@@ -12,6 +12,7 @@ description: |
   "enrich a core grid with extra fields", "Outdated contract errors between
   a tailored overlay and its base".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -26,6 +27,8 @@ depends:
 ---
 
 # Tailoring Overlay
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Extend an existing core-library Datex Studio component (most commonly a grid, but the model applies analogously to forms, editors, and hubs) via the `baseConfiguration` overlay mechanism, or flatten a tailored overlay into a standalone `custom_<base>` variant. A tailored component references a base via `baseConfiguration`, inherits its full contract, and layers targeted overrides on top — new columns, new flows, customization hooks against existing flows, additional secondary datasources, suppressed items. The overlay tracks the base as it evolves; flattening collapses the overlay into a fully authoritative copy when the customer's needs have diverged enough that the inheritance no longer pays for itself.
 

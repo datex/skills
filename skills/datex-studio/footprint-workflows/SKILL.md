@@ -19,6 +19,7 @@ description: |
   Footprint workflows", "replace the legacy XAML Datex Workflow with
   TypeScript".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -33,6 +34,8 @@ depends:
 ---
 
 # Footprint Workflows
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or modify a Datex Studio footprint-workflow (`configurationTypeId: 23`) on a branch — a low-code TypeScript implementation that the **Footprint platform invokes at a named extension point** in its own processing (before an entity status commits, while cartonizing, while planning allocation, while recommending a location, …). It is the modern replacement for the legacy XAML "Datex Workflow" activities. The platform owns the slot, the GUID, and the input/output contract; **you own the body**.
 

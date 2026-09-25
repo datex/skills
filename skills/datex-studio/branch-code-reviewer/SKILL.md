@@ -9,10 +9,13 @@ description: |
   "audit branch before merge", "quality check this branch". For drafting a
   commit message on the same branch, use `commit-message-generator`.
 depends:
+  - feedback-reporting
   - datex-studio-shared
 ---
 
 # Branch Code Reviewer
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 AI-assisted code review of Datex Studio branches using the `dxs` CLI. Reads
 the branch's changes, traces dependencies of affected configs, reads unified

@@ -11,6 +11,7 @@ description: |
   "declarative binding is not populating the field", "confirm button always
   disabled", "dialog outParams are undefined on cancel".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -27,6 +28,8 @@ depends:
 ---
 
 # Form Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or modify a Datex Studio form (configurationTypeId=5) on a branch — an input-collection component that gathers user data, optionally hosts a validate-then-action workflow, and hands a payload back to its caller via `outParams` when it closes. Forms are most commonly opened as modal/flyout dialogs from grids, hubs, and other forms.
 

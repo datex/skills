@@ -11,6 +11,7 @@ description: |
   capture", "$db.update validation error after adding a required column",
   deciding between storage and Footprint entity.
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -24,6 +25,8 @@ depends:
 ---
 
 # Storage Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or modify a Datex Studio storage component (configurationTypeId=17) on a branch — a cloud-persisted Mongo-backed collection owned by a feature. Storage holds state that lives outside the Footprint OData schema: configuration options, rule tables, snapshot captures, derived analytic rollups, anything that's "the feature's own data" rather than a first-class WMS entity. Storage has no code strings of its own; it's consumed at function-tier via the `$db.<Package>.<storage_referenceName>` runtime global.
 

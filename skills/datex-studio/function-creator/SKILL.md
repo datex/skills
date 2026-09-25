@@ -7,6 +7,7 @@ description: |
   "modify a function", "update xxx_flow", "write a function that does X",
   "add a parameter to xxx_flow", "change the function code".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - action-creator
   - datasource-creator
@@ -18,6 +19,8 @@ depends:
 ---
 
 # Function Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Create new Datex Studio functions or modify existing ones on a Datex Studio branch.
 

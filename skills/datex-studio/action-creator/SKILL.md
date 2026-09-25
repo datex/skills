@@ -10,6 +10,7 @@ description: |
   xxx_action", "add a new action", "transactional flow", "CRUD action",
   "server-side action", "Transaction must begin first".
 depends:
+  - feedback-reporting
   - datex-studio-shared
   - datex-studio-conventions
   - datex-studio-runtime
@@ -24,6 +25,8 @@ depends:
 ---
 
 # Action Creator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Author or modify a Datex Studio action (configurationTypeId=18) on a branch — server-side transactional flows that compose entity CRUD and other actions inside a single commit/rollback boundary. The UI never calls actions directly — a function wraps the action call as the UI → action bridge.
 

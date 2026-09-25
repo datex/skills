@@ -13,10 +13,13 @@ description: |
   `prospective-release-notes` — it resolves the two branch IDs and then invokes
   this skill.
 depends:
+  - feedback-reporting
   - datex-studio-shared
 ---
 
 # Release Notes Generator
+
+When CLI defects, contradictory skill guidance, documentation gaps, or actionable suggestions arise, use the **`feedback-reporting`** skill to report the friction once per session, then continue this task.
 
 Generate release notes between two Datex Studio branches by combining three
 sources: commits (what merged), work items (why), and config diffs (what
