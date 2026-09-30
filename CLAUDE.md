@@ -18,6 +18,15 @@ These hold across every Datex Studio skill — keep new or edited skills consist
 - **Packaging quirk:** `npx skills` only ships directories that contain a `SKILL.md`. Cross-cutting reference material therefore lives inside real "library" skills — `datex-studio-shared`, `datex-studio-conventions`, `datex-studio-runtime` — not a bare `shared/` folder. These three are reference-only, **not invoked directly**; other skills link into their files via relative paths, so install them alongside any consumer skill (declared in each skill's `depends:`).
 - **Never assume a branch ID.** Confirm with the user. Branch selection is org-scoped: `dxs auth status` → `dxs source repo list --org <organization_id>` → `dxs source branch list --repo <repo_id> --status feature -n 10` → ask. Never `--all-repos` — it sweeps every org and buries the branches that matter. Full procedure: [branch-setup.md](skills/datex-studio/datex-studio-shared/branch-setup.md).
 
+## Two CLIs
+
+Skills document two CLIs, and each skill names the one it drives:
+
+- **`dxs`** (Python, PyPI `datex-studio-cli`) authors Datex Studio configurations. Almost every skill here.
+- **`fpx`** (TypeScript, npm `@datex/fpx`) runs a *deployed* Agent application's commands. The `fpx` skill, and the owned skills inside Agent configurations.
+
+A skill states the version it was verified against in its body (`Verified against dxs 0.6.0 and fpx 0.1.0`).
+
 ## Two-tier skill model
 
 - **Utility skills** (e.g. `schema-explorer`, `odata-execution`, `requirements-gathering`) are consulted as background and are also usable standalone.

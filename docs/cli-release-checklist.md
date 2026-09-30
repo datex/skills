@@ -1,4 +1,4 @@
-# dxs CLI Release Checklist
+# CLI Release Checklist (dxs and fpx)
 
 **Run this whenever the `dxs` CLI cuts a release.** The skills in this repo document a CLI they
 don't ship with, so every CLI release is a chance for them to go quietly stale. Issues #30, #33 and
@@ -82,6 +82,18 @@ find skills docs README.md CLAUDE.md -name '*.md' | while read -r f; do
 done | sort -u
 ```
 
+## 5. fpx releases
+
+`fpx` ships from its own repository on its own schedule. At each fpx release:
+
+1. Regenerate [`fpx/references/error-codes.md`](../skills/datex-studio/fpx/references/error-codes.md) with the command at its top.
+2. Run `npm test` in this repo with the new fpx installed: the surface tests fail on any command or option a skill names that the new fpx dropped.
+3. Bump the "Verified against" line in the `fpx` skill and in `agent-creator`.
+
+`npm test` does the same for dxs when `DXS_CLI_CHECKOUT` points at the CLI checkout (default `../datex-studio-cli`). Run it at every dxs release too.
+
+The compat table (`compat.yaml`) needs a new row only when a CLI release breaks skills that are already on main. dxs 0.6.0 needed none: `agent-creator` and `fpx` first reach main with it.
+
 ## Done means
 
 - Every changed command's semantics are documented once and linked, not copy-pasted.
@@ -89,3 +101,4 @@ done | sort -u
 - No rule disagrees with its own copies.
 - No broken relative links.
 - The CLI version checked against is recorded (in the commit message or this file's history).
+- npm test passes against the released CLI versions.

@@ -45,7 +45,7 @@ Skills for authoring NEW component configurations on a branch. Each owns the rul
 | Skill | What it creates | configurationTypeId |
 |---|---|---|
 | [`action-creator`](skills/datex-studio/action-creator/SKILL.md) | Server-tier transactional flows (`*-footprintFlow.json`) | 18 |
-| [`agent-creator`](skills/datex-studio/agent-creator/SKILL.md) | Agent configurations — commands and skills for the Footprint CLI (`fp`) | 38 |
+| [`agent-creator`](skills/datex-studio/agent-creator/SKILL.md) | Agent applications: create, reference packages, author the singleton (commands, owned skills, profile), `dxs agent check`, hand off to `fpx` | 38 |
 | [`backend-test-creator`](skills/datex-studio/backend-test-creator/SKILL.md) | Mocha test suites (`*-backendTest.json`) | 24 |
 | [`custom-angular-component-creator`](skills/datex-studio/custom-angular-component-creator/SKILL.md) | Custom Angular Components — bespoke coded UI via the `dxs ng` create → preview → push loop (a working folder, not a `*.json` body) | 36 |
 | [`datasource-creator`](skills/datex-studio/datasource-creator/SKILL.md) | OData and flow datasources (`*-datasource.json`, `*-footprintDatasource.json`) | 6 / 19 |
