@@ -33,11 +33,12 @@ conversation.
 ## Rebuild `agent.json`
 
 After editing `abc-slotting.md`, regenerate `agent.json` in place so `skills[0].content` stays
-byte-identical to the markdown:
+byte-identical to the markdown. Run this from the **repo root** — `SRC` must point at the
+example's own `agent.json` via `$EX`, not at a same-named file elsewhere:
 
 ```bash
-SRC=agent.json
 EX=skills/datex-studio/agent-creator/references/examples/abc-slotting
+SRC=$EX/agent.json
 node -e '
 const fs = require("fs"); const [src, ex] = process.argv.slice(1);
 const a = JSON.parse(fs.readFileSync(src, "utf8"));
@@ -50,13 +51,20 @@ fs.writeFileSync(ex + "/agent.json", JSON.stringify(a, null, 2) + "\n");
 ## Verified
 
 - **Offline**: `npm test` runs `analyse.mjs` (extracted straight from `abc-slotting.md`)
-  against fixed picks/locations/inventory fixtures, plus markdown/JSON shape checks
-  (`tooling/tests/abc-slotting.test.mjs`). All 8 pass.
-- **Live**: 2026-09-30, fpx 0.1.0, dxs 0.5.8, against the local Agent app
+  against fixed picks/locations/inventory fixtures, including the "fix round 1" edge cases
+  (non-numeric/zero inventory amounts, null source locations, materials with no stock
+  anywhere, duplicate pick rows, tie-breaking, a disabled only-C golden slot, empty-vs-only-C
+  target ranking), plus markdown/JSON shape checks (`tooling/tests/abc-slotting.test.mjs`).
+  All 18 pass.
+- **Live**: rerun 2026-09-30 (fix round 1), fpx 0.1.0, dxs 0.5.8, against the local Agent app
   (`http://localhost:3000`) and Datex Studio API (`https://localhost:5101`), warehouse id 1
-  ("Colony") — the only warehouse (of 56) with any pick history in this environment. Its 75
-  picks all fall between 2020-03-31 and 2025-01-10, so the window used was `2020-01-01` to
-  `2025-12-31` rather than a literal last-12-months window (every warehouse returns 0 picks
-  in the last 12 months relative to today; see the task report for the full probe). Summary:
-  `picks: 75`, `classes: { A: 7 materials (82.7%), B: 4 (13.3%), C: 4811 (4%, 4809 never
-  picked) }`, `moves.length: 1`. No crash, no partial exports.
+  ("Colony") — the only warehouse (of 56) with any pick history in this environment. Its data
+  is **synthetic test data** (material codes like `serialUdfCube`, `lotCube01`) and **thin**:
+  75 picks total, and 6 of the 7 A materials already share just 2 golden-zone slots. This run
+  proves the pipeline end to end (exports, paging, the fixed script, no crash) — it is not a
+  demonstration of the analysis at realistic volume; none of the fix-round-1 edge cases (NaN
+  amounts, duplicate pick ids, null source locations, a starved-of-stock A material) occur
+  naturally in this dataset, so the numbers are unchanged from the pre-fix run: `picks: 75`,
+  `duplicatePicksDropped: 0`, `classes: { A: 7 materials (82.7%), B: 4 (13.3%), C: 4811 (4%,
+  4809 never picked) }`, `aWithoutStock: []`, `moves.length: 1` (now also carrying `targetId`).
+  No crash, no partial exports.

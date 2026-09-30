@@ -52,7 +52,7 @@ test('golden zone occupancy, a disabled empty slot is never a target, one move p
   assert.deepEqual(s.goldenZone, { basis: 'IsPrimaryPick', locations: 3, holdingA: 1, onlyC: 1, empty: 1 });
   assert.equal(s.aWithoutPrimarySlot, 1);
   assert.equal(s.moves.length, 1);
-  assert.deepEqual({ ...s.moves[0], reason: undefined }, { rank: 1, material: 'M2', target: 'L2', picks: 4, lots: 2, reason: undefined });
+  assert.deepEqual({ ...s.moves[0], reason: undefined }, { rank: 1, material: 'M2', target: 'L2', targetId: 2, picks: 4, lots: 2, reason: undefined });
   assert.equal(s.unplaced, 0);
   assert.deepEqual(s.fragmented, [{ material: 'M2', sourceLocations: 3, picks: 4 }]);
 });
@@ -62,6 +62,8 @@ test('without IsPrimaryPick the lowest PickSequence slots form the golden zone, 
   const s = run({ 'picks.jsonl': picks, 'locations.jsonl': noFlag, 'inventory.jsonl': inventory });
   assert.deepEqual(s.goldenZone, { basis: 'lowest PickSequence', locations: 2, holdingA: 1, onlyC: 1, empty: 0 });
   assert.equal(s.moves[0].target, 'L2');
+  assert.equal(s.moves[0].targetId, 2);
+  assert.match(s.notes.join(' '), /golden zone inferred from the lowest PickSequence; no location carries IsPrimaryPick/);
 });
 
 test('Review Focus 5: an empty window is a summary with a note, not a crash', () => {
@@ -81,9 +83,111 @@ test('Review Focus 1/3: exports use -D files and are chained with &&; partial fi
   const exports = extractCommandLines(md, 'fpx').filter(l => l.includes('--all'));
   assert.equal(exports.length, 3, 'pick-history, locations, inventory');
   for (const l of exports) assert.match(l, /\s-D\s/);
-  assert.match(md, /--out inventory\.jsonl[\s\\]*&&\s*node analyse\.mjs/);
+  assert.match(md, /--out slotting\/inventory\.jsonl[\s\\]*&&\s*node slotting\/analyse\.mjs/);
   assert.match(md, /FPX-051/);
   assert.match(md, /partial/i);
+});
+
+// --- Fix round 1 ---
+
+test('Fix 1/inGolden perf: a material stocked in a golden location is not proposed as a move (unchanged behaviour, now O(n))', () => {
+  const s = run({ 'picks.jsonl': picks, 'locations.jsonl': locations, 'inventory.jsonl': inventory });
+  // M1 (class A) is stocked at L1, a golden location, so it must never appear among the moves.
+  assert.ok(!s.moves.some(m => m.material === 'M1'));
+});
+
+test('Fix 2/8b: inventory rows with a non-numeric or zero amount are not stock (NaN and zero)', () => {
+  const locs = [loc(1, true, 1), loc(2, true, 2)];
+  const badInventory = [
+    inv(1, 99, 1, 'n/a'),
+    inv(2, 98, 2, 0),
+  ];
+  const s = run({ 'picks.jsonl': [], 'locations.jsonl': locs, 'inventory.jsonl': badInventory });
+  assert.deepEqual(s.goldenZone, { basis: 'IsPrimaryPick', locations: 2, holdingA: 0, onlyC: 0, empty: 2 });
+});
+
+test('Fix 3: a pick with a null/undefined source location is not counted toward sourceLocations or fragmentation', () => {
+  const rows = [pick(1, 1), pick(1, 1), pick(1, null), pick(1, undefined)];
+  const s = run({ 'picks.jsonl': rows, 'locations.jsonl': locations, 'inventory.jsonl': inventory });
+  assert.equal(s.sourceLocations, 1);
+  assert.deepEqual(s.fragmented, []);
+});
+
+test('Fix 4: an A material with no inventory anywhere is reported as aWithoutStock, never proposed as a move', () => {
+  const rows = Array.from({ length: 10 }, () => pick(7, 1));
+  const locs = [loc(1, true, 1)];
+  const s = run({ 'picks.jsonl': rows, 'locations.jsonl': locs, 'inventory.jsonl': [] });
+  assert.deepEqual(s.aWithoutStock, ['M7']);
+  assert.equal(s.aWithoutPrimarySlot, 0);
+  assert.equal(s.moves.length, 0);
+  assert.equal(s.unplaced, 0);
+});
+
+test('Fix 4: aWithoutStock is capped at 20 codes', () => {
+  const rows = [];
+  for (let i = 1; i <= 25; i++) rows.push(pick(100 + i, 1));
+  const locs = [loc(1, true, 1)];
+  const s = run({ 'picks.jsonl': rows, 'locations.jsonl': locs, 'inventory.jsonl': [] }, ['--a', '0.999']);
+  assert.equal(s.aWithoutStock.length, 20);
+});
+
+test('Fix 5: fallback golden zone only considers usable locations with a positive PickSequence, and notes the inference', () => {
+  const locs = [
+    loc(1, false, 0), // PickSequence 0: not > 0, excluded
+    loc(2, false, 1, false), // disabled: excluded even though lowest positive sequence
+    loc(3, false, 2),
+    loc(4, false, 3),
+  ];
+  const onePick = [pick(1, 3)];
+  const s = run({ 'picks.jsonl': onePick, 'locations.jsonl': locs, 'inventory.jsonl': [] });
+  assert.deepEqual(s.goldenZone, { basis: 'lowest PickSequence', locations: 1, holdingA: 0, onlyC: 0, empty: 1 });
+  assert.match(s.notes.join(' '), /golden zone inferred from the lowest PickSequence; no location carries IsPrimaryPick/);
+});
+
+test('Fix 6: a duplicated pick row (same Id) is counted once and reported', () => {
+  const dupPick = (Id, MaterialId, l) => ({ Id, MaterialId, Material: { LookupCode: `M${MaterialId}` }, ActualSourceLocationId: l, ActualPackagedAmount: 1 });
+  const rows = [dupPick(1, 1, 1), dupPick(2, 1, 1), dupPick(2, 1, 1), dupPick(3, 2, 4)];
+  const s = run({ 'picks.jsonl': rows, 'locations.jsonl': locations, 'inventory.jsonl': inventory });
+  assert.equal(s.picks, 3);
+  assert.equal(s.duplicatePicksDropped, 1);
+  assert.equal(s.materialsPicked, 2);
+});
+
+test('Fix 6: materials tied on picks and qty are ranked by MaterialId ascending', () => {
+  const rows = [pick(9, 3), pick(5, 3)];
+  const locs = [loc(1, true, 1), loc(2, true, 2)];
+  const inv2 = [inv(3, 9, 1, 5), inv(3, 5, 2, 5)];
+  const s = run({ 'picks.jsonl': rows, 'locations.jsonl': locs, 'inventory.jsonl': inv2 }, ['--a', '0.999']);
+  assert.equal(s.moves[0].material, 'M5');
+  assert.equal(s.moves[1].material, 'M9');
+});
+
+test('Fix 8a: a disabled primary-pick location holding only C stock is never a move target', () => {
+  const locs = [loc(1, true, 1, false), loc(2, false, 2)];
+  const invRows = [inv(1, 50, 900, 5), inv(2, 10, 901, 3)];
+  const rows = [pick(10, 2)];
+  const s = run({ 'picks.jsonl': rows, 'locations.jsonl': locs, 'inventory.jsonl': invRows }, ['--a', '0.999']);
+  assert.equal(s.goldenZone.onlyC, 1);
+  assert.equal(s.moves.length, 0);
+  assert.equal(s.unplaced, 1);
+});
+
+test('Fix 8c: empty golden slots outrank only-C slots, so the higher-picked material gets the empty slot', () => {
+  const locs = [loc(1, true, 1), loc(2, true, 2)];
+  const invRows = [
+    inv(1, 60, 1, 5), // L1 holds a never-picked (class C) material -> only-C slot
+    inv(3, 20, 2, 5), // material 20's stock lives off-golden
+    inv(3, 30, 3, 5), // material 30's stock lives off-golden
+  ];
+  const rows = [
+    ...Array.from({ length: 5 }, () => pick(20, 3)),
+    ...Array.from({ length: 2 }, () => pick(30, 3)),
+  ];
+  const s = run({ 'picks.jsonl': rows, 'locations.jsonl': locs, 'inventory.jsonl': invRows }, ['--a', '0.999']);
+  assert.equal(s.moves[0].material, 'M20');
+  assert.equal(s.moves[0].targetId, 2); // L2 is empty -> preferred target
+  assert.equal(s.moves[1].material, 'M30');
+  assert.equal(s.moves[1].targetId, 1); // L1 holds only-C stock -> second-choice target
 });
 
 test('owned-skill rules: no Studio internals, aliases only', () => {
