@@ -13,7 +13,8 @@ description: |
 # fpx — operating a deployed Agent application
 
 Verified against **fpx 0.1.0** and **dxs 0.6.0**. Run `fpx --version` first; a newer fpx may
-have moved an option this skill names.
+have moved an option this skill names. `dxs` is only needed here for `dxs agent url` (the
+`fpx_use` line) — requires dxs 0.6.0 or later; everything else in this skill is `fpx` alone.
 
 `fpx` (`@datex/fpx` on npm) is one generic CLI. It reads the **manifest** a deployed Agent
 application serves at `GET /api/$agent/manifest` and turns every command in it into an `fpx`

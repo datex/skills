@@ -15,7 +15,8 @@ depends:
 
 # Agent creator
 
-Verified against **dxs 0.6.0** and **fpx 0.1.0**.
+Verified against **dxs 0.6.0** and **fpx 0.1.0**. Requires dxs 0.6.0 or later — Agent
+applications and their whole `dxs agent` command group are new in that release.
 
 An **Agent application** is its own application type in Datex Studio. One Agent application
 is one agent: it carries exactly one agent configuration, the singleton `agent` (configuration
@@ -37,6 +38,15 @@ assume a branch id.
 ## The loop
 
 ### 1. Create the Agent application
+
+To work against an existing one instead, list the organization's repos filtered to the Agent
+type and pick a branch from there:
+
+```bash
+dxs source repo list --org <organization id> --type agent
+```
+
+Otherwise create one:
 
 ```bash
 dxs source repo create --type agent --name "ABC Slotting Agent" --org <organization id>
