@@ -160,13 +160,8 @@ prints the whole manifest.
 ### 6. Deploy, then the tenant prerequisites
 
 Deploy through the Manager as for any application. A freshly deployed Agent application
-answers `401`/`403` until an admin has done three one-time steps:
-
-1. **Pre-authorize** the CLI client `9640be1f-31b2-4970-85a1-2fc78fab9731` on the app's backend
-   registration: "Expose an API → Add a client application", tick `access_as_user`.
-2. **Admin consent** for the backend registration in the organization's own tenant: the
-   Manager's "Consent (admin only)", run by an admin of that tenant.
-3. An **app role assignment** for every caller. A `403` from `GET /api/$agent/manifest` means the app role assignment is missing.
+answers `401`/`403` until an admin has done three one-time steps — see
+[the fpx skill](../fpx/SKILL.md#the-three-tenant-prerequisites).
 
 ### 7. Hand the app to fpx and try one turn
 

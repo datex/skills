@@ -24,10 +24,9 @@ test('drops the sections that described pre-Agent-application hosting', () => {
   for (const gone of [/Two manifests/, /A bare ref is not always/, /agentconfigurations\/referenceName/, /in-process host/i, /\bfp\b(?!x)/]) assert.doesNotMatch(md, gone, `${gone}`);
 });
 
-test('Review Focus 4: tenant prerequisites and 403 = app role', () => {
-  assert.match(md, /pre-authori[sz]e/i);
-  assert.match(md, /admin consent/i);
-  assert.match(md, /403[^\n]*app role/i);
+test('Review Focus 4: tenant prerequisites link to the fpx skill, not restated here', () => {
+  assert.match(md, /\]\(\.\.\/fpx\/SKILL\.md#the-three-tenant-prerequisites\)/);
+  assert.doesNotMatch(md, /Pre-authorize/);
 });
 
 test('links the worked example and the fpx skill', () => {

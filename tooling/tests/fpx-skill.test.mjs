@@ -31,6 +31,11 @@ test('Review Focus 4: 401 and 403 are told apart, 403 = app role assignment', ()
   assert.match(md, /401/);
 });
 
+test('M1: pre-authorize names the CLI client id, and fpx auth consent does not consent the backend registration', () => {
+  assert.match(md, /9640be1f-31b2-4970-85a1-2fc78fab9731/);
+  assert.match(md, /does not consent the backend/i);
+});
+
 test('every static fpx command and flag named exists in the installed fpx', t => {
   if (helpFor('fpx', []) === null) { t.skip('fpx not installed'); return; }
   const root = helpFor('fpx', []);

@@ -100,14 +100,27 @@ The full list is [references/error-codes.md](references/error-codes.md).
 ## The three tenant prerequisites
 
 A freshly deployed Agent application answers `401`/`403` until all three hold. They are
-one-time, per application, and done by admins, not by fpx:
+one-time, per application, done by admins, not by fpx, and run in the target tenant:
 
-1. The fpx client is **pre-authorized** on the app's backend registration ("Expose an API →
-   Add a client application", `access_as_user` ticked).
-2. **Admin consent** in the organization's own tenant (the Manager's "Consent (admin only)",
-   or the URL `fpx auth consent --tenant-id <tenant>` prints).
-3. An **app role assignment** for every caller. A `403` from `GET /api/$agent/manifest` means
-   this one is missing.
+1. **Pre-authorize the CLI client** `9640be1f-31b2-4970-85a1-2fc78fab9731` on the app's backend
+   registration — Entra portal, backend app registration → **Expose an API** → **Add a client
+   application** → that client id → tick `access_as_user`. Without this, token acquisition for
+   the backend scope fails before a single request is sent.
+2. **Admin consent for the app's backend registration**, in the organization's own tenant — the
+   Manager's **Consent (admin only)** on the deployed application, run by an admin of that
+   tenant. A Datex admin consenting in the Datex tenant does not satisfy this for a customer
+   tenant.
+3. **An app role assignment for every caller** on the backend registration. A `403` from
+   `GET /api/$agent/manifest` means this one is missing, not a bug in the agent or fpx.
+
+Customers whose users sign in against their **own corporate tenant** (rather than a
+Datex-provisioned `wavelength<org>.onmicrosoft.com` one) have a separate, additional one-time
+step: an admin there must also consent to the **CLI client itself** — it has no service
+principal in that tenant until then, which is what `FPX-AUTH-030` reports. `fpx auth consent
+--tenant-id <tenant>` prints that one URL (`/adminconsent?client_id=9640be1f-...`).
+
+It does not consent the backend registration — that is step 2 above, a separate consent, run
+from the Manager.
 
 ## Identities
 
