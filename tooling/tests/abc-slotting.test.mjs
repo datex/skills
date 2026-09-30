@@ -4,7 +4,8 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { extractCommandLines } from './lib/cli-lines.mjs';
+import { extractCommandLines, splitCommand } from './lib/cli-lines.mjs';
+import { ALIAS_FLAGS, hasFlag, aliasHelp } from './lib/run-cli.mjs';
 
 const DIR = 'skills/datex-studio/agent-creator/references/examples/abc-slotting';
 const md = existsSync(join(DIR, 'abc-slotting.md')) ? readFileSync(join(DIR, 'abc-slotting.md'), 'utf8') : '';
@@ -86,6 +87,16 @@ test('Review Focus 1/3: exports use -D files and are chained with &&; partial fi
   assert.match(md, /--out slotting\/inventory\.jsonl[\s\\]*&&\s*node slotting\/analyse\.mjs/);
   assert.match(md, /FPX-051/);
   assert.match(md, /partial/i);
+});
+
+test('every fpx alias flag named in abc-slotting.md is valid', () => {
+  const aliasHelpText = aliasHelp(); // real `fpx <alias> --help`; fall back to ALIAS_FLAGS only when fpx can't produce it
+  const lines = extractCommandLines(md, 'fpx');
+  assert.ok(lines.length > 0, 'at least one fpx command line');
+  for (const line of lines) {
+    const { flags } = splitCommand(line);
+    for (const f of flags) assert.ok(aliasHelpText ? hasFlag(aliasHelpText, f) : ALIAS_FLAGS.has(f), `alias flag ${f} in: ${line}`);
+  }
 });
 
 // --- Fix round 1 ---

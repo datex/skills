@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { extractCommandLines, splitCommand, frontmatter } from './lib/cli-lines.mjs';
-import { helpFor, ALIAS_FLAGS, hasFlag } from './lib/run-cli.mjs';
+import { helpFor, ALIAS_FLAGS, hasFlag, aliasHelp } from './lib/run-cli.mjs';
 
 const PATH = 'skills/datex-studio/fpx/SKILL.md';
 const md = existsSync(PATH) ? readFileSync(PATH, 'utf8') : '';
@@ -35,10 +35,11 @@ test('every static fpx command and flag named exists in the installed fpx', t =>
   if (helpFor('fpx', []) === null) { t.skip('fpx not installed'); return; }
   const root = helpFor('fpx', []);
   const statics = new Set([...root.text.matchAll(/^\s{2}([a-z][a-z-]*)\s/gm)].map(m => m[1]));
+  const aliasHelpText = aliasHelp(); // real `fpx <alias> --help`; fall back to ALIAS_FLAGS only when fpx can't produce it
   for (const line of extractCommandLines(md, 'fpx')) {
     const { words, flags } = splitCommand(line);
     if (words.length === 0 || !statics.has(words[0])) {
-      for (const f of flags) assert.ok(ALIAS_FLAGS.has(f) || hasFlag(root.text, f), `alias flag ${f} in: ${line}`);
+      for (const f of flags) assert.ok((aliasHelpText ? hasFlag(aliasHelpText, f) : ALIAS_FLAGS.has(f)) || hasFlag(root.text, f), `alias flag ${f} in: ${line}`);
       continue;
     }
     const h = helpFor('fpx', words);
