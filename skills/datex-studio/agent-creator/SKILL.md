@@ -1,247 +1,220 @@
 ---
 name: agent-creator
 description: |
-  Use when creating or modifying an Agent configuration (ConfigurationType 38) on a
-  Datex Studio branch. An Agent is a capability consumed by more than one runtime: the
-  dynamic Footprint CLI (`fp`) at a shell, and the in-process agent host that codegen emits
-  into the generated app. Its commands map to the branch's functions/datasources and its
-  skills travel with the manifest. Trigger for:
-  "author an agent", "create an agent configuration", "make an agent for X",
-  "add a command/skill to the agent", "agent for the Footprint CLI".
+  Use when AUTHORING a Datex Agent application — creating the Agent application, referencing
+  the packages whose functions and datasources become its commands, writing the singleton
+  agent configuration (commands, owned skills, profile), checking it with `dxs agent check`,
+  and handing the deployed app to `fpx`. Triggers: "create an agent", "new agent app",
+  "add a command to the agent", "write the agent's skill", "agent check fails",
+  "resolved: false", "agent manifest". For RUNNING a deployed agent's commands, use `fpx`.
 depends:
+  - fpx
   - datex-studio-shared
+  - package-cascade
 ---
 
-# Agent Creator
+# Agent creator
 
-Author an **Agent configuration** — the artifact behind the Footprint CLI (spike 248960).
-Publishing model: one generic CLI (`fp`) fetches the agent's **manifest** at startup and
-materializes its command tree from it. Nothing is compiled per agent.
+Verified against **dxs 0.6.0** and **fpx 0.1.0**.
 
-**The manifest is the runtime's ONLY source.** A hosted agent harness has no access to the
-skills repo, this workspace, or Datex Studio — it receives exactly what this configuration
-carries. Consequences you must design for:
+An **Agent application** is its own application type in Datex Studio. One Agent application
+is one agent: it carries exactly one agent configuration, the singleton `agent` (configuration
+type 38), with three parts:
 
-- Every skill must be **owned** (`source: "owned"`) with the FULL SKILL.md markdown inline in
-  `content`. `source: "referenced"` only *names* a library skill and installs nothing:
-  `fp skills install` writes `skills[].content` verbatim and has no library to resolve a name
-  against. The Studio designer no longer offers the choice (owned-only), and Validate now
-  reports any contentless skill — a referenced one included, because the runtime skips it
-  silently. The enum survives in the model so server-side inlining can land without a
-  migration; until it does, referenced is not a thing you can use.
-- Command `description` and `paramsDoc` become the CLI's `--help` text — they are the
-  agent's only documentation for each tool. Write them for an LLM operator. Both are
-  *optional* in the designer (a target config may carry no description of its own, and `fp`
-  falls back to `Execute function <ref>`), but a command with no description is a tool an
-  agent has to guess at — treat empty as a gap to fill, not a default. **Retargeting a
-  command resets them.** Changing a command's Reference in the designer overwrites
-  `description` from the new target and clears `paramsDoc` — unconditionally, because text
-  written for the previous config would otherwise go on describing something this command no
-  longer calls, in the manifest and in `fp <command> -h`. Rewrite `paramsDoc` after any
-  retarget. `fp <command> -h` also prints the parameter schema the deployed app declares,
-  which is the check on whether your prose still matches.
-- The skill markdown must refer to commands **by their alias**, never by Studio reference
-  names or file paths.
+| Part | What it is | Who reads it |
+|---|---|---|
+| Commands | aliases pointing at functions and datasources of the app and its referenced packages | `fpx` (one subcommand per alias) and, later, the app's own agent loop |
+| Skills | owned markdown, carried whole inside the manifest | the agent at run time |
+| Profile | system prompt, model class, optional model pin | the harness at run time |
 
-### Skills describe the work, not the surface (hard rule)
+The deployed app serves this as its manifest at `GET /api/$agent/manifest`. The manifest is
+the runtime's **only** source: a hosted agent has no access to this repo, your workspace, or
+Datex Studio.
 
-**A manifest skill must never mention CLI syntax.** No `--params`, `--top`, `--select`,
-`--skip`, no `fp <command> -h`, no `fp commands`, and no `fp ` prefix on an alias. The same
-manifest is consumed by three harnesses now — `fp` at a shell, and the **in-process agent
-host inside the generated app**, which turns each command into a tool call and dispatches it
-straight onto the generated services — and a skill written for one of them is wrong on the
-others. A skill that says "pass `--select`" instructs an agent to use something a tool caller
-does not have; an agent that follows it either fails or invents a parameter.
+Follow [branch-setup.md](../datex-studio-shared/branch-setup.md) for picking a branch. Never
+assume a branch id.
 
-**The in-process host makes the rule stricter, not looser.** It is tempting to write
-`$datasources.Module.ds_x.getList(...)` into a skill now that the host calls the generated
-services directly. Do not. The agent never writes code — it emits a tool call named by the
-**alias**, and the host resolves the alias to a service on the other side of that call. Naming
-`$datasources` or `$flows` in a manifest skill is the same mistake as naming `--select`,
-pointed the other way, and it breaks `fp` as well.
+## The loop
 
-Write the intent and let each surface document its own syntax:
+### 1. Create the Agent application
 
-| Instead of | Write |
-|---|---|
-| ``Run `fp warehouses --params '{"fullTextSearch":"Dallas"}'`` | ``Run `warehouses` with `fullTextSearch: "Dallas"`` |
-| "Keep `--top` small, page with `--skip`" | "Cap the rows you ask for; narrow with filter parameters rather than pulling everything" |
-| "Pass `--select Id,LookupCode`" | "Ask for only the fields the answer needs" |
-| "Run `fp commands` at the start of a session" | *nothing* — discovery is the harness's job, not the agent's |
+```bash
+dxs source repo create --type agent --name "ABC Slotting Agent" --org <organization id>
+```
 
-**Parameter names are fair game; flag names are not.** `warehouseId`, `statusIds`,
-`fullTextSearch` are what the command declares, so they belong in the skill — and must match
-the target's `inParams` exactly, camelCase included. A skill that says `full_text_search`
-where the config declares `fullTextSearch` sends an agent to a parameter the app ignores.
-`fp <command> -h` prints the schema the deployed app actually declares; check the skill's
-parameter names against it.
+The output names `main_branch_id`; use it (or a feature branch cut from it) from here on. The
+platform seeds the singleton with reference name `agent`. `DXS-REPO-001` means the derived
+identifier is not `[a-z][a-z0-9-]*` (pass `--unique-identifier`); `DXS-REPO-002` means the name
+is taken for that organization.
 
-The same rule applies to `profile.systemPrompt`, which is handed to the harness verbatim.
+### 2. Reference the packages the commands come from
 
-### Say what a row *is* when it is not what the command is called
+An agent is only as capable as the packages it references. Pin each package whose functions
+or datasources the agent will call:
 
-A command named `unslotted-orders` whose rows are *shipments* will be miscounted, because
-`metadata.total_count` counts rows. State it in the command's `description` — the text the
-agent reads at the moment it chooses and interprets the call — not only in the skill.
+```bash
+dxs source deps -b <branch>
+dxs source reference set -b <branch> -p <package uniqueIdentifier> -v <version>
+```
 
-## CLI-first — no workarounds (hard rule)
+When a referenced package is republished later, re-pin its consumers with the
+[`package-cascade`](../package-cascade/SKILL.md) skill.
 
-`dxs` is the **only sanctioned surface** for authoring an Agent configuration. When it falls
-short, **report the gap as a CLI or platform bug**, don't route around it — a workaround
-hides a defect every later authoring session will hit again.
+### 3. Discover what can become a command
 
-- **Never hand-edit platform artifacts or script around the CLI.** Round-trip through
-  `dxs configuration get` / `upsert`. If a field cannot be set that way, that is the finding.
-- **A validation error is the contract talking.** `dxs configuration upsert agent` and the
-  designer's Validate button report duplicate aliases, missing refs and owned skills with no
-  content. Fix the config, or report the message if it looks wrong — do not disable or
-  sidestep the check.
-- **Verify the manifest, and report what it says.** After every change, re-check that each
-  command reports `resolved: true`. A `resolved: false` you cannot explain is a bug report
-  (wrong ref? wrong tier? renamed target?), not something to leave for the runtime.
-- **Do not invent capability.** If the branch has no function or datasource for what the
-  agent needs, say so and agree on creating one — never point a command at an approximate
-  target so the agent "has something".
+```bash
+dxs configuration list datasource -b <branch>
+dxs configuration list flow -b <branch>
+```
 
-## Configuration shape
+A command's `ref` is bare for the app's own configs (`ds_open_orders`) and module-qualified
+for a referenced package's (`FootprintManager/ds_warehouses_dd`). Only the cloud tier is
+callable: `function` → a flow (type 9), `datasource` → a datasource (type 6). A
+`footprintflow` or `footprintdatasource` reports `resolved: false`; wrap it in a cloud flow
+and point the command at the flow. If nothing on the branch does what the agent needs, say
+so and agree on creating it; never point a command at an approximate target.
+
+Pick the fewest commands that cover the process.
+
+### 4. Author the singleton
+
+```bash
+dxs configuration get agent agent -b <branch> -O envelope.json
+```
+
+Take the `json` field of the envelope as the body, edit it, then:
+
+```bash
+dxs configuration upsert agent -D body.json -b <branch>
+```
+
+`Warning (DXS-AGENT-030)` means the branch is not an Agent application: the config will be
+refused at validate/publish. Move it to an Agent application instead.
+
+Body shape:
 
 ```jsonc
 {
   "configurationTypeId": 38,
-  "referenceName": "slotting_agent",        // slug: [a-z][a-z0-9_]*
-  "title": "Slotting Agent",
+  "referenceName": "agent",
+  "title": "ABC slotting agent",
   "description": "…",
   "commands": [
     {
-      "type": "datasource",                 // "datasource" | "function"
-      "ref": "ds_open_orders",              // bare = own app; "Module/ref" = referenced module
-      "alias": "open-orders",               // kebab-case, unique — becomes `fp open-orders`
-      "description": "Open orders, filterable by status.",   // fp --help text
-      "paramsDoc": "status: string (optional)"               // input params doc for the LLM
+      "type": "datasource",                     // "datasource" | "function"
+      "ref": "ds_slot_pick_history",            // bare = own app; "Module/ref" = referenced package
+      "alias": "pick-history",                  // kebab-case, unique; becomes `fpx pick-history`
+      "description": "Completed pick tasks … One row per pick task (not per order or line) …",
+      "paramsDoc": "warehouseId: number (required). dateFrom: date (required, ISO) …"
     }
   ],
-  "skills": [
-    { "name": "slotting", "source": "owned", "content": "---\nname: slotting\n…full SKILL.md…" }
-  ],
-  "profile": {
-    "systemPrompt": "…",                    // handed to the harness via `fp profile show --raw`
-    "modelClass": "efficient",              // "efficient" | "frontier"
-    "model": null                           // optional pin; null lets the class decide
-  },
-  "trigger": { "type": "onDemand", "schedule": null }   // "onDemand" | "schedule"
+  "skills": [{ "name": "abc-slotting", "source": "owned", "content": "---\nname: abc-slotting\n…" }],
+  "profile": { "systemPrompt": "…", "modelClass": "frontier", "model": null },
+  "trigger": { "type": "onDemand", "schedule": null }
 }
 ```
 
-## Workflow
+Rules for each part:
 
-```
-[Phase 1: Setup]
-Follow branch-setup.md for branch selection (never assume a branch id)
-        |
-[Phase 2: Discover capabilities]
-dxs configuration list datasource -b <id>
-dxs configuration list flow -b <id>
-(cloud tier ONLY — see below; footprintdatasource / footprintflow are not callable)
-        |
-pick the refs the agent's task needs — fewest commands that cover the process
-        |
-[Phase 3: Draft]
-write the JSON to a temp file:
-  - alias per command: kebab-case verb/noun, unique
-  - owned skill: frontmatter (name, description with when-to-use),
-    numbered workflow using the ALIASES, decision rules, and a rule to
-    shape every datasource call (--top/--select — never pull full tables)
-  - systemPrompt: who the agent is, "work strictly through your CLI
-    commands (<aliases>)", follow the skill, end runs with a summary
-        |
-[Phase 4: Upsert]
-dxs configuration upsert agent -D <file>.json -b <BRANCH_ID>
-        |
-[Phase 5: Verify via the manifest]
-dxs api GET /applications/<BRANCH_ID>/agentconfigurations/referenceName/<ref>/manifest
-  → every command must show "resolved": true
-  → any false: the ref does not exist on the branch — fix the ref (check module prefix)
-        |
-(optional, proves the loop) fp use <ref> --branch <BRANCH_ID> && fp --help
+- **Aliases** are kebab-case and unique. `fpx` reserves `use`, `status`, `commands`,
+  `manifest`, `skills`, `profile`, `login`, `auth`, `run`, `update`, `help`; `dxs agent check`
+  reports a command that shadows one as `dropped`.
+- **Description** is what the agent reads when it chooses the command. Say what one row *is*
+  when it is not what the alias suggests, and say "Paged: 5000 rows per call" when it is.
+  Retargeting a command's `ref` in the designer resets its description and clears its
+  `paramsDoc`: rewrite both after any retarget.
+- **paramsDoc** names every parameter exactly as the target declares it (camelCase or
+  snake_case included) with type and required/optional.
+- **Skills** are `source: "owned"` with the full markdown in `content`. A `referenced` skill
+  installs nothing.
+- **Skill content** names commands by alias and parameters by name. For aggregation over more
+  than one page it carries an `fpx` export-and-script recipe: export with
+  `fpx <alias> -D params.json --all --out rows.jsonl`, then compute in a script that prints only
+  the summary. It never names Studio internals: no `$datasources`, `$flows`, `dxs`, Studio
+  reference names or file paths.
+- **systemPrompt** says who the agent is, names its skill, tells it never to page rows through
+  the conversation, and names the report it ends with.
+
+The worked example is [the ABC/Pareto slotting agent](references/examples/abc-slotting/README.md):
+six commands, one owned skill whose embedded script turns three exports into a Pareto
+classification and a ranked move list.
+
+### 5. Check the manifest
+
+```bash
+dxs agent check -b <branch>
 ```
 
-## Verification checklist
+Every command must be `ok`. The other verdicts:
 
-- [ ] Manifest returns every command with `resolved: true`
-- [ ] Aliases are kebab-case and unique; each command has `description` (+ `paramsDoc` when
-      the target takes inputs)
-- [ ] All runtime skills are `owned` with complete, self-contained markdown (no references
-      to files, repos, or Studio — a harness has only this content and its own tool surface)
-- [ ] Skill workflow steps name command aliases and say nothing about any surface — no
-      `--select`, and equally no `$datasources` / `$flows`
-- [ ] systemPrompt names the aliases and instructs the agent to work only through its
-      commands + end a run with a summary
-- [ ] If the app has been generated since, the **baked** manifest also reports the command
-      (see below — it answers a stricter question than the platform one)
-
-## Two manifests, and two meanings of `resolved`
-
-The platform serves a manifest over its API — that is what `fp` fetches. Since the in-process
-host landed, **codegen also bakes a manifest into the generated app** (`src/agent.manifest.ts`),
-and it does so only when the branch has an Agent configuration: no agent config, no
-`/api/$agent` route in that application at all. That generation-time gate is why nothing needs
-an "agent mode" switch at deploy time.
-
-The two carry the same field with different meanings:
-
-| | Platform manifest (what `fp` reads) | Baked manifest (what the app runs on) |
+| Verdict | Means | Fix |
 |---|---|---|
-| `resolved: true` means | the config exists **on the branch** | this application **actually generated** it |
-| `target` | the URL shape to POST to | absent — nothing goes over HTTP in-process |
+| `unresolved` | the ref does not exist on the branch, or is server-tier | fix the ref or its module prefix; wrap server-tier configs in a cloud flow |
+| `not_exposed` | the config exists but the app exposes no endpoint for it | fix the app's endpoints and republish |
+| `dropped` | a duplicate alias, or an alias shadowing an `fpx` command | rename the alias |
 
-**The baked answer is the stricter one**, and it is the one that decides whether a deployed
-agent can really call a command: a ref can resolve on the branch and still be missing from a
-particular application, because module membership and tree-shaking are decided at generation
-time. A command that resolves on the branch but not in the app is offered as no tool at all,
-and the host reports why rather than failing silently.
+`DXS-AGENT-020` carries each command's verdict under `details.commands`. `DXS-AGENT-001` means
+the branch is not an Agent application or has no manifest. `dxs agent manifest -b <branch>`
+prints the whole manifest.
 
-So `resolved: false` in a baked manifest is not necessarily a bad ref — check which question
-you are failing before changing the config.
+### 6. Deploy, then the tenant prerequisites
 
-## A bare ref is not always `app`
+Deploy through the Manager as for any application. A freshly deployed Agent application
+answers `401`/`403` until an admin has done three one-time steps:
 
-`"ref": "ds_open_orders"` means *this application's own* config — and "this application" has a
-real name. It is `app` only when the application carries no reference name of its own, which is
-the case for Web, Mobile, Api and Portal definitions. **A ComponentModule (package/module)
-branch carries its own name**, so its bare refs resolve under that name and its generated app
-mounts `/api/<module-name>/…`, never `/api/app/…`.
+1. **Pre-authorize** the CLI client `9640be1f-31b2-4970-85a1-2fc78fab9731` on the app's backend
+   registration: "Expose an API → Add a client application", tick `access_as_user`.
+2. **Admin consent** for the backend registration in the organization's own tenant: the
+   Manager's "Consent (admin only)", run by an admin of that tenant.
+3. An **app role assignment** for every caller. A `403` from `GET /api/$agent/manifest` means the app role assignment is missing.
 
-You never have to compute this: the manifest carries it as `ownModule`, and both `fp` and the
-in-process host read it from there rather than assuming.
+### 7. Hand the app to fpx and try one turn
 
-**Known gap — on a ComponentModule branch, author commands with module-qualified refs.**
-Publish-time contract validation still assumes a bare ref belongs to an unnamed application, so
-a bare ref on such a branch fails validation with *"Referenced configuration … does not exist or
-has been renamed"* — for a config that is plainly on the branch. If you hit that error on a ref
-you can see in `dxs configuration list`, this is why: qualify it (`MyModule/ds_open_orders`)
-instead of hunting for a rename.
+```bash
+dxs agent url -b <branch> --env <environment>
+```
 
-## Commands target the cloud tier only
+It prints `app_url`, `app_scope`, `tenant_id` and an `fpx_use` line (`DXS-AGENT-010`: the
+deployed component has no backend registration yet; `DXS-AGENT-011`: the deployment cannot be
+found). Paste the `fpx_use` line, adding `--account you@customer.com` for customer tenants:
 
-A command's `type` maps to exactly one configuration type: `function` → `flow` (9),
-`datasource` → `datasource` (6). **Do not point a command at a `footprintFlow` or
-`footprintDatasource`.**
+```bash
+fpx use <app_url> --app-scope <app_scope> --tenant-id <tenant_id>
+fpx commands
+```
 
-The reason is the CLI's URL shape, not a policy: `fp` calls
-`/api/<module>/functions/<ref>` and `/api/<module>/datasources/<ref>/<verb>`, and the
-generated app mounts those two routes from the Flow and Datasource routers. The server-tier
-equivalents mount at `/footprintflows` and `/footprintdatasources`, behind the Footprint
-preview router — so a server-tier command would be saved and shown as valid, and then 404 on
-every call. The manifest endpoint resolves against the cloud tier only, so such a command
-reports `resolved: false` and `fp` refuses it before calling (`DXS-FP-023`).
+The [`fpx`](../fpx/SKILL.md) skill covers everything from here: calls, exports, scripts and
+errors. To smoke-test the app's own agent loop:
 
-If the work needs an action or an FPDS, wrap it: author a cloud `flow` that calls the
-server-tier config, and point the command at the flow.
+```bash
+dxs agent chat --app-url <app_url> --app-scope <app_scope> -m "Which materials are class A in warehouse 12?"
+```
 
-## Modify / extend an existing agent
+`DXS-AGENT-040` covers every failed turn: a `409` is the turn limit, a non-JSON `200` is the
+web shell answering a wrong URL.
 
-`dxs configuration get agent <ref> -b <id> -O file.json` (the reference name is the
-positional `CONFIG_REF` — there is no `--reference-name` flag), extract the
-`json` body, edit, and upsert the body back (`upsert` handles lock/update). Re-verify the
-manifest afterwards — a renamed function/datasource silently flips its command to
-`resolved: false`.
+## CLI-first — no workarounds
+
+`dxs` is the only sanctioned authoring surface. When it falls short, report the gap as a CLI
+or platform bug. Never hand-edit platform artifacts, never sidestep a validation error, and
+never leave an unexplained `unresolved` for the runtime to discover.
+
+## Modify an existing agent
+
+```bash
+dxs configuration get agent agent -b <branch> -O envelope.json
+```
+
+Take the `json` field, edit, upsert it back with `dxs configuration upsert agent -D body.json
+-b <branch>`, and run `dxs agent check -b <branch>` again: a renamed function or datasource
+silently turns its command `unresolved`.
+
+## Checklist
+
+- [ ] `dxs agent check` reports every command `ok`
+- [ ] aliases are kebab-case, unique, and shadow no `fpx` command
+- [ ] every command has a description; every command with inputs has a `paramsDoc`
+- [ ] every skill is owned, self-contained, and names aliases, not Studio internals
+- [ ] multi-page work is an `fpx` export plus a script that prints only the summary
+- [ ] the systemPrompt names the skill and the final report
+- [ ] after deploy: the three tenant prerequisites are done, and `fpx commands` lists the aliases
