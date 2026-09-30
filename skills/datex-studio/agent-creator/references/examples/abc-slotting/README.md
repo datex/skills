@@ -55,8 +55,8 @@ fs.writeFileSync(ex + "/agent.json", JSON.stringify(a, null, 2) + "\n");
   (non-numeric/zero inventory amounts, null source locations, materials with no stock
   anywhere, duplicate pick rows, tie-breaking, a disabled only-C golden slot, empty-vs-only-C
   target ranking), plus markdown/JSON shape checks (`tooling/tests/abc-slotting.test.mjs`).
-  All 18 pass.
-- **Live**: rerun 2026-09-30 (fix round 1), fpx 0.1.0, dxs 0.5.8, against the local Agent app
+  All 19 pass.
+- **Live**: rerun 2026-09-30 (fix round 1), fpx 0.1.0, against the local Agent app
   (`http://localhost:3000`) and Datex Studio API (`https://localhost:5101`), warehouse id 1
   ("Colony") — the only warehouse (of 56) with any pick history in this environment. Its data
   is **synthetic test data** (material codes like `serialUdfCube`, `lotCube01`) and **thin**:
@@ -67,4 +67,6 @@ fs.writeFileSync(ex + "/agent.json", JSON.stringify(a, null, 2) + "\n");
   naturally in this dataset, so the numbers are unchanged from the pre-fix run: `picks: 75`,
   `duplicatePicksDropped: 0`, `classes: { A: 7 materials (82.7%), B: 4 (13.3%), C: 4811 (4%,
   4809 never picked) }`, `aWithoutStock: []`, `moves.length: 1` (now also carrying `targetId`).
-  No crash, no partial exports.
+  No crash, no partial exports. The run talked only to `fpx`; `dxs` was not invoked (the
+  checkout on hand at the time was 0.5.8, since superseded by 0.6.0 — its version played no
+  part in this run).
