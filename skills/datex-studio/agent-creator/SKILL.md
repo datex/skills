@@ -78,18 +78,20 @@ Pick the fewest commands that cover the process.
 
 ### 4. Author the singleton
 
+The agent config is the singleton with reference name `agent`. Follow the
+[configuration round-trip](../datex-studio-shared/configuration-roundtrip.md) — get by id,
+extract the `json` field, edit, validate, upsert:
+
 ```bash
 dxs configuration get agent agent -b <branch> -O envelope.json
-```
-
-Take the `json` field of the envelope as the body, edit it, then:
-
-```bash
+dxs configuration validate agent -D body.json -b <branch>
 dxs configuration upsert agent -D body.json -b <branch>
 ```
 
 `Warning (DXS-AGENT-030)` means the branch is not an Agent application: the config will be
-refused at validate/publish. Move it to an Agent application instead.
+refused at validate/publish. Move it to an Agent application instead. After any upsert, re-run
+`dxs agent check -b <branch>` (step 5) — it is the only thing that confirms every command still
+resolves.
 
 Body shape:
 
@@ -196,13 +198,16 @@ never leave an unexplained `unresolved` for the runtime to discover.
 
 ## Modify an existing agent
 
+Same [round-trip](../datex-studio-shared/configuration-roundtrip.md) as step 4: get by id,
+extract the `json` field, edit, upsert:
+
 ```bash
 dxs configuration get agent agent -b <branch> -O envelope.json
+dxs configuration upsert agent -D body.json -b <branch>
 ```
 
-Take the `json` field, edit, upsert it back with `dxs configuration upsert agent -D body.json
--b <branch>`, and run `dxs agent check -b <branch>` again: a renamed function or datasource
-silently turns its command `unresolved`.
+Then run `dxs agent check -b <branch>` again: a renamed function or datasource silently turns
+its command `unresolved`.
 
 ## Checklist
 
