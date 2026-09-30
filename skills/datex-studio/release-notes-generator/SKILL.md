@@ -33,8 +33,24 @@ actually changed). Produces both a Technical and a Customer variant.
 - **dxs ≥ 0.4.9** — needs `source release-tree` and cross-org dependency
   resolution. Older builds' `deps-diff`/`compare` silently report **zero**
   dependency changes (they compared a field the AppConfig payload dropped) and
-  cannot resolve a customer app's own-org packages. If `dxs source release-tree
+  cannot resolve a customer app's own-org packages. `dxs source release-notes`
+  had the same blind spot in its own dependency section until 0.5.5, as did
+  `source deps --tree` and `source graph`, which returned empty trees. If `dxs source release-tree
   --help` fails, stop and say so — don't fall back to the blind path.
+- **dxs ≥ 0.4.24 strongly preferred.** From that build `release-tree` resolves
+  **Service-Pack-pinned** dependencies itself, reports a skipped sub-tree
+  (`subtree_skipped` / `summary.subtrees_skipped`) instead of dropping it
+  silently, names which side failed (`resolve_failed_sides`), and accepts
+  `--extra-org` to index another org's repos. On an older build every one of
+  those is manual work — see Phase 1b.
+- **dxs ≥ 0.5.4 if anything calls `dxs source release-notes` directly** (this
+  skill's own path is `release-tree`, which was never affected). Its dependency
+  diff compared `marketPlaceApplicationVersionId` on both sides — a field the
+  `AppConfig` migration dropped — so it compared `None` to `None` and a
+  dependency **bump was never reported as updated**. From 0.5.4 it diffs on the
+  resolved `version` through the same helper `source compare` and `deps-diff`
+  use, so the three agree, and a bump whose branches can't be resolved is
+  reported as unclassified rather than dropped.
 
 Both branch IDs are needed up front. If the user gave a **version name** instead
 (or a date, or only one), resolve it first — see *Resolving the root app &
@@ -64,9 +80,9 @@ Two resolution wrinkles to handle before Phase 1:
   - Service Packs: `dxs source servicepack list --repo <id>` to find the SP group, then `dxs source branch list --repo <id> --group-id <sp_group> --status published -n 0`
   - (`branch search` matches the branch *name*, not `versionName` — don't use it.)
 
-  The same Default-group blind spot applies to **dependencies**, where
-  `release-tree` hits it automatically rather than you hitting it by hand — see
-  *Phase 1b* for the recovery loop.
+  This is the manual path for the **root app's** own version name. For
+  **dependencies**, `release-tree` handles the SP fallback itself on
+  dxs ≥ 0.4.24 — see *Phase 1b*.
 
 ## Workflow
 
@@ -77,9 +93,9 @@ dxs source release-tree --from <root_old> --to <root_to>   (--recursive if neste
     (cross-org), plus added / removed packages
         |
 [Phase 1b: Recover unresolved deps]   summary.resolve_failed must reach 0
-Service-Pack-pinned versions never resolve from the Default group:
-  dxs source servicepack list --repo <repo_id>
-  dxs source branch list --repo <repo_id> --group-id <sp_group> --status published -n 0
+Usually empty on dxs >= 0.4.24 (SP groups resolved automatically). If not:
+  no repository for uniqueIdentifier -> re-run with --extra-org <orgId>
+  still unresolved                   -> manual lookup (see Phase 1b)
   (with --recursive: re-walk each recovered dep — its sub-tree was skipped too)
         |
 [Phase 2: Commits per package]
@@ -121,14 +137,21 @@ This single call replaces the old "compare the main app, then recursively
   `repo_id`, `from_branch_id`, `to_branch_id` (the IDs you need to drill it),
   plus `from_version` / `to_version`. Resolved **cross-org**, so a customer
   app's own packages (e.g. `tob-reports`) are included, not just the Datex
-  catalog. Any dependency that couldn't be resolved carries a `resolve_error`.
+  catalog. Any dependency that couldn't be resolved carries a `resolve_error`,
+  and (dxs ≥ 0.4.24) `resolve_failed_sides: ["from"|"to"]` — **read the side
+  from that field, not by parsing the `; `-joined `resolve_error` string**,
+  which is prose and not parseable. An unresolved entry also carries
+  `subtree_skipped: true` when `--recursive` could not descend through it.
 - **`added`** / **`removed`** — packages newly included in, or dropped from, the
   release. These have no commit delta to mine; record them directly in Phase 5
   (a newly-included package is a feature; a removed one, a potential flag).
 - **`summary`** — counts (`dependencies_total`, `resolved_ok`, `resolve_failed`,
-  `added_count`, `removed_count`), plus `max_depth_reached` and `recursive`.
-  With `--recursive`, compare `max_depth_reached` against `--max-depth` (default
-  10) — if they're equal the walk may have been truncated.
+  `added_count`, `removed_count`, and on dxs ≥ 0.4.24 `subtrees_skipped`), plus
+  `max_depth_reached` and `recursive`. With `--recursive`, compare
+  `max_depth_reached` against `--max-depth` (default 10) — if they're equal the
+  walk may have been truncated. **`subtrees_skipped > 0` is as serious as
+  `resolve_failed > 0`**: it counts dependencies whose entire changed sub-tree
+  went un-enumerated because the walk could not descend through them.
 
 > **Why not `compare`/`deps-diff` for enumeration?** On the resolved-version
 > diff they are correct only on dxs ≥ 0.4.9; older builds report **zero** changed
@@ -146,28 +169,25 @@ it cannot be compared or diffed — it drops out of the notes silently, which is
 the exact failure this skill exists to prevent. Treat a non-zero count as a
 blocker, not a warning.
 
-`resolve_error` is a `; `-joined list of what failed, so read *which* side it
-names: an entry can fail on `to_version` alone and still carry a perfectly good
-`from_branch_id`. Recover only the missing side; don't discard an ID you already
-have.
+**On dxs ≥ 0.4.24 this phase is usually a no-op** — check
+`summary.resolve_failed` and `summary.subtrees_skipped`, and if both are 0, go
+straight to Phase 2. `release-tree` resolves Service-Pack-pinned dependencies
+itself: `_published_version_map` merges the repo's Default application group
+first, then falls back to its **Service Pack** groups for any version still
+missing (one extra listing only for repos that need it). A versionName
+containing `.SP.`, e.g. `20260423.145611.SP.20260604.154933`, now resolves
+normally. On dxs < 0.4.24 it never resolved, because the lookup saw only the
+Default group — if you are on an older build, upgrade (`dxs update`) rather than
+working the table below by hand.
 
-The most common cause is a **Service-Pack-pinned dependency**. `release-tree`
-resolves a `versionName` to a branch ID by looking **only in the repo's Default
-application group** (group type 1, which by definition excludes Service Packs).
-A dependency pinned to an SP release — versionName containing `.SP.`, e.g.
-`20260423.145611.SP.20260604.154933` — is therefore *never* found, and lands in
-`resolve_failed` with a `resolve_error` of `from_version …/to_version … not
-found in published releases`.
+When something *does* fail, recover by cause:
 
-Read each failed entry's `resolve_error` and recover by cause:
-
-| `resolve_error` says | Cause | Recovery |
+| Signal | Cause | Recovery |
 |---|---|---|
-| `… not found in published releases` | Version lives in a Service Pack group (or was unpublished) | `dxs source servicepack list --repo <repo_id>` → for each SP group id: `dxs source branch list --repo <repo_id> --group-id <gid> --status published -n 0` → match `versionName` to the entry's `from_version` / `to_version` |
-| `no repository for uniqueIdentifier …` | Package's org isn't in the repo index (the entry has no `repo_id`) | Get the org code from the dependency's `reference_name` prefix (`tob-reports` → `TOB`) — the error itself carries only a uniqueIdentifier. `dxs source repo list --org-name <CODE>` to find the `repo_id`, then resolve its versions starting with the **default** group: `dxs source branch list --repo <repo_id> --default-group --status published -n 0`; fall back to the SP path above only if the version isn't there |
-
-(`release-tree` auto-detects only the *root* app's org and has no flag to index
-another, so that second row is a manual lookup by design, not a missing option.)
+| `resolve_failed_sides: ["to"]` (or `["from"]`) | Only one side is missing — the other branch ID is good | Recover **only** the named side; never discard an ID you already have. Read the side from this field, not by parsing the `; `-joined `resolve_error` prose. |
+| `no repository for uniqueIdentifier …` | The package's org isn't in the repo index (`repo_id` is absent). `release-tree` auto-detects the *root* app's org only. | **Re-run with `--extra-org <orgId>`** (repeatable, additive to the auto-detected orgs) — this is the in-band fix, and the CLI's own help names this exact case. Only if you don't know the org id: derive the org code from the dependency's `reference_name` prefix (`tob-reports` → `TOB`), `dxs source repo list --org-name <CODE>` for the org, then re-run with `--extra-org`. |
+| `… not found in published releases` on dxs ≥ 0.4.24 | Genuinely unpublished, or a group type the fallback doesn't cover | `dxs source servicepack list --repo <repo_id>` → for each SP group id: `dxs source branch list --repo <repo_id> --group-id <gid> --status published -n 0` → match `versionName` to the entry's `from_version` / `to_version`. If it isn't there either, the version was never published — record it as an unanalyzed gap. |
+| `subtree_skipped: true` | `--recursive` could not descend through this entry, so its whole changed sub-tree is missing from the worklist | Recover its branch IDs by the rows above, then re-walk it (see below). `summary.subtrees_skipped` counts these. |
 
 Feed the recovered branch IDs into Phase 2 exactly as if `release-tree` had
 returned them.
@@ -186,8 +206,8 @@ dxs source release-tree --from <recovered_from> --to <recovered_to> --recursive
 Merge that output into the worklist — dedupe on `unique_identifier` +
 `from_version` + `to_version` (the same key the walk uses internally), and carry
 its `added` / `removed` into Phase 5 too. Then run Phase 1b again on its
-`summary.resolve_failed`: a recovered sub-tree can contain SP-pinned dependencies
-of its own.
+`summary.resolve_failed` and `summary.subtrees_skipped`: a recovered sub-tree can
+contain unresolvable dependencies of its own.
 
 If a dependency still won't resolve after both paths, **say so explicitly in the
 notes** ("could not analyze `<package>` `<from>` → `<to>`") rather than omitting
@@ -497,6 +517,10 @@ dxs source diff --from 64919 --to 67159 \
 | Hunting for a per-commit `release_notes` / SideKick description | It doesn't exist in any shipped dxs — the *what* comes from the work item and the diff |
 | For a customer app, only resolving Datex-org packages | release-tree resolves cross-org; the customer's own `*-` packages count too |
 | Proceeding to Phase 2 with `summary.resolve_failed > 0` | Those packages silently vanish from the notes — recover each one per Phase 1b before mining commits |
+| Proceeding to Phase 2 with `summary.subtrees_skipped > 0` | An entire changed sub-tree went un-enumerated, not just the one entry — recover and re-walk it per Phase 1b |
+| Parsing the `; `-joined `resolve_error` string to find which side failed | Read `resolve_failed_sides` (dxs ≥ 0.4.24); `resolve_error` is prose and not parseable |
+| Hand-recovering a Service-Pack-pinned dependency | `release-tree` resolves SP groups itself on dxs ≥ 0.4.24 — upgrade (`dxs update`) instead of working the recovery table |
+| Treating `no repository for uniqueIdentifier` as a manual-lookup-only case | Re-run with `--extra-org <orgId>` (dxs ≥ 0.4.24) — that flag exists for exactly this |
 | On a `--recursive` run, recovering a dependency's branch IDs but not re-walking it | The walk skipped its sub-tree the moment it failed to resolve — re-run `release-tree --recursive` on the recovered IDs (Phase 1b) |
 | Using commit titles as feature titles | Use the linked work item's title; commit titles are often rushed |
 | Building the DevOps link from the internal id / `_apis/` URL | Use `external_id` and the `_workitems/edit/` browser path |

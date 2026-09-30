@@ -2,7 +2,7 @@
 
 Detailed reference for `dxs datasource` commands, parameter strategies, and post-upsert verification.
 
-## Required Input Parameters (`--detect-params`)
+## Report Input Parameters (`--detect-params`)
 
 When a report must pass parameters (e.g., warehouse, project, date range) to the datasource query, use **template literal syntax** in the `$filter` and add `--detect-params`:
 
@@ -39,6 +39,13 @@ dxs report upload my_report.json --branch <id>
 ```
 
 **CRITICAL:** The placeholder syntax is `${$datasource.inParams.paramName}` — NOT `{paramName}`. Simple curly braces are **not detected** by `--detect-params`.
+
+**These parameters are not required, despite the name of this pattern.** `--detect-params` stamps every
+detected param `required: false` and wraps the `$filter` in a `$utils.isDefined()` guard — and it guards
+the *whole* filter as one unit, since the generator never splits it on `and`. A caller that omits one
+parameter drops every predicate in the query. When one of these is the predicate that bounds the query,
+see [odata-datasources.md](odata-datasources.md#the-index-check-is-undone-by-a-guarded-scoping-filter)
+before shipping it.
 
 After upsert, always verify with `datasource-fields` that `in_params` is populated (not empty).
 

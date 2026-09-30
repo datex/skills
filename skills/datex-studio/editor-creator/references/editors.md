@@ -57,10 +57,10 @@ Editors are dense — the skeleton below shows the top-level shape only. A real 
     "dynamicOrderBys": null,
     "dynamicFilters": null,
     "configParameters": ["<one entry per inParam on the embedded datasource>"],
-    "configOutParameters": {"result": {"objectTypeDef": ["<consumer copy of the entity shape>"]}},
+    "configOutParameters": [{"id": "result", "type": "object", "isCollection": false, "objectTypeDef": ["<consumer copy of the entity shape>"]}],
     "configEvents": [],
     "outParamsChangeFlowConfig": null,
-    "configId": 0,
+    "configId": "<embedded datasource referenceName>",
     "moduleId": "<TargetPackage>",
     "isOwned": true
   },

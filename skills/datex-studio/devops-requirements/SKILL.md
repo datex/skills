@@ -70,6 +70,30 @@ dxs devops workitems <ID1>,<ID2> --description --discussions
 
 Don't auto-traverse all children — ask the user which are relevant. Child items of type "Wavelength Component" often contain implementation details, while "Bug" or "Task" children may not be relevant to report design.
 
+### Ad-hoc queries: `dxs devops wiql` (dxs ≥ 0.4.18)
+
+When the work item you need isn't reachable from an ID you already have — "every Active item in this
+area path", "what's assigned to me", "the whole hierarchy under #218666" — run WIQL directly rather
+than guessing IDs or paging `devops search`:
+
+```bash
+# Flat: one row per work item. Columns named in SELECT are fetched for each match.
+dxs devops wiql "SELECT [System.Id],[System.Title],[System.State] FROM WorkItems \
+  WHERE [System.State] = 'Active' ORDER BY [System.ChangedDate] DESC" --limit 25
+
+# Tree / one-hop: one row per source→target link, target fields merged in.
+dxs devops wiql "SELECT [System.Id],[System.Title] FROM WorkItemLinks \
+  WHERE [Source].[System.Id] = 218666 \
+    AND [System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Forward' \
+  MODE (Recursive)" --project FootPrint
+```
+
+`-Q/--query-file` reads a long query from a file; `--ids-only` skips the field fetch when you just
+want IDs to feed `dxs devops workitems`. **Read `metadata.total_count` (what the query matched)
+against `metadata.count` (what came back after `--limit`, default 200) and check `truncated`** —
+a capped result is not the full answer, and the same "ask the user which are relevant" rule applies
+to whatever it returns.
+
 ## Step 3: Validate Scope with the User
 
 **Before downloading attachments or building a requirements brief, confirm with the user what to pay attention to.** Work items often accumulate attachments, comments, and design notes over time — some may be outdated, misattached, or for a different report entirely.

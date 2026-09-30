@@ -45,13 +45,13 @@ Exact `dxs` commands for each phase. Assumes the origin package is already publi
    `cascade run` (a 404 on the node's `mainApplicationId`). When the named target isn't visible:
    1. **Identify** it: `dxs -O json organization show <id>` returns 404, `organization search "<name>"`
       is empty, or a run 404s on `createFeatureBranch`. (`dxs auth switch <name>` also fails
-      `DXS-AUTH-013: Organization '<name>' not found` — `switch` only resolves orgs the current identity
-      already knows, so it is the wrong tool here.)
+      `DXS-AUTH-013: Organization '<name>' not found` — an org *name* resolves only against the cache and
+      the API, so it is the wrong selector here. A tenant GUID or domain is a different matter: since
+      dxs 0.5.0 `auth switch` authenticates fresh against those on a cache miss.)
    2. **Confirm the target and the switch** with the user via two interactive prompts — see
       [interaction-patterns.md](interaction-patterns.md) → "Target org you're not logged into". Never
       switch identity without an explicit go-ahead.
-   3. **Log into the target tenant** (device-code flow — **interactive, the user completes it in a
-      browser**; you cannot finish it for them, so surface the code + URL and wait):
+   3. **Log into the target tenant** — **interactive; you cannot finish it for the user**:
       ```bash
       dxs auth login --tenant-id <tenantId>   # reliable — bypasses org-name resolution. The tenantId is on
                                               # the origin package's marketplace metadata: `dxs -O json
@@ -59,6 +59,12 @@ Exact `dxs` commands for each phase. Assumes the origin package is already publi
       dxs auth login <OrgName>                # documented alt (auth login --help); may not resolve for an
                                               # org your identity can't see, so prefer --tenant-id
       ```
+      On dxs ≥ 0.5.0 this returns one of three ways and you must handle all three: **immediately**, if a
+      usable identity for that tenant is already cached (success — do not wait for a code); via a
+      **browser** the user completes (the default when a terminal is attached — nothing to relay); or via
+      a **device code** you surface and wait on (headless, or `--use-device-code` / `--no-browser` /
+      `DXS_NO_BROWSER=1`). Add `--force` to re-authenticate past the cached-identity short-circuit.
+      See [interaction-patterns.md](interaction-patterns.md) → "Target org you're not logged into".
    4. **Verify** before proceeding: `dxs auth status` shows the target org active and
       `dxs organization show <id>` now returns (it 404'd before). Then **re-plan under the new identity**
       (Phase 1) and continue — the plan is stable, but re-planning confirms write access.
@@ -124,6 +130,13 @@ commit messages via the raw primitives (`branch create` / `reference set` / `bra
 `branch publish`) would require first resolving each node's *repository* id separately, which the
 plan does not provide — treat this as a known limitation rather than passing a Main-branch id to
 `branch create`.
+
+> **If you do drive `dxs source branch commit` by hand, it will block on a prompt.** Since dxs 0.4.19
+> it runs an org-match check and server-side branch validation, then asks for confirmation with a
+> summary of the configs by created / updated / deleted. Non-interactively that hangs. Pass `-f`
+> (`--force`) to skip validation *and* the prompt once you have confirmed the change yourself, and
+> use `--dry-run` first to print the same summary while mutating nothing. `cascade run` already
+> routes through the guarded path, so this only applies to the by-hand route.
 
 Capture each publish's `published_version.versionName` and use it as the `toVersion` for that
 package's dependents (the CLI's `cascade run` does this automatically).

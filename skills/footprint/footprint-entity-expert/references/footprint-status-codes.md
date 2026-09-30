@@ -6,7 +6,7 @@ Confirmed numeric enum values for the Footprint domain columns that drive order/
 
 ## `Order.OrderStatusId`
 
-The values below are the subset of `$types.FootPrintWorkflow.OrderStatusEnum` confirmed in the field. That enum is the authoritative list — it is **bit-flag shaped** (every member is a power of two: `Created=1, Processing=2, Completed=4, Cancelled=8, Error=16, Virtually_Allocated=32, Hold=64, Wait=128, Ready=256, Backorder=512, Feedback_Started=1024, Approval_Required=2048, Rejected=4096`), so values like 2048 are not exceptions to a 1/2/4/8 progression; they are ordinary members of it. See [`footprint-workflows.md`](../../../datex-studio/footprint-workflows/references/footprint-workflows.md) for the full enum.
+The values below are the subset of `$types.FootPrintWorkflow.OrderStatusEnum` confirmed in the field. That enum is the authoritative list — it is **bit-flag shaped** (every member is a power of two: `Created=1, Processing=2, Completed=4, Cancelled=8, Error=16, Virtually_Allocated=32, Hold=64, Wait=128, Ready=256, Backorder=512, Feedback_Started=1024, Approval_Required=2048, Rejected=4096`), so values like 2048 are not exceptions to a 1/2/4/8 progression; they are ordinary members of it. See the 'footprint-workflows' skill for the full enum.
 
 **Open question — single value or mask?** The values are flag-shaped, but it is not yet confirmed whether the `OrderStatusId` *column* ever holds an OR'd combination or only ever one member at a time. Until that is settled, compare with equality (`=== 2048`) as production code does today, and do not introduce bitmask tests (`& 2048`) on the strength of the enum's shape alone.
 

@@ -73,6 +73,8 @@ dxs source document build --branch <branchId> --include-summaries -o "$TMP/dxs-v
 
 `document build` writes one file per config under `$TMP/dxs-validate/<App>/<branchId>/local/<type>/<referenceName>.yaml`. That temp export is the only thing the checks read or grep — searching a temp file you just fetched is the sanctioned pattern; greping a persistent `src/` tree is not. Delete the temp dir when done.
 
+> **On dxs < 0.5.4 this export was silently incomplete — needs dxs ≥ 0.5.4.** Library discovery keyed off an `applicationId` that the settings/references→`AppConfig` migration dropped from every reference row, so `document build` walked only the branch itself; because each branch pass excludes external configs by design, **every library config was absent** from the export — with exit code 0 and no warning. Checks that resolve a name into a referenced package (`types`, `schema`, `result-shapes`) then read that absence as "component missing" and emit false failures. A clean run from an older build is *no information*, not a green light: upgrade (`dxs update`). From 0.5.4 the export includes library branches and prints `Warning: could not resolve library '<name>' to a branch` for any it still can't place — treat that line as the same gap, reported in-band this time, and scope the affected checks accordingly.
+
 Group the exported configs by type (the export is already organized into per-type folders, and each config carries its `configurationTypeId`):
 
 - `footprintflow` — actions (`*-footprintFlow`)

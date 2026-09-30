@@ -24,7 +24,7 @@ plans fine from any identity, but the write side (`createFeatureBranch` → re-p
 owning tenant and 404s on the node's `mainApplicationId` under the wrong identity. **Nothing was mutated**
 (the 404 is on branch creation itself — no branch left behind). Fix: confirm the target with the user, then
 switch identity into that tenant with `dxs auth login --tenant-id <tenantId>` (the tenantId is on the origin
-package's `marketplace search` metadata). Do **not** use `dxs auth switch <name>` — it only resolves orgs the
+package's `marketplace search` metadata). Do **not** use `dxs auth switch <name>` — an org *name* only resolves orgs the
 current identity already sees and fails `DXS-AUTH-013: Organization '<name>' not found`. After
 `dxs auth status` confirms the target org is active, re-plan and re-run. See interaction-patterns.md →
 "Target org you're not logged into".
@@ -45,7 +45,7 @@ during publish is **not** a failure to react to:
 
 So on a timeout: do nothing special — let the run finish. Do **not** re-run the whole cascade (that
 would try to republish already-published nodes). For a genuinely slow machine, raise the ceiling
-once with `dxs config set publish_timeout <seconds>`.
+once with `dxs settings set publish_timeout <seconds>`.
 
 ## Lock contention on `appConfig`
 Another branch/user holds the lock. Use `dxs source locks --repo <id>` to find the holder; resolve,

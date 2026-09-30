@@ -28,14 +28,29 @@ two interactive prompts (AskUserQuestion):
 
 1. **Confirm the target** — "Org `<id>` (`<name>`) is not one your current identity can access. Is it
    really the target?" Options: yes / it's a different org / cancel.
-2. **Confirm the switch** — "Running there means switching identity to that tenant via an interactive
-   device-code login you complete in a browser. Switch?" Options: yes / no.
+2. **Confirm the switch** — "Running there means signing in to that tenant, which opens a browser you
+   complete. Switch?" Options: yes / no.
 
-On yes to both, log into the target tenant — prefer `dxs auth login --tenant-id <tenantId>` (the tenantId
-is on the origin package's `marketplace search` metadata); `dxs auth switch <name>` is the wrong tool (it
-only resolves already-visible orgs and fails `DXS-AUTH-013`). **Relay the device code + URL and wait** — you
-cannot complete the browser step for the user. Then `dxs auth status` to confirm the target org is active,
-and re-plan under the new identity before running. See cascade-workflow.md Phase 0 step 3a.
+On yes to both, log into the target tenant with `dxs auth login --tenant-id <tenantId>` (the tenantId is on
+the origin package's `marketplace search` metadata). Then `dxs auth status` to confirm the target org is
+active, and re-plan under the new identity before running. See cascade-workflow.md Phase 0 step 3a.
+
+**What the login actually does (dxs ≥ 0.5.0).** Three outcomes, and you must not assume the third:
+
+- **Already cached** — a usable identity for that tenant returns immediately with no browser and no code.
+  This is common and is *success*, not a failure to prompt. Do not wait for a code that will never come.
+- **Browser sign-in (the default)** — a browser opens and the user completes it there. Nothing to relay.
+- **Device code** — only when the environment is headless, or you passed `--use-device-code` /
+  `--no-browser` (or `DXS_NO_BROWSER=1` is set). Only in this case do you surface the code + URL and wait.
+
+Use `--use-device-code` deliberately when you know the user has no browser on this host. `dxs auth login
+--tenant-id <guid> --force` re-authenticates past the cached-identity short-circuit.
+
+**On `auth switch`:** it is the wrong tool for an org **name** your identity can't see (`switch` resolves
+names against the cache and the API, so it fails `DXS-AUTH-013`). It is *not* wrong for a tenant: since
+dxs 0.5.0, `dxs auth switch <tenant-guid>` and `dxs auth switch <domain>` authenticate fresh against that
+tenant on a cache miss, and reuse a cached identity on a hit. Either command works here — prefer
+`auth login --tenant-id` for consistency with the rest of this workflow.
 
 ## Presenting the plan (Phase 2)
 Render an indented tree rooted at the origin, annotated with the pin change and execution level.

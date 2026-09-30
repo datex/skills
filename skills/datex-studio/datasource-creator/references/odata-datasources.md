@@ -246,6 +246,41 @@ Validate, in order:
 
 Modifications to an existing datasource carry the same obligation: if you change a select, add an expand, edit a filter, or switch the entity, re-validate the pieces you touched. Do not rely on the file's current contents as proof that a new name is correct.
 
+### Also check: is the filter column indexed?
+
+Name validation catches a datasource that *errors*. It does not catch one that *works but times out* — the failure that only shows up against production data volumes, long after the config was accepted.
+
+Ask `schema-explorer` for the indexes on the entity set whenever `filters` or `orderBys` touch a large entity set (Tasks, Shipments, OrderLines, BillingTasks, Materials and friends). It returns the physical database indexes, with column names that are the same OData property names you write in the query tree. (This needs a dxs newer than 0.5.5, and a Footprint server whose schema service exposes an `Indexes` set — where either is missing there is no index information to ask for, which is not the same as the columns being unindexed.)
+
+Three things to check, none of which is "does an index mention this column":
+
+1. **Leading column.** The column needs `key_ordinal: 1` for a filter on it alone to seek. An index on `(StatusId, AccountId)` does nothing for a filter on `AccountId` by itself — either add the leading column to the filter or accept the scan.
+2. **`is_included: true` means not filterable.** An `INCLUDE` column is carried by the index so a `$select` avoids a lookup; it cannot be seeked on.
+3. **No indexes reported means unknown, not none.** The metadata is simply silent for that entity set — its storage may still be indexed (a keyed table has a primary key; an indexed view carries a unique clustered index). Every such entity set is read-only in the API, but several look like ordinary keyed tables, so absence more likely reflects what FootPrint chooses to report than what the database holds. Do not assume the filter scans, and do not assume it seeks — if the query is on a hot path, measure it.
+
+This is advisory, not a hard rule like the name checks — an unindexed filter is a performance decision, not a broken config. But make it a *deliberate* decision, and note it in the datasource's `description` when you knowingly ship one.
+
+### The index check is undone by a guarded scoping filter
+
+Checking the index is worth nothing if the predicate that uses it can disappear at runtime — and **every** way `dxs datasource generate` parameterizes a filter makes exactly that happen.
+
+`--param-filter` generates a `$utils.isDefined()` guard, so the predicate applies **only when the parameter has a value**. That is the right behaviour for an optional filter. It is the wrong behaviour for the predicate that bounds the query: when the caller passes nothing, the guard drops the filter and the datasource runs unbounded against the whole table — the precise outcome the index check was meant to prevent, and one that will not show up until a caller omits the parameter in production.
+
+**`--detect-params` does not escape this, and on a composite filter it is worse.** It applies the identical guard (`generator.py`, "Apply `$utils.isDefined()` guards to filters with detected params"), and it stamps the param `required: false`. Worse, the generator wraps the **entire** `$filter` string in a single filter config — it is never split on `and` — so the guard covers every predicate in it at once:
+
+```
+-q '...&$filter=ProjectId eq ${$datasource.inParams.projectId} and Cancelled eq false' --detect-params
+```
+
+An absent `projectId` here drops **both** predicates: the whole table, cancelled rows included. `--param-filter` appends its guarded predicate as a *separate* entry and leaves the base `-q` filter unconditional, so it fails strictly safer than the alternative on the same query.
+
+**There is no generate flag that emits a required, unguarded filter.** `--param-keys` is the only path that stamps `required: true`, and it applies to key segments (`Entity(0)`) only — not to a collection query's `$filter`. So pick one of these two, deliberately:
+
+- **Patch the generated JSON before upsert** — set the scoping param to `required: true` and set `hasCondition` / `condition` on its filter entry back to `null` (both `null`, not deleted — the canonical skeleton below writes every null-slot), then re-run `dxs datasource validate`. `required: true` makes the generated TypeScript service demand the argument, so a mis-wired consumer fails at build rather than leaking.
+- **Accept the guard and enforce the bound one level up** — declare the parameter required in the consuming grid/hub `inParams` and never render the component unscoped. If you choose this, `component-wiring-check` on the consumer is not optional: the binding is the only thing standing between you and a full scan.
+
+Either way, say which one you chose in the datasource `description`. On a large table an unbounded fail-open is not just slow — if the scoping column is a tenant, project, or account key, it is a cross-scope data leak.
+
 ## Complete Canonical Skeleton
 
 Write every field — including every null-slot. Omitting nulls has been observed to break Angular service codegen (e.g. a missing `resultIsCollection` causes the generated service to lack `getList` / `getByKeys` methods). "Present with null" and "absent" are not equivalent to the platform's code generators.

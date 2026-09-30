@@ -12,6 +12,9 @@ Use `schema batch` to combine multiple schema queries into single HTTP requests.
 --request 'describe-relationships EntityName'
 --request 'properties --entity-type Namespace.Type'
 --request 'navigation-properties --entity-type Namespace.Type'
+--request 'indexes --entity-set EntitySetName'
+--request 'indexes --covering ColumnName'
+--request 'describe-index EntitySetName IndexName'
 --request 'describe-properties Namespace.Type PropertyName'
 --request 'describe-navigation-properties Namespace.Type NavPropertyName'
 --request 'enums --search status'
@@ -25,8 +28,8 @@ Commands use **two different styles** — mixing them up causes batch failures:
 
 | Style | Commands | Batch syntax |
 |-------|----------|-------------|
-| **Flag-based** (no positional args) | `entities`, `properties`, `navigation-properties`, `enums`, `actions`, `functions`, `complex-types`, `singletons`, `action-imports`, `function-imports` | `--request 'command --flag value'` |
-| **Positional args** | `search`, `describe-entity`, `describe-relationships`, `describe-enum`, `describe-action`, `describe-function`, `describe-complex-type`, `describe-singleton`, `describe-action-import`, `describe-function-import`, `describe-properties`, `describe-navigation-properties` | `--request 'command Arg1 [Arg2]'` |
+| **Flag-based** (no positional args) | `entities`, `properties`, `navigation-properties`, `indexes`, `enums`, `actions`, `functions`, `complex-types`, `singletons`, `action-imports`, `function-imports` | `--request 'command --flag value'` |
+| **Positional args** | `search`, `describe-entity`, `describe-relationships`, `describe-index`, `describe-enum`, `describe-action`, `describe-function`, `describe-complex-type`, `describe-singleton`, `describe-action-import`, `describe-function-import`, `describe-properties`, `describe-navigation-properties` | `--request 'command Arg1 [Arg2]'` |
 
 **`describe-entity` supports display flags in batch** — these control output size:
 ```bash
@@ -65,6 +68,7 @@ Common mistakes:
 | ALL related entity scans | Multiple `describe-entity --compact --no-udf` for every related entity you need |
 | `search` + `describe-entity` | Search confirms the name, describe gets the structure — both needed before moving on |
 | Multiple `properties --entity-type` | Scanning field names on related entities is fully independent |
+| Multiple `indexes --entity-set` | Index coverage per entity set is fully independent |
 
 ## When NOT to Batch
 

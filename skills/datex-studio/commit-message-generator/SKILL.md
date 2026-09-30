@@ -290,6 +290,13 @@ important thing to say about such a branch. When it happens:
 - **`source deps`** — external dependencies (component packages this branch
   references). Useful when the diffs mention types or flows from outside the
   branch itself, or when dependency updates account for the bulk of the change.
+  A row is identified by `unique_identifier` + `version` (there is no single
+  integer row id); `branch_id` is the branch holding the package and is `null`
+  when it couldn't be resolved; `version_info` carries `version_name`,
+  `commit_title`, `created_date`, `is_latest`. `--tree` adds `children` /
+  `depth`, where `is_direct` always means *direct dependency of this branch*,
+  so it is `false` on every nested node. `--tree` needs **dxs ≥ 0.5.4**: older
+  builds returned an empty tree with exit code 0.
 
 ### Phase 3: Trace (traceability compliance check)
 

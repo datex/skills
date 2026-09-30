@@ -56,7 +56,7 @@ The index covers entities and cross-cutting concerns separately because some pat
 ## What's NOT in here (deliberately)
 
 - **Per-customer business rules** — order class IDs to exclude, custom statuses, billing tiers, etc. These vary by customer and belong in customer-specific docs, not here. Where this skill mentions exclusions (e.g., common receiving order classes), it flags them as "common but verify per-customer."
-- **OData mechanics** — how `$expand`, `$filter`, paging work. That's in `schema-explorer`, `datasource-creator`, and [../datex-studio-shared/flow-code-patterns.md](../../datex-studio/datex-studio-shared/flow-code-patterns.md).
+- **OData mechanics** — how `$expand`, `$filter`, paging work. That's in `schema-explorer`, `datasource-creator`, and flow-code-patterns.md from the 'datex-studio-shared' skill.
 - **Standard CRUD entities with no surprises** — Warehouse, Carrier, Pack, etc. Use `schema-explorer` directly; they don't need a reference page.
 - **UI / hub configuration** — how Footprint hubs and grids are wired. That's `datex-studio/hub-editor`.
 
