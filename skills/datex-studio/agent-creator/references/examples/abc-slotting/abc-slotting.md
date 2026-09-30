@@ -18,10 +18,13 @@ only its summary.
 
 1. **Warehouse.** Run `warehouses` with `full_text_filter` set to the name the user gives. If
    the user names none, run it with an empty `full_text_filter` and ask which one.
-2. **Window.** Default to the last 6 months. Get today's date by running `date +%F` —
-   never guess it — and compute the start of the window with `date -d '6 months ago' +%F`
-   (`dateTo` = today's output, `dateFrom` = the 6-months-back output, both ISO). Use
-   `date -d '12 months ago' +%F` when the user asks for a seasonal view.
+2. **Window.** Default to the last 6 months. Get today's date by running
+   `node -e "console.log(new Date().toISOString().slice(0,10))"` — never guess it — and
+   compute the start of the window with
+   `node -e "const d=new Date();d.setMonth(d.getMonth()-6);console.log(d.toISOString().slice(0,10))"`
+   (`dateTo` = today's output, `dateFrom` = the 6-months-back output, both ISO). These are
+   plain node, so they run the same on every OS. For a seasonal view use the 12-months form:
+   `node -e "const d=new Date();d.setMonth(d.getMonth()-12);console.log(d.toISOString().slice(0,10))"`.
 3. **Cut-offs.** Default A = first 80% of cumulative picks, B = up to 95%, C = the rest. Use
    the user's cut-offs when given (`--a` and `--b` below, as fractions).
 
@@ -45,7 +48,9 @@ fpx pick-history -D slotting/picks.json --all --out slotting/picks.jsonl \
   && node slotting/analyse.mjs slotting
 ```
 
-Add `--a 0.7 --b 0.9` for other cut-offs and `--top 50` for a longer move list.
+Append `--a 0.7 --b 0.9` for other cut-offs and `--top 50` for a longer move list to the
+`node slotting/analyse.mjs slotting` line above — never to an `fpx` export line; the export
+commands take only the flags shown, and neither knows about cut-offs or move-list length.
 
 If any export fails, its file is **partial**: `FPX-051` reports how many of the total rows
 arrived before a short page. Delete the `.jsonl` files and rerun the whole block; never
