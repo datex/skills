@@ -122,6 +122,37 @@ principal in that tenant until then, which is what `FPX-AUTH-030` reports. `fpx 
 It does not consent the backend registration — that is step 2 above, a separate consent, run
 from the Manager.
 
+## Manifest and drift
+
+```bash
+fpx status
+fpx --refresh commands
+fpx manifest refresh
+```
+
+`fpx status` reports what fpx is pointed at and how fresh it is: `manifest_source`
+(`file`/`app`/`cache`), `manifest_fresh`, `spec_version`, `branch_drift`, `package_drift`, and
+the active `identity`.
+
+- **Manifest cache.** The manifest and the app's OpenAPI spec share a 24h cache. `fpx use`,
+  `fpx manifest refresh`, and the root `--refresh` flag (for `commands`, `manifest show`,
+  `skills` and `profile`) refetch and replace it. Everything else — including `fpx --help` and
+  building the commands themselves — reads the file or the cache only, never the network; a
+  cached manifest is used however old it is.
+- **`branch_drift`** compares the cached spec's branch with the manifest's `application.id`, so
+  it flags a manifest that no longer matches the app the spec was built from. It compares ids
+  only, so a same-branch redeploy that changed verbs still needs `fpx manifest refresh` to show
+  up.
+- **`package_drift`** lists every referenced module whose version differs between a **file**
+  manifest and the cached **app** manifest — `null` unless both exist. It is how a hand-edited
+  or saved manifest file that has fallen behind the deployment becomes visible.
+- **Each command's `target`** (`{ path, appendVerb }`) is the URL contract fpx follows: POST to
+  `path`, appending `/{verb}` only when `appendVerb` is true. The platform resolves it when it
+  builds the manifest — never reconstruct a URL from the ref or module name yourself.
+
+The full rules are fpx's own `docs/contracts.md` — contracts 01 (manifest → CLI), 02 (CLI →
+app), 03 (spec/drift) and 06 (degradation).
+
 ## Identities
 
 ```bash
