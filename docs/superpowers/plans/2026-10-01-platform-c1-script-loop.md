@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** The generated Agent application's own agent loop can run model-written bash scripts that call `fpx` against the app itself, and a long turn no longer dies at the ingress timeout — so the ABC slotting agent answers "which materials are class A in warehouse 1" by exporting with `fpx --all --out` and running its analysis script inside the app.
+**Goal:** The generated Agent application's own agent loop can run model-written bash scripts that call `fpx` against the app itself — so the ABC slotting agent answers "which materials are class A in warehouse 1" by exporting with `fpx --all --out` and running its analysis script inside the app.
 
-**Architecture:** Four pieces inside the generated backend (`codegen/src/backendapp/src/agent/`), one in the app shell, one in dxs. (1) `fpx` ships into the generated backend as a vendored npm tarball, the WavelengthUI pattern. (2) A **loopback token**: per script, the loop mints a short-lived HS256 JWT bound to the turn's `Caller`; a middleware composed before passport on `/api` accepts it only from `127.0.0.1`/`::1`. (3) A **`ScriptExecutor` interface** with a `SimpleExecutor` (a bash child process in a per-run directory, an explicit environment, output caps, a hard timeout) and a `run_script` tool in the loop next to the per-command tools. (4) **Asynchronous turns**: `POST /api/$agent/turn` answers inline when the run finishes within `AGENT_INLINE_SECONDS`, otherwise `202 {runId}`; `GET /api/$agent/runs/{runId}` reports status and the result. dxs `agent chat` polls.
+**Architecture:** Three pieces inside the generated backend (`codegen/src/backendapp/src/agent/`), one in the app shell, and a wording fix in dxs. (1) `fpx` ships into the generated backend as a vendored npm tarball, the WavelengthUI pattern. (2) A **loopback token**: per script, the loop mints a short-lived HS256 JWT bound to the turn's `Caller`; a middleware composed before passport on `/api` accepts it only from `127.0.0.1`/`::1`. (3) A **`ScriptExecutor` interface** with a `SimpleExecutor` (a bash child process in a per-run directory, an explicit environment, output caps, a hard timeout) and a `run_script` tool in the loop next to the per-command tools. Turns stay synchronous (asynchronous turns are deferred — Decision 9), so script time is bounded to fit inside the 240 s ingress window.
 
 **Tech Stack:** Node/TypeScript generated backend (Express 5, injection-js, mocha specs via the codegen backend harness), Node `crypto` (no new JWT dependency), `child_process`, Handlebars templates; `@datex/fpx` 0.1.0 (local repo `D:\Git\fpx`); dxs (Python, pytest).
 
@@ -15,19 +15,20 @@
 1. **C1 first**, C2–C4 later (Parvan).
 2. **`fpx` is vendored as a tarball** in the generated backend, as WavelengthUI is in the Angular app (Parvan): `codegen/src/backendapp/vendor/datex-fpx-0.1.0.tgz`, `"@datex/fpx": "file:vendor/datex-fpx-0.1.0.tgz"`. When `@datex/fpx` is published, one line switches it.
 3. **Script language: bash only** in v1. The image has bash and no python3 (`Dockerfile.hbs` deliberately avoids it); `node` is on the child `PATH` because `fpx` itself is a Node program, so scripts may call `node` (the slotting skill's analysis step does).
-4. **`jq` is added to the image only for Agent applications**, via a `{{#if hasAgentRuntime}}` block in `Dockerfile.hbs`; every other application's Dockerfile stays byte-identical.
+4. **No `jq`, no Dockerfile change** (Parvan). Scripts filter and aggregate with `node`, which is always present because `fpx` runs on it; every application image stays as it is.
 5. **Shell resolution is explicit.** Linux/macOS: `/bin/bash`. Windows (local development): `C:\Program Files\Git\bin\bash.exe`, with Git's `usr\bin` on the child `PATH` for coreutils; a bare `bash` on Windows resolves to the WSL launcher and is never used. A missing shell fails the tool call with `ScriptShellUnavailable` — no fallback.
-6. **SSE events and the per-call `fpxCalls` capture move to C3** (audit). C1's run status is pollable only.
-7. **Run state is in-process memory**, single replica (spec §4.5); completed runs are kept `AGENT_RUN_RETENTION_SECONDS` (default 900) and then swept. A run is readable only by the caller who started it.
+6. **The per-call `fpxCalls` capture moves to C3** (audit).
+7. **Script time fits the ingress window.** With turns synchronous, Azure Container Apps cuts a request at 240 s and `dxs agent chat` waits 240 s, so `AGENT_SCRIPT_TIMEOUT` defaults to **180 s** (cap 3600 for local runs, which have no ingress): a slow script ends cleanly as `timedOut: true` inside the window, and the model can explain it.
 8. **Spec deviations recorded:** `fpx` reads `FPX_APP_URL` (not the spec's `FPX_BASE_URL`) and has no `FPX_SPEC_FILE`; it fetches the spec from the app, and a missing spec is non-fatal. The app registration id is the build-time constant `AZ_CLIENT_ID` (`constants.hbs`), not an environment variable.
+9. **Asynchronous turns, run polling, the runs routes and SSE are deferred** (Parvan) to a later plan; `POST /api/$agent/turn` stays the synchronous route it is today.
 
 ## Global Constraints
 
-- Platform repo `D:\Git\248960_agent`, branch `feature/248960_agent_applications` (Tasks 1–5). CLI repo `D:\Git\datex-studio-cli`, branch `feature/248960_agent_applications` (Task 6). Commit locally; **never push**. Never stage untracked `agent-apps-spike-plan.md`, `docs/agent-apps/*`, `docs/superpowers/*` in the platform repo; the modified spec there stays unstaged.
+- Platform repo `D:\Git\248960_agent`, branch `feature/248960_agent_applications` (Tasks 1–4). CLI repo `D:\Git\datex-studio-cli`, branch `feature/248960_agent_applications` (Task 5). Commit locally; **never push**. Never stage untracked `agent-apps-spike-plan.md`, `docs/agent-apps/*`, `docs/superpowers/*` in the platform repo; the modified spec there stays unstaged.
 - Every commit message ends with: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`
 - **The user's Datex Studio API and a generated app (`http://localhost:3000`, from `codegen/dist/app/backendapp`) run on this machine. Never stop, kill or restart a process you did not start; never write into `codegen/dist/app`; never edit anything under `codegen/dist` (edit `codegen/src`).** The executor may kill the child processes *it* spawned.
 - Codegen specs: `cd src/Wavelength/DatexApplicationApi/codegen && npm run build:noclean && npm run start:test`, then `cd dist/testapp/backendapp && npm run test:build && npm run test:run` (run `npm install` there once after `package.json` gains a dependency). Web-shape check: `CODEGEN_TEST_BACKEND_APP_TYPE=1 npm run start:test`.
-- Limits (env, with defaults and hard caps): `AGENT_SCRIPT_TIMEOUT` seconds 900, cap 3600; `AGENT_SCRIPT_OUTPUT_LIMIT` chars 20000 per stream, cap 60000; `AGENT_INLINE_SECONDS` 60, cap 200 (under the 240 s ingress); `AGENT_RUN_RETENTION_SECONDS` 900; `AGENT_TOOL_MODE` `hybrid` (default) | `script` | `tools`. Read through the existing `intFromEnv` helper in `session.ts`.
+- Limits (env, with defaults and hard caps): `AGENT_SCRIPT_TIMEOUT` seconds 180, cap 3600; `AGENT_SCRIPT_OUTPUT_LIMIT` chars 20000 per stream, cap 60000; `AGENT_TOOL_MODE` `hybrid` (default) | `script` | `tools`. Read through the existing `intFromEnv` helper in `session.ts`.
 - The loopback token never appears in logs, run results, error messages or tool results. The model key never enters a script's environment.
 - No new npm dependencies beyond the vendored `@datex/fpx` (its own dependencies come with it).
 
@@ -36,7 +37,7 @@
 1. **A loopback token presented from outside the box** (a forwarded header, a non-loopback socket) — refused, and the request falls through to normal passport auth, which rejects an HS256 token. Pinned in Task 2. The security boundary is the signature (a per-process random secret no one outside the process holds) plus the server-side grant; the loopback-address check is defence in depth, so it stays correct even if an ingress proxy ever connects from 127.0.0.1.
 2. **A script that never ends or floods its output** — killed with its whole process tree at the timeout, `timedOut: true`, and stdout/stderr cut to head + tail with `stdoutTruncated`. Pinned in Task 3.
 3. **A script's environment** — contains `FPX_*`, `PATH`, `HOME`, `TMPDIR`, `AGENT_SKILLS_DIR` and nothing else: no `ANTHROPIC_*`, no connection strings, no `AZ_CLIENT_SECRET`, no inherited variables. Pinned in Task 3.
-4. **A turn that outlives the inline window** — the client gets `202 {runId}`, polling returns `running` then the full result; another caller polling the same id gets 404. Pinned in Task 5.
+4. **A script slower than the ingress allows** — it is stopped at `AGENT_SCRIPT_TIMEOUT` (180 s by default) with `timedOut: true`, the model receives that as the tool result, and the turn still answers within the 240 s window. Pinned in Task 3 (timeout) and Task 4 (a timed-out script mid-turn).
 5. **A token used after its script ended, or past its call budget** — rejected with 401. Pinned in Task 2 and Task 4.
 
 ---
@@ -46,20 +47,18 @@
 | Path | Responsibility | Task |
 |---|---|---|
 | `G/backendapp/vendor/datex-fpx-0.1.0.tgz`, `G/backendapp/package.json` | vendored fpx | 1 |
-| `G/handlebars/common/Dockerfile.hbs`, the generator that renders it | `jq` for Agent apps only | 1 |
 | `G/backendapp/src/agent/loopback-auth.ts` (new) | mint / verify / revoke loopback tokens | 2 |
 | `G/handlebars/backend/app.hbs`, `G/generators/backend/backend.app.generator.ts` | compose loopback auth before passport for Agent apps | 2 |
 | `G/backendapp/src/agent/executor.ts` (new) | `ScriptExecutor`, `SimpleExecutor`, shell resolution, env, caps, timeout | 3 |
 | `G/backendapp/src/agent/session.ts`, `tools.ts`, `router.ts` | `run_script` tool, steering prompt, tool mode, skills dir | 4 |
-| `G/backendapp/src/agent/runs.ts` (new), `router.ts` | run store, async turn, `GET /runs/:runId` | 5 |
-| `G/tests/backend/agent/*.test.ts` | specs for each | 1–5 |
-| `D:\Git\datex-studio-cli\src\dxs\commands\agent.py`, tests, `docs/agent-cli.md` | `agent chat` polls; 503 wording | 6 |
+| `G/tests/backend/agent/*.test.ts` | specs for each | 1–4 |
+| `D:\Git\datex-studio-cli\src\dxs\commands\agent.py`, tests | 503 wording | 5 |
 
 ---
 
-### Task 1: `fpx` and `jq` in the Agent app
+### Task 1: `fpx` in the Agent app
 
-**Interfaces — produces:** the generated backend has `node_modules/@datex/fpx` and `node_modules/.bin/fpx`; generator template data `hasAgentRuntime: boolean` (true only for `BackendAppAgentGenerator`) available to `Dockerfile.hbs`.
+**Interfaces — produces:** the generated backend has `node_modules/@datex/fpx` and `node_modules/.bin/fpx`.
 
 - [ ] **Step 1: Pack fpx** from `D:\Git\fpx` (branch `feat/fpx-0.1.0`, version 0.1.0):
 
@@ -98,18 +97,7 @@ describe('vendored fpx', () => {
 
 Run the harness (with `npm install` in `dist/testapp/backendapp` after `start:test`): the spec fails before Steps 1–2 (no bin), passes after.
 
-- [ ] **Step 4: `jq` for Agent apps only** — find the code that renders `Dockerfile.hbs` (search `Dockerfile` in `G/generators` and `G/template.service.ts`). Pass `{ hasAgentRuntime }` (true only when the backend generator is `BackendAppAgentGenerator` — reuse its `hostsAgent()`), and in the template's final stage, next to the playwright deps line, add:
-
-```dockerfile
-{{#if hasAgentRuntime}}
-# Agent applications run model-written bash scripts that call fpx; jq is the one extra tool they get.
-RUN apt-get update && apt-get install -y --no-install-recommends jq && rm -rf /var/lib/apt/lists/*
-{{/if}}
-```
-
-If the template is currently copied verbatim (not rendered), render it with that one variable; any other Handlebars-significant characters in it must be preserved (check for `{{` already present). Verify: `npm run start:test` (type 8) → the generated Dockerfile contains the `jq` line; `CODEGEN_TEST_BACKEND_APP_TYPE=1 npm run start:test` → it does not, and the Web Dockerfile is byte-identical to the one generated at the base commit (generate both and `cmp`).
-
-- [ ] **Step 5: Commit** — `feat(codegen): vendor @datex/fpx 0.1.0 into the generated backend; jq in the Agent app image` (+ fpx provenance sha, trailer).
+- [ ] **Step 4: Commit** — `feat(codegen): vendor @datex/fpx 0.1.0 into the generated backend` (+ fpx provenance sha, trailer).
 
 ---
 
@@ -206,10 +194,11 @@ export function capOutput(text: string, limit: number): { text: string; truncate
   - a scripted `tool_use` of `run_script` reaches a fake executor with the script text, `cwd` = the run dir, and an env whose `FPX_TOKEN` is a freshly minted loopback token; the tool result given back to the model is the JSON of `ScriptResult` minus nothing — **but** the token string does not appear in it, nor in `TurnResult` (Review Focus 5 / constraint).
   - after the script returns, its token is revoked (a request with it → 401).
   - a `ScriptShellUnavailable` from the executor becomes an `is_error` tool result naming the shell, and the turn continues.
+  - Review Focus 4: a fake executor returning `{ timedOut: true, exitCode: null }` reaches the model as a normal tool result, and the turn completes with the model's next answer.
   - skills are written to `<runDir>/skills/<name>/SKILL.md` before the first script runs, and `AGENT_SKILLS_DIR` points there.
 - [ ] **Step 2: Implement**
-  - Steering paragraph (appended to the system prompt in `hybrid`/`script`): `You can run bash scripts with run_script. One lookup: call the command's tool. Several calls, or anything you count, join, rank or filter: write a script that calls fpx <alias> (export large lists with fpx <alias> -D params.json --all --out file.jsonl), keeps intermediate data in files in the working directory, and prints only the final result. node is available inside scripts. Never print raw rows.`
-  - Per run: `runDir = path.join(os.tmpdir(), 'agent', runId)` created at the first script, removed when the run ends (success or failure).
+  - Steering paragraph (appended to the system prompt in `hybrid`/`script`): `You can run bash scripts with run_script. One lookup: call the command's tool. Several calls, or anything you count, join, rank or filter: write a script that calls fpx <alias> (export large lists with fpx <alias> -D params.json --all --out file.jsonl), keeps intermediate data in files in the working directory, and prints only the final result. node is available inside scripts; jq is not. A script is stopped after <N> seconds. Never print raw rows.` — with `<N>` the effective `AGENT_SCRIPT_TIMEOUT`.
+  - Per turn: `runDir = path.join(os.tmpdir(), 'agent', turnId)` (a fresh `randomUUID()` per turn) created at the first script, removed when the turn ends (success or failure).
   - Per script: `mintLoopbackToken(caller, { audience: `api://${AZ_CLIENT_ID}`, ttlSeconds: timeout + 60, maxCalls: 5000 })`; env `FPX_APP_URL=http://127.0.0.1:${PORT}` (the server's actual port — read how `server.hbs` stores it, or `process.env.PORT || '3000'`), `FPX_APP_SCOPE=api://${AZ_CLIENT_ID}/.default`, `FPX_TOKEN`, `FPX_MANIFEST_FILE=<dist>/agent-assets/manifest.json` (resolve the same way `assets.ts` does), `FPX_HOME=<runDir>/.fpx`, `FPX_NO_UPDATE_CHECK=1`; `revokeLoopbackToken` in `finally`.
   - `AGENT_TOOL_MODE` parsed once in `config.ts` at module load; an unknown value throws there, naming the allowed values (the app fails to start rather than silently picking a mode).
   - Router: build the `SimpleExecutor` once per process; pass the caller from the injector.
@@ -217,48 +206,23 @@ export function capOutput(text: string, limit: number): { text: string; truncate
 
 ---
 
-### Task 5: Asynchronous turns
+### Task 5: dxs `agent chat` — a 503 reads "could not take the turn" (CLI repo)
 
-**Interfaces — produces** (`G/backendapp/src/agent/runs.ts`):
+Repo `D:\Git\datex-studio-cli`, branch `feature/248960_agent_applications`. Run `uv run pytest tests/test_agent_commands.py`, `uv run ruff check src tests`, `uv run mypy src/dxs`.
 
-```ts
-export type RunStatus = 'running' | 'completed' | 'failed';
-export interface RunView { runId: string; conversationId: string; status: RunStatus; startedAt: string; finishedAt?: string;
-  result?: { conversationId: string; answer: string; messages: any[]; usage: any; notes: string[] };
-  error?: { code: string; message: string; conversationId?: string } }
-export class RunStore { start(callerId: string, conversationId: string, work: () => Promise<RunView['result']>): string; get(runId: string, callerId: string): RunView | null; sweep(now?: number): void }
-```
-
-Routes: `POST /api/$agent/turn` → waits up to `AGENT_INLINE_SECONDS` for the run; finished → the same 200/409/503 bodies as today; still running → `202 { runId, conversationId, status: 'running', poll: '/api/$agent/runs/<runId>' }`. `GET /api/$agent/runs/:runId` → `RunView` (200), or 404 when unknown, expired, or started by another caller. A failed run's `error.code` is `TurnLimitReached` (with `conversationId`), `ModelError`, or `InternalError`; 400/503 still answer synchronously (they are decided before the run starts).
-
-- [ ] **Step 1: Failing specs** — `runs.test.ts` (store: start/get/sweep, other caller → null, retention) and `router.test.ts` (with `AGENT_INLINE_SECONDS=1` and a `ScriptedClient` whose reply is delayed 1.5 s: POST → 202 with `runId`; GET immediately → `running`; GET after completion → `completed` with the answer; GET as another caller → 404; a fast reply → 200 inline exactly as today; a turn-limit run → `failed` with `TurnLimitReached`).
-- [ ] **Step 2: Implement** — the turn work runs detached from the request (`setImmediate`), errors captured into the view (never an unhandled rejection), the request awaits `Promise.race([work, timeout])`. Sweep on each `start`. Keep logging `agentUsage` exactly as today when the run finishes. Remove the router header comment that says the turn is synchronous on purpose; replace it with what C1 does and what C3 adds (SSE, persistence).
-- [ ] **Step 3: Green**, **Step 4: Commit** — `feat(agent): asynchronous turns — 202 {runId} past the inline window, GET /runs/:runId for the caller who started it`.
+- [ ] **Step 1: Failing test** in `tests/test_agent_commands.py` (the `_transport()` seam): a 503 with body `{"error": "No model key: …", "code": "ModelNotConfigured"}` → `DXS-AGENT-040` whose message starts `the agent could not take the turn:` and whose `details.code` is `ModelNotConfigured`; a 4xx still reads `the agent refused the turn:`; a 5xx body that is not JSON still works (no `details.code`).
+- [ ] **Step 2: Implement** in `src/dxs/commands/agent.py`: branch the wording on `status >= 500`, and copy a string `code` from a JSON body into `details.code`.
+- [ ] **Step 3: Docs** — the `DXS-AGENT-040` row in `docs/agent-cli.md` names the 5xx wording.
+- [ ] **Step 4: Green and commit** — `fix(agent): chat says 'could not take the turn' for a 5xx and surfaces the body's code`.
 
 ---
 
-### Task 6: dxs `agent chat` polls (CLI repo)
+### Task 6: Proof 2, live (user-assisted)
 
-Repo `D:\Git\datex-studio-cli`, branch `feature/248960_agent_applications`. Run `uv run pytest`, `uv run ruff check src tests`, `uv run mypy src/dxs`.
-
-- [ ] **Step 1: Failing tests** in `tests/test_agent_commands.py` (the `_transport()` seam with `httpx.MockTransport`):
-  - POST → 202 `{runId, conversationId}`; GET `/api/$agent/runs/<runId>` → `running` twice, then `completed` with a result → the command prints the answer exactly as for a 200 today and rewrites `--history` from `result.messages`.
-  - a `failed` run with `TurnLimitReached` → `DXS-AGENT-040` "turn limit reached" with the existing suggestion; with another code → `DXS-AGENT-040` naming the code.
-  - `--wait <seconds>` (default 1800) elapsing while still running → `DXS-AGENT-040` "still running" naming the `runId`, and suggesting `--run <runId>` to resume polling; `--run <runId>` polls an existing run without posting.
-  - a 503 response → the message reads `the agent could not take the turn: <error>` and `details.code` carries the body's `code` (fixes the "refused" wording for 5xx; 4xx keeps "refused").
-  - polling never sends the bearer to another host (the run URL is built from `--app-url`, never from the response).
-- [ ] **Step 2: Implement** — poll interval 2 s (constant), each GET with the same token (re-acquire if the cached one expires); progress line on stderr (`ctx.log`) every poll: `run <id>: running (Ns)`.
-- [ ] **Step 3: Docs** — `docs/agent-cli.md`: `agent chat` waits for long runs (`--wait`, `--run`); the 503 wording.
-- [ ] **Step 4: Green and commit** — `feat(agent): chat polls asynchronous runs (--wait, --run); 503 reads 'could not take the turn'`.
-
----
-
-### Task 7: Proof 2, live (user-assisted)
-
-Needs the bound Anthropic key from Platform B. After Tasks 1–6: regenerate the local app (branch 73444), `npm install` in it (fpx and its dependencies), restart it, then:
+Needs the bound Anthropic key from Platform B. After Tasks 1–5: regenerate the local app (branch 73444), `npm install` in it (fpx and its dependencies), restart it, then:
 
 ```bash
 uv run dxs agent chat --app-url http://localhost:3000 --app-scope api://2e069781-2a39-45cb-b04f-d35a5b12ac4e/.default -m "Which materials are class A in warehouse 1?"
 ```
 
-Expected: the agent runs `run_script` (the slotting skill's export + `node slotting/analyse.mjs`), and the answer contains the class counts and A materials (warehouse 1 has 75 picks in 2020–2025 data, so ask for a window that contains them, e.g. "…over 2020-01-01 to 2025-12-31"). Record: the run's duration, whether it went 202, and the answer.
+Expected: the agent runs `run_script` (the slotting skill's export + `node slotting/analyse.mjs`), and the answer contains the class counts and A materials (warehouse 1 has 75 picks in 2020–2025 data, so ask for a window that contains them, e.g. "…over 2020-01-01 to 2025-12-31"). Record: the turn's duration and the answer.
