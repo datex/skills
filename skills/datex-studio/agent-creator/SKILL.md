@@ -175,6 +175,14 @@ Deploy through the Manager as for any application. A freshly deployed Agent appl
 answers `401`/`403` until an admin has done three one-time steps — see
 [the fpx skill](../fpx/SKILL.md#the-three-tenant-prerequisites).
 
+**Model key (only for the app's own agent loop).** `fpx` needs none of this — it is only for
+the agent loop the deployed app runs itself. In the Manager, create an AI API connection
+(provider Anthropic or OpenAI, and the API key), add one connection setting of that type to
+the Agent application in Datex Studio, bind it to the connection per environment, then
+regenerate. Without a bound key the loop still deploys; a turn answers `503
+ModelNotConfigured` naming the setting. A connection with provider OpenAI is accepted but a
+turn answers `503 ModelProviderNotSupported` for now.
+
 ### 7. Hand the app to fpx and try one turn
 
 ```bash
