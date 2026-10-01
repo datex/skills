@@ -17,14 +17,15 @@
 3. **No environment fallback.** `ANTHROPIC_API_KEY` / `ANTHROPIC_BASE_URL` are no longer read by the agent runtime. Development binds a connection exactly as production does (app-level settings resolve a connection by `apiConnectionName` in `ApplicationsRepository.GetSettingsWithApiConnections`). A turn without a bound key is `503 ModelNotConfigured`.
 4. **The seed goes into `Script0100.sql`** (the branch's unreleased script, guarded `IF NOT EXISTS`). Parvan re-runs it on development databases; DbUp will not re-run it on its own.
 5. **Only Agent applications may declare an `AiApi` setting**, and at most one. Validation refuses an `AiApi` setting in any other application type and a second one in an Agent application; Studio offers the type only in Agent applications and only once. No model key is not an error (lane 1 — `fpx` from a human's Claude Code — needs none).
-6. **OpenAI is selectable now, executable later.** The connection can be created with provider OpenAI; the agent loop answers `503 ModelProviderNotSupported` for it until the OpenAI `ModelClient` lands (spec §4.5 follow-up).
+6. **Only Anthropic and OpenAI, at their public endpoints.** No base URL option, no Ollama or other compatible endpoints; the runtime's `ANTHROPIC_BASE_URL`/Ollama path is removed with the environment fallback.
+7. **OpenAI is selectable now, executable later.** The connection can be created with provider OpenAI; the agent loop answers `503 ModelProviderNotSupported` for it until the OpenAI `ModelClient` lands (spec §4.5 follow-up).
 
 ## Global Constraints
 
 - Repo: `D:\Git\248960_agent`, branch `feature/248960_agent_applications`. Commit locally; **never push**. Do not commit plans or specs in this repo. Never stage the untracked `agent-apps-spike-plan.md` or `docs/agent-apps/*` files.
 - Every commit message ends with: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`
 - Type value: `AiApi = 13` in .NET, Studio and codegen enums. Provider values `Anthropic = 1`, `OpenAI = 2` everywhere (C# enum, TS enum, JSON `providerId` number).
-- Options shape (C# PascalCase, JSON camelCase): `ProviderId` (required), `ApiKey` (secret, required), `BaseUrl` (optional, non-secret, an endpoint compatible with the provider). The secret's `ChangedSecrets` name is `apikey`.
+- Options shape (C# PascalCase, JSON camelCase): `ProviderId` (required) and `ApiKey` (secret, required) — nothing else. There is no base URL: only the providers' own public APIs are used (no Ollama, no proxies), so each provider's endpoint is fixed in code. The secret's `ChangedSecrets` name is `apikey`.
 - Default endpoints: Anthropic `https://api.anthropic.com`, OpenAI `https://api.openai.com/v1`.
 - "Datex Studio", never "Wavelength", in user-facing text. Copy: sentence case, no trailing period on labels.
 - Tests: .NET `cd src/Wavelength/DatexApplicationApi.Tests && dotnet test --filter <name>` (DB-backed tests use the local test database; Platform A's `ApplicationsValidationAgentTests` run on this machine). Codegen: see Task 4. ClientApp: `npm run build`; do not author `.spec.ts` (component specs are not maintained in this ClientApp).
@@ -35,7 +36,7 @@
 2. **A connection saved without a provider** — refused with a validation error naming `ProviderId`, never defaulted to a vendor. Pinned in Task 1.
 3. **An `AiApi` setting in a Web/API app, or two in an Agent app** — validation reports each; Studio does not offer the type there. Pinned in Task 2 (tests) and Task 3 (picker rule).
 4. **A deployed Agent app with no bound key, or with an OpenAI key** — `POST /api/$agent/turn` answers `503` with `ModelNotConfigured` / `ModelProviderNotSupported` naming the setting, not a generic 500 — and `ANTHROPIC_API_KEY` in the process environment changes nothing. Pinned in Task 4.
-5. **A key rotated while the app runs** — the next turn after settings reload uses the new key; a model client is cached per (provider, key, base URL), never across a change. Pinned in Task 4.
+5. **A key rotated while the app runs** — the next turn after settings reload uses the new key; a model client is cached per (provider, key), never across a change. Pinned in Task 4.
 
 ---
 
@@ -58,33 +59,31 @@
 
 ### Task 1: The `AiApi` connection type on the server
 
-**Interfaces — produces:** `ApiConnectionTypeEnum.AiApi = 13`; `AiProviderEnum { Anthropic = 1, OpenAI = 2 }`; `AiApiConnection : ApiConnection<AiApiConnectionOptionsConfig>` with `public static string DefaultBaseUrl(AiProviderEnum provider)`; `AiApiConnectionOptionsConfig { AiProviderEnum? ProviderId; string ApiKey; string BaseUrl }`; REST `api/aiapiconnections` (GET/POST/PUT, same base controller as MsSql); DB row `ApiConnectionTypes (13, 'AiApi')`.
+**Interfaces — produces:** `ApiConnectionTypeEnum.AiApi = 13`; `AiProviderEnum { Anthropic = 1, OpenAI = 2 }`; `AiApiConnection : ApiConnection<AiApiConnectionOptionsConfig>` with `public static string Endpoint(AiProviderEnum provider)`; `AiApiConnectionOptionsConfig { AiProviderEnum? ProviderId; string ApiKey }`; REST `api/aiapiconnections` (GET/POST/PUT, same base controller as MsSql); DB row `ApiConnectionTypes (13, 'AiApi')`.
 
 - [ ] **Step 1: Failing domain tests** — append to `DatexApplicationApi.Tests/DomainTests/ApiConnectionSecretsTests.cs`:
 
 ```csharp
-        private static AiApiConnectionOptionsConfig Ai(AiProviderEnum? provider, string key, string baseUrl = null) =>
-            new AiApiConnectionOptionsConfig { ProviderId = provider, ApiKey = key, BaseUrl = baseUrl };
+        private static AiApiConnectionOptionsConfig Ai(AiProviderEnum? provider, string key) =>
+            new AiApiConnectionOptionsConfig { ProviderId = provider, ApiKey = key };
 
         [Fact]
         public void AiConfig_ClearSecrets_NullsTheKeyOnly()
         {
-            var config = Ai(AiProviderEnum.Anthropic, "sk-ant-secret", "https://proxy.example");
+            var config = Ai(AiProviderEnum.Anthropic, "sk-ant-secret");
 
             config.ClearSecrets();
 
             Assert.Null(config.ApiKey);
             Assert.Equal(AiProviderEnum.Anthropic, config.ProviderId);
-            Assert.Equal("https://proxy.example", config.BaseUrl);
         }
 
         [Theory]
-        [InlineData(AiProviderEnum.Anthropic, null, "https://api.anthropic.com")]
-        [InlineData(AiProviderEnum.OpenAI, null, "https://api.openai.com/v1")]
-        [InlineData(AiProviderEnum.Anthropic, "https://proxy.example", "https://proxy.example")]
-        public void AiConnection_ConnectionString_IsTheEndpointNeverTheKey(AiProviderEnum provider, string baseUrl, string expected)
+        [InlineData(AiProviderEnum.Anthropic, "https://api.anthropic.com")]
+        [InlineData(AiProviderEnum.OpenAI, "https://api.openai.com/v1")]
+        public void AiConnection_ConnectionString_IsTheProviderEndpointNeverTheKey(AiProviderEnum provider, string expected)
         {
-            var connection = new AiApiConnection(1, "model", Ai(provider, "sk-secret-123", baseUrl));
+            var connection = new AiApiConnection(1, "model", Ai(provider, "sk-secret-123"));
 
             Assert.Equal(expected, connection.ConnectionString);
             Assert.DoesNotContain("sk-secret", connection.ConnectionString);
@@ -108,15 +107,14 @@
             var dto = new ApiConnectionDto<AiApiConnectionOptionsConfig>
             {
                 ChangedSecrets = new List<string> { listed },
-                ConnectionOptionsJson = Ai(AiProviderEnum.OpenAI, "new-key", "https://b")
+                ConnectionOptionsJson = Ai(AiProviderEnum.OpenAI, "new-key")
             };
-            var stored = new AiApiConnection(1, "model", Ai(AiProviderEnum.Anthropic, "old-key", "https://a"));
+            var stored = new AiApiConnection(1, "model", Ai(AiProviderEnum.Anthropic, "old-key"));
 
             dto.PrepareSecretsForUpdate(stored);
 
             Assert.Equal("new-key", dto.ConnectionOptionsJson.ApiKey);
             Assert.Equal(AiProviderEnum.OpenAI, dto.ConnectionOptionsJson.ProviderId); // not a secret: taken verbatim
-            Assert.Equal("https://b", dto.ConnectionOptionsJson.BaseUrl);
         }
 
         [Fact]
@@ -180,7 +178,7 @@ namespace DatexApplicationApi.Domain.Entities.ApiConnections
 
         public override ApiConnectionTypeEnum ApiConnectionTypeId => ApiConnectionTypeEnum.AiApi;
 
-        public static string DefaultBaseUrl(AiProviderEnum provider) => provider switch
+        public static string Endpoint(AiProviderEnum provider) => provider switch
         {
             AiProviderEnum.Anthropic => "https://api.anthropic.com",
             AiProviderEnum.OpenAI => "https://api.openai.com/v1",
@@ -196,9 +194,8 @@ namespace DatexApplicationApi.Domain.Entities.ApiConnections
 
             base.Update(name, connectionOptionsJson);
 
-            this.ConnectionString = string.IsNullOrWhiteSpace(connectionOptionsJson.BaseUrl)
-                ? DefaultBaseUrl(provider)
-                : connectionOptionsJson.BaseUrl;
+            // The provider's public endpoint — informational only (the key is never part of it).
+            this.ConnectionString = Endpoint(provider);
         }
     }
 
@@ -213,9 +210,6 @@ namespace DatexApplicationApi.Domain.Entities.ApiConnections
         public AiProviderEnum? ProviderId { get; set; }
 
         public string ApiKey { get; set; }
-
-        /// <summary>Optional endpoint compatible with the provider; empty means the provider's public API.</summary>
-        public string BaseUrl { get; set; }
 
         public override void ClearSecrets()
         {
@@ -357,7 +351,7 @@ Add `AgentAppOneModelKey`, `AgentAppTwoModelKeys` (Agent apps with an own flow, 
 
 ClientApp app root: `src/Wavelength/DatexApplicationApi/ClientApp/projects/datexapplication/src/app/` (`app/` below).
 
-**Interfaces:** Consumes REST `api/aiapiconnections`. Produces TS `ApiConnectionTypeEnum.AiApi = 13`, `AiProviderEnum { Anthropic = 1, OpenAI = 2 }`, `IAiApiConnectionOptionsConfig { providerId: AiProviderEnum; apiKey: string; baseUrl?: string }`, `AiApiConnectionsService`, `ApiConnectionTypeNom.aiApi()`.
+**Interfaces:** Consumes REST `api/aiapiconnections`. Produces TS `ApiConnectionTypeEnum.AiApi = 13`, `AiProviderEnum { Anthropic = 1, OpenAI = 2 }`, `IAiApiConnectionOptionsConfig { providerId: AiProviderEnum; apiKey: string }`, `AiApiConnectionsService`, `ApiConnectionTypeNom.aiApi()`.
 
 - [ ] **Step 1: Enum and types**
   - `app/common/designer-config-service/appconfig/app-config-designer.ts`: `AiApi = 13`.
@@ -368,8 +362,8 @@ ClientApp app root: `src/Wavelength/DatexApplicationApi/ClientApp/projects/datex
 - [ ] **Step 2: Manager editor form** — copy `app/management/api-connection/api-connection-sftp-form/` to `api-connection-ai-form/` (`ApiConnectionAiFormComponent`, selector `app-api-connection-ai-form`), and reduce it to:
   - **Provider** — a required `mat-select` bound to `connectionOptionsJson.providerId` with Anthropic and OpenAI (the SFTP form's authentication-type select is the pattern, including its change handler if it resets dependent fields).
   - **API key** — the existing secret field component as the SFTP/MsSql forms use it, `name="apiKey"`, change name `apikey` (read `markSecretChanged` to see whether it lowercases).
-  - **Base URL** — optional text input bound to `baseUrl`; its placeholder follows the provider (`https://api.anthropic.com` / `https://api.openai.com/v1`); hint "Leave empty for the provider's public API".
-  - Labels: `Provider`, `API key`, `Base URL`.
+  - No base URL field.
+  - Labels: `Provider`, `API key`.
   - `api-connection-edit.component.ts` / `.html`: inject the service, type getter, `getApiConnectionService` case, and the `<app-api-connection-ai-form *ngIf=…>` block, as for MsSql. `app/management/management.module.ts`: import and declare the component.
 
 - [ ] **Step 3: Studio setting picker** — `app/studio/app-config/app-config-setting-edit/app-config-setting-edit.component.ts`: the type list is built from `Object.keys(ApiConnectionTypeEnum)`. Remove `AiApi` from it unless the application being edited is an Agent application (find how the component or its parent knows the application's `applicationDefinitionTypeId`; the designer exposes `isAgent`), and apply the "one MongoDb per app" rule to `AiApi` too (Review Focus 3).
@@ -384,7 +378,7 @@ ClientApp app root: `src/Wavelength/DatexApplicationApi/ClientApp/projects/datex
 
 Codegen root `src/Wavelength/DatexApplicationApi/codegen/src/` (`src/` below).
 
-**Interfaces — produces:** `AppModulesInfo.getAiConnectionName(): string | null` (+ `BaseModuleGenerator` passthrough); in `agent.manifest.ts` a second export `AGENT_MODEL_SETTING: { app: string; name: string } | null`; `resolveModelCredentials(settings, setting): ModelCredentials | null` with `ModelCredentials { provider: 'anthropic' | 'openai'; apiKey: string; baseURL?: string }`; `createModelClient(credentials): ModelClient`; errors `ModelNotConfigured`, `ModelProviderNotSupported` (both carry `code`); route answer `503 { error, code }`.
+**Interfaces — produces:** `AppModulesInfo.getAiConnectionName(): string | null` (+ `BaseModuleGenerator` passthrough); in `agent.manifest.ts` a second export `AGENT_MODEL_SETTING: { app: string; name: string } | null`; `resolveModelCredentials(settings, setting): ModelCredentials | null` with `ModelCredentials { provider: 'anthropic' | 'openai'; apiKey: string }`; `createModelClient(credentials): ModelClient`; errors `ModelNotConfigured`, `ModelProviderNotSupported` (both carry `code`); route answer `503 { error, code }`.
 
 - [ ] **Step 1: Failing mocha specs** (`src/tests/backend/agent/`)
 
@@ -398,11 +392,11 @@ describe('agent model credentials', () => {
   const setting = { app: 'app', name: 'modelKey' };
   const bound = (options: any) => ({ app: { modelKey: { connectionOptionsJson: options } } });
 
-  it('reads provider, key and base URL from the bound setting', () => {
-    expect(resolveModelCredentials(bound({ providerId: 1, apiKey: 'sk-ant', baseUrl: 'https://proxy.example' }), setting))
-      .to.deep.equal({ provider: 'anthropic', apiKey: 'sk-ant', baseURL: 'https://proxy.example' });
+  it('reads provider and key from the bound setting, and nothing else', () => {
+    expect(resolveModelCredentials(bound({ providerId: 1, apiKey: 'sk-ant', baseUrl: 'http://localhost:11434' }), setting))
+      .to.deep.equal({ provider: 'anthropic', apiKey: 'sk-ant' }); // a stray baseUrl is ignored: public endpoints only
     expect(resolveModelCredentials(bound({ providerId: 2, apiKey: 'sk-oai' }), setting))
-      .to.deep.equal({ provider: 'openai', apiKey: 'sk-oai', baseURL: undefined });
+      .to.deep.equal({ provider: 'openai', apiKey: 'sk-oai' });
   });
 
   it('is null when no setting is baked, none is bound, or the key is empty', () => {
@@ -439,9 +433,9 @@ describe('agent model client', () => {
   beforeEach(() => { built.length = 0; resetModelClient(); setModelClientCtorForTests(function (opts: any) { built.push(opts); return { opts }; } as any); });
   afterEach(() => setModelClientCtorForTests(null));
 
-  it('passes only the key and base URL to the SDK', () => {
-    createModelClient({ provider: 'anthropic', apiKey: 'k1', baseURL: 'https://proxy.example' });
-    expect(built).to.deep.equal([{ apiKey: 'k1', baseURL: 'https://proxy.example' }]);
+  it('passes only the key to the SDK (its default public endpoint)', () => {
+    createModelClient({ provider: 'anthropic', apiKey: 'k1' });
+    expect(built).to.deep.equal([{ apiKey: 'k1' }]);
   });
 
   it('Review Focus 5: a rotated key builds a new client; the same key reuses it', () => {
@@ -509,7 +503,7 @@ Expected: the new specs fail (missing module/exports, no 503s, no `AGENT_MODEL_S
  */
 
 export type ModelProvider = 'anthropic' | 'openai';
-export interface ModelCredentials { provider: ModelProvider; apiKey: string; baseURL?: string }
+export interface ModelCredentials { provider: ModelProvider; apiKey: string }
 
 const PROVIDERS: Record<number, ModelProvider> = { 1: 'anthropic', 2: 'openai' };
 
@@ -537,15 +531,15 @@ export function resolveModelCredentials(settings: any, setting: { app: string; n
   if (typeof options?.apiKey !== 'string' || options.apiKey.trim() === '') return null;
   const provider = PROVIDERS[options.providerId];
   if (!provider) throw new Error(`AiApi connection '${setting.name}' has an unknown provider id ${options.providerId}`);
-  return { provider, apiKey: options.apiKey, baseURL: options.baseUrl || undefined };
+  return { provider, apiKey: options.apiKey };
 }
 ```
 
 Read `SettingsValuesService` first: `loadSettings` stores settings keyed by setting name, while generated services read `settingsService.<app>.<name>`. Use the object shape that `settingsService.<app>.<name>` actually resolves through, adjust the lookup and the specs' fixtures to it, and say which in the report.
 
-`client.ts`: drop the environment read and the "SDK resolves its own credentials" path entirely. `createModelClient(credentials)`: `openai` → throw `new ModelProviderNotSupported('openai')`; `anthropic` → lazily `require('@anthropic-ai/sdk')`, build with `{ apiKey, baseURL }` (omit `baseURL` when undefined), cache by `provider + '\n' + apiKey + '\n' + (baseURL ?? '')`. Add `setModelClientCtorForTests(ctor | null)` beside `resetModelClient`.
+`client.ts`: drop the environment read and the "SDK resolves its own credentials" path entirely. `createModelClient(credentials)`: `openai` → throw `new ModelProviderNotSupported('openai')`; `anthropic` → lazily `require('@anthropic-ai/sdk')`, build with `{ apiKey }` only, cache by `provider + '\n' + apiKey`. Add `setModelClientCtorForTests(ctor | null)` beside `resetModelClient`.
 
-`config.ts`: delete `ANTHROPIC_API_KEY_VAR` and its comment; grep the agent runtime for `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` and remove every read (leave `AGENT_MODEL` — it chooses the model, not a credential). Update `docs/agent-apps/step3-http-runbook.md` only if it is tracked; it is untracked on this branch, so leave it.
+`config.ts`: delete `ANTHROPIC_API_KEY_VAR` and its comment; grep the agent runtime for `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` and `Ollama` and remove every read and every comment that offers Ollama or a compatible endpoint (e.g. the `AGENT_MODEL` comment in `config.ts`) (leave `AGENT_MODEL` — it chooses the model, not a credential). Update `docs/agent-apps/step3-http-runbook.md` only if it is tracked; it is untracked on this branch, so leave it.
 
 `router.ts` turn handler, before `runTurn`:
 
@@ -577,7 +571,7 @@ Read `SettingsValuesService` first: `loadSettings` stores settings keyed by sett
 ### Task 5: Docs and skills
 
 - [ ] **Step 1: Spec (uncommitted — Parvan commits specs)** — D-A6 row and §4.1: one `AiApi` type with a provider (Anthropic, OpenAI) like SFTP's authentication type; delivery through settings with the accepted exposure (decision 2); no environment fallback; seed in `Script0100`; Agent-only, at most one. §4.5: OpenAI answers `503 ModelProviderNotSupported` until its `ModelClient`.
-- [ ] **Step 2: agent-creator skill** — `D:\Git\skills\skills\datex-studio\agent-creator\SKILL.md`, after step 6's prerequisites link: "Model key (only for the app's own agent loop)": create an **AI API** connection in the Manager (provider, API key, optional base URL), add one connection setting of that type to the Agent application in Studio, bind it per environment, regenerate. Without it `fpx` works, and a turn answers `503 ModelNotConfigured`; an OpenAI key answers `503 ModelProviderNotSupported` for now. `npm test` in `D:\Git\skills` stays green; commit there with the trailer.
+- [ ] **Step 2: agent-creator skill** — `D:\Git\skills\skills\datex-studio\agent-creator\SKILL.md`, after step 6's prerequisites link: "Model key (only for the app's own agent loop)": create an **AI API** connection in the Manager (provider and API key), add one connection setting of that type to the Agent application in Studio, bind it per environment, regenerate. Without it `fpx` works, and a turn answers `503 ModelNotConfigured`; an OpenAI key answers `503 ModelProviderNotSupported` for now. `npm test` in `D:\Git\skills` stays green; commit there with the trailer.
 - [ ] **Step 3: dxs guide (uncommitted)** — the same paragraph in `D:\Git\datex-studio-cli\docs\agent-cli.md` beside the tenant prerequisites; add both 503 codes to the `DXS-AGENT-040` cases. Leave it uncommitted (that branch is one squashed commit).
 
 ---
