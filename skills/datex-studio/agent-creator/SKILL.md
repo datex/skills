@@ -121,7 +121,12 @@ Body shape:
     }
   ],
   "skills": [{ "name": "abc-slotting", "source": "owned", "content": "---\nname: abc-slotting\n…" }],
-  "profile": { "systemPrompt": "…", "modelClass": "frontier", "model": null },
+  "profile": {
+    "systemPrompt": "…",
+    "modelClass": "frontier",
+    "model": null,
+    "limits": { "maxToolCalls": 20 }
+  },
   "trigger": { "type": "onDemand", "schedule": null }
 }
 ```
@@ -146,6 +151,10 @@ Rules for each part:
   reference names or file paths.
 - **systemPrompt** says who the agent is, names its skill, tells it never to page rows through
   the conversation, and names the report it ends with.
+- **limits** (optional; omit any field to use the environment's default ceiling) caps one turn's
+  `maxIterations`, `maxRunTokens`, `maxToolCalls`, and `maxScriptSeconds` — a value above the
+  environment's hard ceiling is silently capped at runtime, not rejected, so there is no reason to
+  guess high.
 
 The worked example is [the ABC/Pareto slotting agent](references/examples/abc-slotting/README.md):
 six commands, one owned skill whose embedded script turns three exports into a Pareto
