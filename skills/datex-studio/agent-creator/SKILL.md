@@ -153,8 +153,12 @@ Rules for each part:
   the conversation, and names the report it ends with.
 - **limits** (optional; omit any field to use the environment's default ceiling) caps one turn's
   `maxIterations`, `maxRunTokens`, `maxToolCalls`, and `maxScriptSeconds` — a value above the
-  environment's hard ceiling is silently capped at runtime, not rejected, so there is no reason to
-  guess high.
+  environment's own ceiling is silently capped to that ceiling at runtime, not rejected, so there
+  is no reason to guess high. Absent an override, the environment's default ceilings are 12
+  iterations, 2,000,000 tokens, 50 tool calls, and 180 script seconds per turn. Save-time
+  validation only rejects values outside the absolute range each field can ever mean:
+  `maxIterations` 1–50, `maxRunTokens` 10,000–5,000,000, `maxToolCalls` 1–500,
+  `maxScriptSeconds` 10–3600.
 
 The worked example is [the ABC/Pareto slotting agent](references/examples/abc-slotting/README.md):
 six commands, one owned skill whose embedded script turns three exports into a Pareto
