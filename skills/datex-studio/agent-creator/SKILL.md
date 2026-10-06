@@ -193,8 +193,9 @@ the agent loop the deployed app runs itself. In the Manager, create an AI API co
 (provider Anthropic or OpenAI, and the API key), add one connection setting of that type to
 the Agent application in Datex Studio, bind it to the connection per environment, then
 regenerate. Without a bound key the loop still deploys; a turn answers `503
-ModelNotConfigured` naming the setting. A connection with provider OpenAI is accepted but a
-turn answers `503 ModelProviderNotSupported` for now.
+ModelNotConfigured` naming the setting. A model connection may be Anthropic or OpenAI — each
+runs the same agent loop with its own built-in default model (Anthropic `claude-opus-5`,
+OpenAI `gpt-6-astra`); there is no per-app model setting to configure.
 
 ### 7. Hand the app to fpx and try one turn
 
