@@ -3,7 +3,9 @@ name: component-validator
 description: |
   Use when auditing a Datex Studio component file before merge — final gate
   after authoring or modifying any component (action, function, grid, hub,
-  form, editor, selector, storage, customType, backendTest, datasource).
+  form, editor, selector, storage, customType, backendTest, datasource, card,
+  list, widget, calendar, wizard, codeEditor, dashboard) or singleton body
+  (shell, appConfig, securityPolicy, replacements, authorization, userConfig).
   Generic dispatcher: reads the component file, picks the matching creator
   skill's rule set by file suffix, and runs the audit per those rules.
   Output is a structured punch-list (Blockers / Warnings / Nits). Triggers:
@@ -28,6 +30,19 @@ depends:
   - datasource-creator
   - custom-angular-component-creator
   - component-wiring-check
+  - card-creator
+  - list-creator
+  - widget-creator
+  - calendar-creator
+  - wizard-creator
+  - code-editor-creator
+  - dashboard-creator
+  - shell-editor
+  - security-policy-editor
+  - app-config-editor
+  - replacements-editor
+  - authorization-editor
+  - user-config-editor
 ---
 
 # Component Validator
@@ -49,7 +64,7 @@ Audit a single Datex Studio component file against its type-specific authoring r
 
 ## Dependencies
 
-- **Creator skills** (`action-creator`, `function-creator`, `grid-creator`, `hub-creator`, `form-creator`, `editor-creator`, `selector-creator`, `storage-creator`, `type-definition-creator`, `backend-test-creator`, `datasource-creator`) — each one's `references/<type>.md` document is the rulebook this validator dispatches into by file suffix. Update them and this validator picks up the new rules automatically.
+- **Creator skills** (`action-creator`, `function-creator`, `grid-creator`, `hub-creator`, `form-creator`, `editor-creator`, `selector-creator`, `storage-creator`, `type-definition-creator`, `backend-test-creator`, `datasource-creator`, `card-creator`, `list-creator`, `widget-creator`, `calendar-creator`, `wizard-creator`, `code-editor-creator`, `dashboard-creator`) and **singleton editor skills** (`shell-editor`, `security-policy-editor`, `app-config-editor`, `replacements-editor`, `authorization-editor`, `user-config-editor`) — each one's `references/<type>.md` document is the rulebook this validator dispatches into by file suffix. Update them and this validator picks up the new rules automatically.
 - **`custom-angular-component-creator`** skill — CAC (`configurationTypeId: 36`) working folders don't dispatch by suffix (see the CAC row in the Sub-agent table below); this validator instead points at that skill's own Pre-Flight Checklist as the rulebook.
 - **`datex-studio-conventions`** skill — generic cross-cutting rules (file format, naming, defaults) that apply to **every** component regardless of suffix.
 - **`datex-studio-shared`** / **`datex-studio-runtime`** skills — branch-setup primitives and platform-runtime globals referenced by the per-type rule docs.
@@ -62,7 +77,7 @@ This skill is typically invoked by a creator skill at the end of its authoring l
 
 ### Invocation (orchestrator side)
 
-1. **Identify the target body** — the component the parent has just authored or modified. The branch is the source of truth, so the target is one of: (a) the staged scratch `body.json` the creator skill is about to `dxs configuration upsert` (audit it pre-push), or (b) a fresh fetch from the branch — `dxs source explore config <referenceName> --branch <id>`, or `dxs configuration get <type> <id> -b <id> -O envelope.json && jq .json envelope.json > body.json`. Never audit a persistent local `src/` copy as if it were authoritative. Pass the sub-agent the path to that single scratch/fetched JSON file.
+1. **Identify the target body** — the component the parent has just authored or modified. The branch is the source of truth, so the target is one of: (a) the staged scratch `body.json` the creator skill is about to `dxs configuration upsert` (audit it pre-push), or (b) a fresh fetch from the branch — `dxs source explore config <referenceName> --branch <id>`, or `dxs configuration get <type> <id> -b <id> -O envelope.json && jq .json envelope.json > body.json`. Never audit a persistent local `src/` copy as if it were authoritative. Pass the sub-agent the path to that single scratch/fetched JSON file. For a **wizard** or **dashboard**, also fetch the bodies it embeds (step callees, embedded grids) and pass their paths, so the [per-type cross-checks](#per-type-cross-checks) can compare contracts.
 2. **Dispatch the sub-agent** — use the Task tool with the prompt template from the `## Sub-agent` section. The sub-agent has `Read`, `Grep`, `Glob` access; it does not edit.
 3. **Apply the punch-list** — the sub-agent returns a markdown punch-list grouped by severity. Treat each finding as follows:
    - **Blockers** — must be fixed before upserting. Route the fix back to the matching creator skill.
@@ -74,7 +89,7 @@ This skill is typically invoked by a creator skill at the end of its authoring l
 
 - The validator **reads**; it does not edit. The parent owns the fix.
 - The validator returns a **punch-list**; it does not return a rewrite.
-- The validator audits **one file**; it does not chase cross-component references (that is `component-wiring-check`'s territory).
+- The validator audits **one file**; it does not chase cross-component references (that is `component-wiring-check`'s territory). The exception is the peer bodies the orchestrator passes for the wizard/dashboard cross-checks — it reads them, it does not fetch them.
 - The validator does not load raw OData schema documents. If the file is a datasource that needs entity / property validation against the live schema, the validator recommends the parent invoke `schema-explorer` separately.
 - The validator does not speculate about intent. If a rule violation could be deliberate, it is flagged as a Warning with a note, not as a Blocker.
 
@@ -105,8 +120,23 @@ You validate a single Datex Studio component file against its type's authoring r
    | `*-datasource.json` | `../datasource-creator/references/odata-datasources.md` (and `flow-datasources.md` if the body shape is flow-backed) |
    | `*-footprintDatasource.json` | `../datasource-creator/references/odata-datasources.md`, `../datasource-creator/references/flow-datasources.md` |
    | CAC working folder (`manifest.json` + `app.<ref>.component.ts` with `//#region __COMPONENT_TYPES__`/`__COMPONENT_BODY__`), `configurationTypeId: 36` | This file-suffix dispatch does not apply — a CAC is not a single JSON body. Audit per `../custom-angular-component-creator/SKILL.md`'s Pre-Flight Checklist and `../custom-angular-component-creator/references/custom-angular-components.md` instead of a suffix-matched rule doc. |
+   | `*-card.json` | `../card-creator/references/cards.md` (Pre-Flight Checklist) |
+   | `*-list.json` | `../list-creator/references/lists.md` (Pre-Flight Checklist) |
+   | `*-widget.json` | `../widget-creator/references/widgets.md` (Pre-Flight Checklist) + [per-type cross-checks](#per-type-cross-checks) |
+   | `*-calendar.json` | `../calendar-creator/references/calendars.md` (Pre-Flight Checklist) + [per-type cross-checks](#per-type-cross-checks) |
+   | `*-wizard.json` | `../wizard-creator/references/wizards.md` (Pre-Flight Checklist) + [per-type cross-checks](#per-type-cross-checks) |
+   | `*-codeEditor.json` | `../code-editor-creator/references/code-editors.md` (Pre-Flight Checklist) + [per-type cross-checks](#per-type-cross-checks) |
+   | `*-dashboard.json` | `../dashboard-creator/references/dashboards.md` (Pre-Flight Checklist) + [per-type cross-checks](#per-type-cross-checks) |
+   | `*-shell.json` (cti 1, `referenceName: "shell"`) | `../shell-editor/references/shell.md` (Pre-Flight Checklist) |
+   | `*-securityPolicy.json` (cti 28) | `../security-policy-editor/references/security-policy.md` (Pre-Flight Checklist) |
+   | `*-appConfig.json` (cti 32) | `../app-config-editor/references/app-config.md` (Pre-Flight Checklist) — never quote a connection binding or secret-looking value in the punch list |
+   | `*-replacements.json` (cti 33) | `../replacements-editor/references/replacements.md` (Pre-Flight Checklist) |
+   | `*-authorization.json` (cti 34) | `../authorization-editor/references/authorization.md` (Pre-Flight Checklist) |
+   | `*-userConfig.json` (cti 37) | `../user-config-editor/references/user-config.md` (Pre-Flight Checklist) |
 
    If the suffix does not match anything in the table, reply `Cannot validate: unknown component suffix '<suffix>'. Supported: <list>.` and stop. If the file is recognized as a tailored overlay, also load `../tailoring-overlay/` rules.
+
+   A singleton body may arrive under a scratch name; dispatch it by `configurationTypeId` (1 / 28 / 32 / 33 / 34 / 37) and its fixed `referenceName`, and also apply [singleton-config-lifecycle.md → Pre-Flight](../datex-studio-shared/singleton-config-lifecycle.md#pre-flight-every-singleton-edit) (tail unchanged, own-row `id`).
 
 2. **Read the target body in full.** Single file, one `Read`. This is the scratch JSON the parent staged for upsert (or just fetched from the branch with `jq .json`) — a throwaway temp file, not a persistent source-of-truth copy. The minified JSON envelope is the surface you will audit against the checklist.
 
@@ -118,9 +148,27 @@ You validate a single Datex Studio component file against its type's authoring r
    - **Location** — `<filename>:<line>` or JSON path (e.g. `inParams[0].objectTypeDef`).
    - **Evidence** — short quote or description.
 
-5. **Always probe the universal cross-cutting failure modes** even if the type-specific checklist does not restate them. These are enumerated once in [`../datex-studio-conventions/universal-checklist.md`](../datex-studio-conventions/universal-checklist.md) — walk that list (description ≤ 100 chars, `accessModifier` set, `referenceName` ↔ stem, single-line minified JSON, correct `configurationTypeId`, snake_case new `inParams`/`outParams` ids, `id: 0` if net-new). For tailored overlay files, the shadow-marker rules in `../tailoring-overlay/` apply on top.
+5. **Run the per-type cross-checks** in [Per-type cross-checks](#per-type-cross-checks) when the type has any. Some need a peer body (a wizard step's callee, a dashboard's embedded grid); audit those only when the orchestrator passed the peer file, otherwise list them under Warnings as "not checked — peer body not supplied".
 
-6. **Report.** Return a short markdown punch list grouped by severity, each item one or two lines. No preamble, no rewrites, no code suggestions beyond one-line pointers. If nothing is wrong, say `No issues found.`
+6. **Always probe the universal cross-cutting failure modes** even if the type-specific checklist does not restate them. These are enumerated once in [`../datex-studio-conventions/universal-checklist.md`](../datex-studio-conventions/universal-checklist.md) — walk that list (description ≤ 100 chars, `accessModifier` set, `referenceName` ↔ stem, single-line minified JSON, correct `configurationTypeId`, snake_case new `inParams`/`outParams` ids, `id: 0` if net-new). For tailored overlay files, the shadow-marker rules in `../tailoring-overlay/` apply on top.
+
+7. **Report.** Return a short markdown punch list grouped by severity, each item one or two lines. No preamble, no rewrites, no code suggestions beyond one-line pointers. If nothing is wrong, say `No issues found.`
+
+### Per-type cross-checks
+
+These are the gaps `dxs configuration validate` leaves open on the newer types (each verified live, dxs 0.5.8). Validate passing does not cover them.
+
+| Type | Check | Severity when it fails |
+|---|---|---|
+| wizard | For each step, `configOutParameters` matches the callee's declared `outParams` exactly (ids, types, `isCollection`; `[]` ≠ `null`). Validate reports drift only as `Outdated contract. Type mismatch for output parameters` without naming the step or param — name them. Needs the callee body. | blocker |
+| wizard | Every `next` / `nextAlt` resolves to an existing step `id`, and no `next` chain cycles — validate checks neither. | blocker |
+| wizard | `contentType` matches the callee's actual type (validate does not check). Needs the callee body. | blocker |
+| wizard | Every `$wizard.close()` is preceded by `// @ts-ignore` on the line above (the typing omits `close()`). | blocker |
+| dashboard | Every embed (`tabs[].contentConfig`, widget sections) carries the callee's `moduleId` and a `configParameters` entry per callee inParam, no extras; no stray `filters` key; no `""` in a textBox `value`. Validate passes all four. Needs the embedded grid body for the mirror. | blocker |
+| widget | The config block matches the type: `fatNumber` → `fatNumberConfig`, `apexPieChart` → `pieChartConfig` (not `apexPieChartConfig`), `image` → `imageConfig`, `linearGauge` → `linearGaugeConfig`, `radialGauge` → `radialGaugeConfig` (gauges are validate-clean, runtime-unverified), exactly one. A wrong block fails validate only as an unnamed `DXS-API-500` NullReferenceException. Also: `description` present, every `set*Class` call has `()`, every flow wired to a hook. | blocker |
+| calendar | Each `has<X>Flow` flag agrees with its inline flow config (validate passes `true` + `{flowId}` and `false` + populated flow silently); `type` is `day`; `eventContentType` is `card`; events / columns `configOutParameters` not trimmed. | blocker |
+| code editor | `description` present; `value` is a TS expression; no `readOnly` key (silently dropped by the server); `mode` is `json` or `xml`. Validate checks none of these. | warning (`mode`, `readOnly`) / blocker (`description`) |
+| card (via host) | Host `configEvents` entries name a declared card event and a host flow — validate does not check either; a mismatch is a silent no-op. Flag in the host audit. | warning |
 
 ### Scope Discipline
 
@@ -148,4 +196,4 @@ Omit any bucket that is empty. If all three buckets are empty, return `No issues
 
 ## Bundled Save-Gate Hook (optional)
 
-`scripts/validate-component.py` is a Claude Code PostToolUse hook enforcing the two cheapest floor checks (valid JSON, description present and ≤100 chars) at the harness level, blocking bad saves before any skill runs. Install per [`scripts/INSTALL.md`](scripts/INSTALL.md). The hook is a floor, not a replacement for this skill's audit.
+`scripts/validate-component.py` is a Claude Code save hook (runs after each file edit) enforcing the two cheapest floor checks (valid JSON, description present and ≤100 chars) at the harness level, blocking bad saves before any skill runs. Install per [`scripts/INSTALL.md`](scripts/INSTALL.md). The hook is a floor, not a replacement for this skill's audit.
