@@ -1,0 +1,61 @@
+{
+  "skill_name": "list-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"list-creator-eval-{timestamp}\" --description \"Temporary branch for list-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "dual-mirror-with-optional-params",
+      "prompt": "On connection 9, branch {branch_id}: create a flow datasource eval_contact_rows_ds with optional inParams owner (string) and include_inactive (boolean) and a required inParam scope (string), returning rows {id: number, name: string, email: string} from a hard-coded array. Create a card eval_contact_card with inParams contact_id (number, required), name (string), email (string, optional) and badge (string, optional). Then create a list eval_contacts_list that always runs the datasource in scope 'all', never passes an owner, and leaves the card's badge unset.",
+      "expected_output": "Datasource and card upserted before the list; datasourceConfig.configParameters has one entry per datasource inParam (owner and include_inactive present with empty value, scope as the quoted literal 'all'); itemConfig.contentConfig.configParameters has one entry per card inParam (badge present with empty value).",
+      "files": [],
+      "expectations": [
+        "datasourceConfig.configParameters contains exactly the three datasource inParams (owner, include_inactive, scope) — none missing, none extra",
+        "The scope parameter's value is a TS string literal (\"'all'\"), not a bare word",
+        "Unbound optional parameters (owner, and badge on the card side) are kept in the arrays (e.g. with value \"\") rather than dropped",
+        "itemConfig.contentConfig.configParameters contains exactly the four card inParams, with contact_id, name and email bound as $item.entity.<col>",
+        "itemConfig.contentType is 'card', contentConfig.configId is eval_contact_card and datasourceConfig.configId is eval_contact_rows_ds; pageSize is an integer",
+        "The datasource and the card are upserted before the list",
+        "The list's title is a sentence-case display name distinct from its referenceName, and its description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate list' run before 'dxs configuration upsert list'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "search-toolbar-dialog-refresh",
+      "prompt": "On connection 9, branch {branch_id}: create two lists over the same flow datasource eval_doc_rows_ds (create it; inParams full_text_search (string, optional) and archived (boolean, optional); returns {id: number, title: string}) and one card eval_doc_card (inParam title). eval_docs_list shows non-archived docs with a search box and a toolbar button 'Archived' that opens eval_archived_docs_list as a modal dialog and reloads itself when that dialog closes. eval_archived_docs_list shows archived docs and has no search box.",
+      "expected_output": "Both lists bind the same datasource with archived pinned to false/true; the searchable list sets fullTextSearch true and binds $list.fullTextSearch; the non-searchable list binds the search param to an empty value; the archived list is upserted before the list that opens it; the toolbar flow awaits the Dialog opener then refreshes.",
+      "files": [],
+      "expectations": [
+        "eval_docs_list has \"fullTextSearch\": true and a datasource configParameter full_text_search bound to $list.fullTextSearch",
+        "eval_archived_docs_list has \"fullTextSearch\": false and does NOT bind $list.fullTextSearch (its full_text_search parameter is present with an empty value)",
+        "The archived parameter is bound to bare boolean literals (false / true), one per list",
+        "The toolbar button's clickFlowConfig.flowId names a flow that awaits $shell.<Package>.openeval_archived_docs_listDialog(..., 'modal', ...) and then calls $list.refresh()",
+        "The <Package> segment in the opener is the archived list's package and the referenceName is kept snake_case inside the method name",
+        "eval_archived_docs_list is upserted before eval_docs_list",
+        "Neither list calls $list.refresh() inside on_init",
+        "Every list description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate list' run before 'dxs configuration upsert list'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "on-init-default-without-refresh",
+      "prompt": "On connection 9, branch {branch_id}: create a list eval_queue_list over a new flow datasource eval_queue_rows_ds (optional inParam status (string); returns {id: number, label: string}) with a card eval_queue_card (inParam label). The list has a status filter text box; when the list opens, the filter must default to 'open' and the first load must already use it. A card button 'Done' must reload the list.",
+      "expected_output": "A list whose on_init seeds the filter (or a var bound to the datasource) without calling $list.refresh(); the status datasource param bound to $list.filters.<id>.control.value; the card declares an event mapped in configEvents to a refresh flow.",
+      "files": [],
+      "expectations": [
+        "The list declares a filters[] entry and binds the datasource status parameter to $list.filters.<id>.control.value (optionally with a fallback)",
+        "on_init (if present) sets the default 'open' without calling $list.refresh() — or the default is set declaratively on the filter control",
+        "The card declares an event in events[] and emits it from the Done flow; the list's configEvents maps that event id to a list flow that calls $list.refresh()",
+        "Every configEvents flowId and toolbar clickFlowConfig.flowId names a flow in the list's flows[]",
+        "itemConfig.contentConfig.configParameters mirror the card's inParams exactly",
+        "List and card descriptions are non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate list' run before 'dxs configuration upsert list'"
+      ]
+    }
+  ]
+}
