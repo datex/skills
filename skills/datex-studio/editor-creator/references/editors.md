@@ -111,6 +111,7 @@ Editors are dense — the skeleton below shows the top-level shape only. A real 
 | `onInitFlowConfig` | Pre-hydration init hook | Fires before the datasource resolves — `$editor.entity` is **not yet populated** |
 | `onFormValidateFlowConfig` | Validation gate for the save button | Sets a toolbar button's `readOnly` based on field validity |
 | `vars` | Editor-scoped mutable state | Typically includes an `edit_mode` boolean toggled by the edit/save/cancel buttons. Every var written in flow code must be declared here — see [`component-wiring.md` → Component Variables Must Be Declared](../../component-wiring-check/references/component-wiring.md#component-variables-must-be-declared) |
+| `widgets` | Hosted widget tiles | `[]` when none. Each entry `{id, widgetConfig: {configId, moduleId, configParameters?, configOutParameters?, outParamsChangeFlowConfig?}}`; widgets usually take the editor's record id (`$editor.inParams.<id>`). Runtime handle: `$editor.widgets.<id>.hidden`. See [widgets.md → Invocation Contract](../../widget-creator/references/widgets.md#invocation-contract). |
 
 Keep all of the `onCustomization*` slots `null` unless customization hooks are explicitly needed — they're platform-extension points, not everyday editor wiring.
 
@@ -126,7 +127,7 @@ Inside any `code` string owned by the editor (flows, validation flows, form-vali
 | `$editor.toolbar` | Map of toolbar buttons, keyed by button id | Same access pattern as fields — e.g. `$editor.toolbar.save.control.readOnly = !is_valid`. |
 | `$editor.vars` | Editor-scoped mutable state | Carries view/edit mode, staging values that aren't stored on the entity yet. |
 | `$editor.inParams` | Inputs passed from the hosting component | Typically the entity id. |
-| `$editor.outParams` | Declared outputs | Rarely populated — editors persist via actions, not return values. |
+| `$editor.outParams` | Declared outputs | Rarely populated — editors persist via actions, not return values. No shipped wizard reads an editor step's outParams natively; the last-resort bridge is in [wizards.md → DOM event bridge](../../wizard-creator/references/wizards.md#dom-event-bridge-for-editor-steps-last-resort). |
 
 The `$flow`, `$flows`, `$apis`, `$api`, `$types`, `$datasources`, `$utils` globals are all available as usual.
 
@@ -139,6 +140,7 @@ Editors are typically opened as dialogs from a hub or a grid row action. The hos
 - For create mode: passes a sentinel id (e.g. `0` or `null`) that the embedded datasource interprets as "no existing record" and returns a blank entity whose `isNew` is `true`.
 
 The UI-tier calling rule applies: the editor itself, and any event flows it hosts, call **functions** via `$flows.<Package>.<name>` — to run actions (CRUD create/update/delete), the function wraps the action call via `$apis.<Package>.FootprintApi.extendedActions.<action_name>({...})`. See [`calling-conventions.md`](../../datex-studio-runtime/calling-conventions.md).
+- A raw-payload button on an editor typically opens a code editor (`$shell.<Package>.open<referenceName>Dialog(...)`) — see [code-editors.md](../../code-editor-creator/references/code-editors.md).
 
 ## Common Patterns
 
