@@ -161,6 +161,24 @@ Converting a tailored component into a standalone `custom_` one is mechanical on
 
 Once the recipe is complete, the custom component has no `baseConfiguration`, no `fromBaseConfiguration: true` markers, no `onCustomization*` values, and no `removed` flags — it's indistinguishable in shape from a from-scratch custom grid.
 
+## App-Level Replacements (Build-Time Swap)
+
+A tailored overlay only takes effect where something uses it. The usual activator is the app's **`replacements`** config: one per app, CLI type `replacements`, referenceName `replacements`. Editing the swap table itself is owned by [replacements-editor](../../replacements-editor/SKILL.md) — use that skill to add, remove, or inspect entries rather than hand-rolling the upsert.
+
+```bash
+dxs -O json configuration get replacements replacements -b <appBranchId>
+```
+
+(The body lands at `.configuration.json`. `dxs source branch replacements <appBranchId>` is the read-only shortcut when all you need is the list.) Note: `-O` is `--output-file`, not a format flag — `-O json` after the type/name positional args writes a file literally named `json`; `-O json` must precede `configuration get` as a global flag, as shown above.
+
+Each entry is `{ configurationTypeId, applicationReferenceName, referenceName, replacementApplicationReferenceName, replacementReferenceName }`, and a null `replacementApplicationReferenceName` means the app itself. Fetched entries consistently come back with `replacementApplicationReferenceName: null`, even for a replacement sourced from another app — the real cross-app pointer lives only in the broader `jsonString` envelope field, not in this shape. At build time, every use of `<applicationReferenceName>.<referenceName>` is swapped for the replacement, including uses inside referenced packages. The replacement must keep the original's inputs and outputs identical. Replacements are configured in Studio, and a change to them shows up in `dxs source changes` as `has_replacements`. Observed target `configurationTypeId`s in the wild: 2, 3, 4, 5, 7, 9, 18 — actions (18) are valid replacement targets too, not just UI components; an API app can swap a package action.
+
+- **Replacements are invisible to reference-following.** No component names the replacement, so `reverse-trace`, grep and dependency graphs all miss it. A `tailored_*` / `custom_*` component with zero callers may still be the one users see. To work out what a customer actually runs, read the app's replacements first. Replacement targets are typically `tailored_*` overlays (an overlay that is also swapped in) or `custom_*` flattened copies.
+- **Flow components are valid replacement targets too, not just UI components.** A function or action (`configurationTypeId: 9` / the action equivalent) can itself be a replacement target, under the same in/out contract requirement as any other swap — it isn't limited to grids, forms, and other UI-facing types.
+- **Swaps match on package plus reference name.** A replacement of a standalone package datasource most likely stops applying once the core component switches that same datasource reference from standalone to owned/embedded — the replacement's match key no longer resolves, so the customer's customization is silently bypassed. This is inferred from the config shape, not verified at runtime — treat it as a risk to check for, not a confirmed behavior.
+- **Impact rule for core changes.** Before shipping a change that alters a core component's internals, check the replacements configs of the consuming apps. That covers switching a datasource from standalone to owned, rewiring a flow to open a different component, or replacing a component with a new one. Such a change can silently bypass customer customizations even when the public contract never changed. Prefer retrofitting a component in place, keeping its package, referenceName and datasource, over introducing a new one; overlays and replacements keep applying to an in-place retrofit.
+- **Hook behavior matters on retrofit.** An overlay hook with `ExecutionBehaviorType: replace` disables whatever the base's flow in that slot does. Adding logic to a base flow that customers hook with `replace` never reaches them. Audit consumers' hook modes when base lifecycle flows gain behavior.
+
 ## Pre-Flight Checklist — Authoring a Tailored Overlay
 
 When creating a new tailored overlay on top of a core grid (as opposed to flattening one), walk this list:
@@ -174,6 +192,8 @@ When creating a new tailored overlay on top of a core grid (as opposed to flatte
 7. If you need fields not in the base datasource's select list, embed a secondary `tailored_ds_<base>` datasource in `datasources[]` alongside the inherited one, and populate cells imperatively in `on_data_loaded` via `$grid.datasources.<secondary>.get(...)`.
 8. To suppress an inherited toolbar button, column, or flow, set its `removed: true` — don't delete the shadow.
 9. Declare any `$grid.vars.<id>` / `$row.vars.<id>` your tailored flows use, at the tailored file's top-level `vars[]` / `rowVars[]`.
+
+10. Activate it: add (or confirm) the app's `replacements` entry swapping the base for the overlay, unless callers name the overlay directly, via [replacements-editor](../../replacements-editor/SKILL.md). See [App-Level Replacements](#app-level-replacements-build-time-swap).
 
 ## Cross-References
 

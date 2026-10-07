@@ -40,6 +40,7 @@ Extend an existing core-library Datex Studio component (most commonly a grid, bu
 - [../datasource-creator/references/flow-datasources.md](../datasource-creator/references/flow-datasources.md) — flow-type datasource shape for tailored secondary (`tailored_ds_<base>`) enrichment datasources
 - [../datasource-creator/references/odata-datasources.md](../datasource-creator/references/odata-datasources.md) — schema pre-flight applies when flattening to a custom that newly authorizes OData fields
 - [../component-wiring-check/references/component-wiring.md](../component-wiring-check/references/component-wiring.md) — vars-must-be-declared rule applies to tailored flow code and to flattened custom flows
+- [../replacements-editor/SKILL.md](../replacements-editor/SKILL.md) — activates a tailored overlay app-wide by swapping the base for the overlay in the app's `replacements` config; see [references/tailoring.md → App-Level Replacements](references/tailoring.md#app-level-replacements-build-time-swap)
 
 ## Dependencies
 
