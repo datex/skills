@@ -95,6 +95,11 @@ Per-file fields:
 
 To reference an enum from an interface property, use the same shape as an interface reference: `{type:"object", objectType:"<Package>.<enum_referenceName>", ...}` (the enum's runtime values are stringly/numerically typed but the schema-level reference goes through `type:"object"`).
 
+**Runtime value coercion (number-valued enums).** The customType JSON stores number-valued entries as *stringified* integers (`"value":"0"`), but at runtime `$types.<Package>.<enum>.<Member>` resolves to an actual **number** (`0`, not `"0"`). Two consequences:
+
+- Flow code comparing a number-valued enum member against a value read from elsewhere (a stored column, a flow outParam) must compare as numbers — a string comparison (`"0" !== 0`) silently fails even though both sides "look" equal in the JSON.
+- Any tooling that builds an enum map by parsing the customType JSON (test shims, code generators, local runners) **must coerce `value` to a number** when `isStringValue` is not `true`. Skipping this coercion is a quiet bug: every config-gated branch that compares the parsed string against the runtime number falls through to default/else behavior instead of erroring, so the mismatch can pass silently through a large share of test cases before anyone notices.
+
 ## Custom Types Cannot Self-Reference
 
 Custom types have no syntax for referencing themselves recursively. There is no `objectType: "<Package>.<this_type_name>"` recursion path — the platform's type loader does not resolve a type referring to its own FQN. If a type needs nested children of itself (a tree with arbitrary-depth `children`), the nested shape must be **inlined to a fixed maximum depth** — repeating the full property descriptor set at each level.
