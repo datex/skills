@@ -8,7 +8,7 @@ For component-level authoring rules, see [`forms.md`](../form-creator/references
 
 These apply to **every** control type below.
 
-1. **Sibling sub-config blocks stay present and null.** A `textBox` field still carries `dateBoxConfig: null`, `numberBoxConfig: null`, `codeBoxConfig: null`, etc. The platform's structural diff relies on it. Don't omit keys, don't reorder them.
+1. **Sibling sub-config blocks stay present and null.** A `textBox` field still carries `dateBoxConfig: null`, `numberBoxConfig: null`, `codeBoxConfig: null`, etc. The platform's structural diff relies on it. Don't omit keys, don't reorder them. (A body fetched back from the branch shows the null siblings stripped — fetched bodies omit null keys, see [configuration-roundtrip.md](../datex-studio-shared/configuration-roundtrip.md#fetched-bodies-omit-null-keys--absence-is-not-schema-evidence). That is the server's storage form, not a rule against authoring them.)
 2. **Declarative string slots are TypeScript expressions.** `value`, `tooltip`, `placeholder`, `format`, and any other string slot inside a `*Config` are inlined into generated component code verbatim. Wrap display text in **backticks** (`` "`Click me`" ``), wrap plain-string literals in **TS quotes** (`"'MM/DD/YYYY'"`), leave **raw expressions unwrapped** (`"$form.inParams.foo"`). An unwrapped tooltip like `"Opens the dialog."` compiles to bare tokens and breaks the build. Full rule: [`file-format.md` → Declarative String Values Are TypeScript Expressions](../datex-studio-conventions/file-format.md#declarative-string-values-are-typescript-expressions).
 3. **Dynamic mutation goes through flow code.** Use `$form.fields.<id>.control.<prop> = ...` (and equivalents on `$editor` / `$hub` / `$grid`) inside flow `executeCodeConfig.code`. Some props (notably `tooltip`) are declarative-only and ignore flow-code assignment — route those through a `vars` slot the field binds to.
 4. **Don't mix declarative + imperative init on the same field with different sources.** A `value` binding and an `onInitFlowConfig` write that read different paths is a silent bug — the declarative wins at render and the imperative looks correct but has no effect. Pick one idiom per field.
@@ -24,7 +24,7 @@ A multi-line, syntax-highlighted code editor control. Use it for fields whose va
 | Need | Pick |
 |---|---|
 | Display a JSON / XML / structured payload | `codeBox` (`mode: "json"` / `"xml"`) |
-| Display a log dump or computed report | `codeBox` (`mode: "plaintext"`) — gets monospace + line numbers |
+| Display a log dump or computed report | `textBox` with `multiline: true` — `codeBox` offers only `json` / `xml` modes, so it has no plain-text mode |
 | Free-form prose, comments, descriptions | `textBox` with `multiline: true` |
 | Need `readOnly: true` (truly read-only, not greyed out) | `textBox` with `multiline: true` — `codeBox` has no `readOnly` slot |
 | Need a `placeholder` when empty | `textBox` — `codeBox` has no `placeholder` slot |
@@ -71,7 +71,7 @@ A multi-line, syntax-highlighted code editor control. Use it for fields whose va
 | Field | Type | Notes |
 |---|---|---|
 | `value` | string (TS expression) | Initial display value. Backtick-wrap display text; reference vars unwrapped. For computed output, leave as a backtick-wrapped placeholder and write via flow code in `onInitFlowConfig` or a button handler. |
-| `mode` | string | Syntax-highlighting mode. **Verified:** `"json"`. **Likely supported** based on standard code-editor conventions: `"xml"`, `"typescript"`, `"javascript"`, `"yaml"`, `"plaintext"`. Verify in the platform UI before relying on a specific mode you haven't seen used. |
+| `mode` | string | Syntax-highlighting mode: `"json"` or `"xml"` only (lowercase). The designer's Mode dropdown on the `codeBox` control lists only those two (captured from the Studio designer option lists, dxs 0.5.8), and `validate` rejects any other value such as `"typescript"`, `"javascript"`, `"yaml"` or `"plaintext"`. |
 | `tooltip` | string (TS expression) | Backtick-wrap display text. Same encoding rule as every other `*Config.tooltip`. |
 | `disabled` | boolean \| null | Greys out the control. There is **no separate `readOnly` slot** — see Caveats. |
 
@@ -101,6 +101,8 @@ The codeBox renders the assigned string with `mode`-based syntax coloring. Prett
 
 ---
 
+A whole dialog dedicated to one JSON/XML payload (toolbar, beautify, save/export) is a **code editor component** (cti 21), not a form with a codeBox — see [code-editors.md](../code-editor-creator/references/code-editors.md). The component's `mode` (`ECodeEditorMode`) rejects `plaintext` (verified live via validate, dxs 0.5.8); its observed members are `json` and `xml`.
+
 ## Other control types
 
 The control types below are used widely in the workspace but don't yet have detailed sections here. Backfill as authoring touches them — same convention as the component-doc-stubbing rule. Each type's `*Config` lives in `controlConfig.<type>Config` with the populated block matching `controlConfig.type`.
@@ -115,7 +117,34 @@ Numeric input. Slots: `readOnly`, `disabled`, `placeholder`, `format` (TS-expres
 
 ### dateBox
 
-Date / datetime input. Slots: `includeTime`, `readOnly`, `disabled`, `placeholder`, `format` (TS-expression — e.g. `"'MM/DD/YYYY'"`), `value`, `tooltip`, `uiValueChangeFlowConfig`.
+Date / datetime input. Shape as stored on a production form (fetched read-only, dxs 0.5.8; sibling null blocks stripped by the server):
+
+```json
+"controlConfig": {
+  "type": "dateBox",
+  "dateBoxConfig": {
+    "includeTime": false,
+    "readOnly": false,
+    "disabled": false,
+    "format": "'MM/DD/YYYY'",
+    "value": "$form.inParams.schedule?.date?.start",
+    "tooltip": "`Date schedule will start executing.`"
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `includeTime` | boolean | `false` = date picker; `true` = date + time. Observed on every sampled dateBox (2 of 10 `true`). |
+| `readOnly` / `disabled` | boolean | Same semantics as on `textBox`. |
+| `format` | string (TS expression) | A quoted literal (`"'MM/DD/YYYY'"`) or a raw expression bound to a var (`"$form.vars.date_time_format"`). Absent or `""` on half the sampled fields — the control then uses its default format. |
+| `value` | string (TS expression) | Raw expression (`"$form.inParams.start_date"`) or `""` for empty. |
+| `tooltip` | string (TS expression) | Backtick-wrapped text, or `""`. |
+| `uiValueChangeFlowConfig` | `{ flowId }` \| absent | Lives **inside** `dateBoxConfig`; references a flow in the host's `flows[]`. |
+
+`placeholder` was not observed on any sampled dateBox. Field-level keys (`id`, `label`, `required`, `widthType`) are as for any field — see [forms.md](../form-creator/references/forms.md).
+
+**Shared date-time format.** Forms that show date + time bind every dateBox's `format` to one string var (`$form.vars.date_time_format`, declared in `vars[]`) and seed it in `on_init` from a shared format flow, so the format is resolved once per form rather than hard-coded per field. Same idiom as the dynamic-tooltip rule in [file-format.md](../datex-studio-conventions/file-format.md#dynamic-tooltip-values-go-through-a-var).
 
 ### checkBox
 

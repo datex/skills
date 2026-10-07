@@ -24,6 +24,8 @@ Grown as encountered — verify in designer context before relying on an unliste
 | `.schedule.list({ scheduleName: [name, ...] })` | Look up schedules by name. Returns `{ tasks: [...] }`; each task carries at least `cronExpression` and `isActive`. |
 | `.schedule.activate(name)` / `.schedule.deactivate(name)` | Toggle without deleting. A schedule can exist inactive — the canonical "installed but off" state. |
 | `.schedule.delete(name)` | Remove a schedule outright. Throws when the name does not exist, so wrap in try/catch when sweeping names that may never have been registered. Use for orphan cleanup — a registration that shrinks from N schedules to fewer must delete the surplus, or the leftover keeps firing on a cadence the user has replaced. Prefer `deactivate` when the schedule should survive in an off state. Verified in `SalesOrders.manage_outbound_automation_rule_flow` (legacy per-rule cleanup) and `SalesOrders.set_outbound_automation_schedule_flow` (slot sweep). |
+| `.cancel(jobId)` | Cooperative cancellation of a running `.submit` job. Sets the target flow's `$flow.abortController` signal to aborted — the target flow must check it and exit early; `.cancel` does not forcibly kill execution, so a target that never checks the signal runs to completion regardless. |
+| `.history({ jobId })` | Returns the submission's lifecycle record (status progression, timestamps). **Poll this for outcome** rather than relying on `.submit`'s own promise or a `catch` around it — a job killed by the host (OOM, pod eviction, redeploy) never reaches the target flow's `catch`, so a dispatcher that only listens for a thrown error can wait forever. `.history` is the source of truth for whether a submitted job actually finished. |
 
 `concurrency` takes the ambient enum `ScheduleConcurrency` (no import needed in flow code); `ScheduleConcurrency.cancel` cancels the **new** firing when the previous run is still going — the running job continues untouched (operator-confirmed 2026-08-11, correcting an earlier reading that had it superseding the old run). Still the right default for engine-tick patterns: overlap is prevented without ever aborting in-flight work, so long runs are never torn mid-execution by their own schedule.
 
@@ -64,6 +66,17 @@ if (task_count > THRESHOLD && environment !== 'preview') {
 ```
 
 The `is_async` inParam convention lets the target flow know to push its outcome through a notification path instead of returning it.
+
+## Jobs Run As Their Submitter — No Submit-As-User, No Delayed Submit
+
+`IJobsServiceSubmitOptions` is `{ impersonate?: boolean }` — nothing else. There is no option to submit a job as a different user than whoever's session called `.submit`, and no option to delay or schedule a one-shot submission for later (that's what `.schedule` is for). Consequences:
+
+- A central dispatcher flow that fans work out via `.submit` on behalf of many requesting users runs every submitted job as *itself* (or, with `impersonate: true`, as whichever user happened to call the dispatcher) — it cannot submit "as" the original requester unless the dispatcher itself was invoked by that requester.
+- A **lease-pool-inside-jobs** pattern — claim a lease row, do bounded work, release in `finally`, reap stale leases, back off with jitter under contention — is the shipped shape for bounding concurrent background work when there is no native "run after a delay" primitive to stagger submissions with.
+
+## Preview Cannot Run Background Jobs
+
+`.submit()` and schedules do not execute inside a Preview build — there is no background worker attached to the Preview environment. A flow that calls `$services.jobs...submit(...)` from a Preview session either silently no-ops or the caller must branch around it. The shipped pattern is an inline-dispatch guard: check the current environment and, when it is Preview, `await` the target flow directly (synchronously, in-process) instead of submitting it as a background job. True async execution, cancellation, and history can only be exercised against a published environment.
 
 ## Pre-Flight Checklist
 

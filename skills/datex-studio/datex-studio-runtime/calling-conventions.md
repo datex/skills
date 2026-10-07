@@ -8,7 +8,7 @@ The Datex Studio platform has three execution tiers:
 
 - **Functions** (`-flow.json`) — execute in the cloud backend. Non-transactional.
 - **Actions** (`-footprintFlow.json`) — execute server-side inside the Footprint runtime. Transactional; use for operations that require atomicity (CRUD, status updates). The transactional model has error-propagation consequences — see [actions.md → Error Handling](../action-creator/references/actions.md#error-handling).
-- **UI components** (hubs, grids, forms, editors, selectors) — execute in the browser.
+- **UI components** (hubs, grids, forms, editors, selectors, cards, lists, widgets, calendars, wizards, code editors, dashboards, embeds, visualizations, FootprintQueryManager dialogs, and the shell's `on_init` / menu flows) — execute in the browser. Their flows call functions, never actions (rule below).
 
 Datasources also run on one of the two server tiers: `-datasource.json` runs in the cloud backend (function-tier), `-footprintDatasource.json` runs on the Footprint server (action-tier). See [datasources.md](../datasource-creator/references/datasources.md) for the full taxonomy.
 

@@ -3,7 +3,11 @@ name: datex-studio-runtime
 description: |
   Datex Studio platform runtime semantics: platform-injected globals (`$flow`,
   `$datasources`, `$db`, `$shell`, `$frontendFlows`, `$operations`, `$apis`,
-  `$flows`, `$types`, `$utils`, `$services.jobs`, `$editor`, `$datasource`),
+  `$flows`, `$types`, `$utils`, `$services.jobs`, `$settings`, `$context`,
+  `$event`, `$datasource`) and the per-component contexts (`$editor`, `$embed`,
+  `$card`, `$list`/`$item`, `$widget`/`$slice`, `$calendar`/`$calendarEvent`/
+  `$column`, `$wizard`/`$index`, `$codeEditor`, `$dashboard`, `$visualization`,
+  `$queryManager`, `$workspace` for shell flows),
   three-tier execution model (functions / actions / UI components) and the
   caller→callee allow/deny matrix per tier, generic CRUD action set in the
   Utilities package, and `controlConfig.type` values used on field controls
@@ -25,6 +29,18 @@ depends:
   - grid-creator
   - hub-creator
   - storage-creator
+  - embed-creator
+  - card-creator
+  - list-creator
+  - widget-creator
+  - calendar-creator
+  - wizard-creator
+  - code-editor-creator
+  - dashboard-creator
+  - shell-editor
+  - app-config-editor
+  - authorization-editor
+  - user-config-editor
 ---
 
 # Datex Studio — Runtime Semantics & Execution Model
@@ -39,7 +55,7 @@ If you're asked a runtime question that isn't already scoped to a more specific 
 
 ## Reference index
 
-- [runtime-globals.md](runtime-globals.md) — Platform-injected globals reference table (every `$...` global the platform exposes inside flow code, with shape and tier restrictions) and the `$utils` helper notable semantics (`isDefined` is collection-aware; `isDefinedTrimmed` is whitespace-aware).
+- [runtime-globals.md](runtime-globals.md) — Platform-injected globals reference table (every `$...` global the platform exposes inside flow code, with shape and tier restrictions — including the per-component contexts `$card`, `$list`/`$item`, `$widget`/`$slice`, `$calendar`/`$calendarEvent`/`$column`, `$wizard`/`$index`, `$codeEditor`, `$dashboard`, `$workspace`, and `$settings` / `$context` / `$event`), the shared `IStyles` base, and the `$utils` helper notable semantics (`isDefined` is collection-aware; `isDefinedTrimmed` is whitespace-aware).
 - [calling-conventions.md](calling-conventions.md) — The three execution tiers (functions / actions / UI components), the caller→callee allow/deny matrix per tier, datasource tier rule, storage tier rule (`$db` is function-tier only), the generic CRUD action set (`crud_create_entity` / `crud_update_entity` / `crud_delete_entity` in the Utilities package).
 - [control-types.md](control-types.md) — `controlConfig.type` values across forms / editors / hub filters / grid cells; sibling-config-blocks-stay-null rule; declarative-string-slot encoding via cross-link to `../datex-studio-conventions/file-format.md`; dynamic mutation via flow code on the `$<container>.fields.<id>.control.<prop>` surface; detailed `codeBox` section plus stubs for textBox, numberBox, dateBox, checkBox, selectBox, button, label, text, image, draw, progressBar, matrix.
 - [scheduled-jobs.md](scheduled-jobs.md) — `$services.jobs` in depth: submission vs schedule API surface (`.submit`, `.schedule.create/update/list/activate/deactivate`), `ScheduleConcurrency`, schedule-name discipline, the idempotent initialize + enable/disable-toggle lifecycle pattern, the sync/async dispatcher pattern, and the pre-flight checklist for background-job features.
