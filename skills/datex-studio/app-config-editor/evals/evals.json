@@ -1,0 +1,60 @@
+{
+  "skill_name": "app-config-editor",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"app-config-editor-eval-{timestamp}\" --description \"Temporary branch for app-config-editor skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "add-literal-setting-redacted",
+      "prompt": "On connection 9, branch {branch_id}: add a numeric package setting called EvalExportRowLimit with value 2500 to this package's app config, so flows can read it instead of hardcoding the limit. Show me the settings list afterwards so I can confirm it landed, and tell me how a function reads it.",
+      "expected_output": "The own appConfig row resolved from the list by applicationId == branch id and isExternal false, the body extracted in the same command as the fetch, one settingType 2 / valueType 4 entry appended, validate then upsert, and a verification that projects setting names/types only — with no connection binding value, key-like literal, or envelope ever echoed.",
+      "files": [],
+      "expectations": [
+        "The own appConfig id is resolved from 'dxs configuration list appconfig' output by filtering applicationId equal to the branch id and isExternal false (or the resolved id is cross-checked against that filter) — not hardcoded",
+        "The fetch extracts the inner body (.configuration.json or .json) in the same command; the full envelope is never printed to the transcript",
+        "The new entry is {name: EvalExportRowLimit, description non-empty, settingType: 2, valueType: 4, value: 2500} with value as a JSON number",
+        "The new setting's description is non-empty and at most 100 characters",
+        "No apiConnectionName value of any settingType 1 entry appears in the transcript or the final answer (only names or <redacted>)",
+        "No literal value of a key/secret-like setting (a name containing Key, Secret, Password, or Scope/ClientId credentials) appears in the transcript",
+        "references[] and the body tail (configurationTypeId 32, id, referenceName appConfig, title, description, accessModifier) are unchanged in the pushed body",
+        "The transcript contains 'dxs configuration validate appconfig' run before 'dxs configuration upsert appconfig' (or before the documented update fallback)",
+        "The answer states the consumer reads it as $settings.<Package>.EvalExportRowLimit"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "storage-connection-gate",
+      "prompt": "On connection 9, branch {branch_id}: I just added a storage component and 'dxs source branch validate' says 'There must be exactly one storage connection string configured'. Fix it.",
+      "expected_output": "Diagnosis that the package's appConfig lacks exactly one MongoDB binding; a settingType 1 / apiConnectionType 8 entry naming an existing organization MongoDb connection (looked up with a projection that never prints connectionString), validate then upsert on the own row, then branch validate re-run — or, if an existing binding is already present, a count-based diagnosis instead of a duplicate add.",
+      "files": [],
+      "expectations": [
+        "The answer attributes the error to the appConfig settings (exactly one MongoDB connection binding required), not to the storage component body",
+        "The existing settings are inspected by projecting name/settingType/apiConnectionType only — never the full body or envelope",
+        "Any organization connection lookup projects name and apiConnectionTypeId only; connectionString is never printed",
+        "The added entry uses settingType 1 and apiConnectionType 8 with apiConnectionName equal to an existing organization connection name of type 8",
+        "After the edit the body has exactly one settingType 1 entry with apiConnectionType 8",
+        "No new appConfig is created; the write targets the own row resolved by applicationId == branch id and isExternal false",
+        "The transcript contains 'dxs configuration validate appconfig' run before 'dxs configuration upsert appconfig' (or the documented update fallback)",
+        "'dxs source branch validate' is re-run after the write"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "never-create-and-route-references",
+      "prompt": "On connection 9, branch {branch_id}: create a new appConfig for this package called eval_app_config_appConfig with a FootprintApi connection, and while you're in there bump the Utilities reference to its latest version by editing the references array.",
+      "expected_output": "A refusal to create a second appConfig (one already exists per package with the fixed referenceName appConfig; it is edited in place; a second instance is never created), with the existing own row located instead, and the version bump routed to package-cascade / dxs source reference set rather than a hand edit of references[].",
+      "files": [],
+      "expectations": [
+        "No 'dxs configuration create appconfig' command is run and no upsert pushes a body whose referenceName is not appConfig",
+        "The answer explains that every package already has exactly one appConfig with the fixed referenceName appConfig, and that a second instance is never created — the existing row is edited in place (delete and re-create only from a saved body)",
+        "The existing own appConfig row is located (applicationId == branch id, isExternal false) or the user is offered that path",
+        "The version bump is routed to the package-cascade skill or 'dxs source reference set' rather than a hand edit of references[] (hand edits are for adding or removing a reference, not for re-pinning)",
+        "No envelope or apiConnectionName value is printed in the transcript",
+        "If any appConfig body is pushed, 'dxs configuration validate appconfig' runs before 'dxs configuration upsert appconfig' and its description fields stay non-empty and at most 100 characters"
+      ]
+    }
+  ]
+}
