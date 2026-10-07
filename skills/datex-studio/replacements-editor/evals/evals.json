@@ -1,0 +1,57 @@
+{
+  "skill_name": "replacements-editor",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"replacements-editor-eval-{timestamp}\" --description \"Temporary branch for replacements-editor skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "swap-flow-after-impact-analysis",
+      "prompt": "On connection 9, branch {branch_id}: every place that calls the Utilities flow get_global_context_flow should run our own eval_global_context_flow instead. Create that flow as a pass-through with the same contract and wire up the swap.",
+      "expected_output": "Impact analysis on Utilities.get_global_context_flow before the swap (with the note that reverse-trace cannot see replacements), the original's contract fetched read-only (Module/ref) and mirrored exactly in the new cti 9 flow, the own replacements row resolved by applicationId == branch id and isExternal false, one entry {configurationTypeId 9, referenceName get_global_context_flow, applicationReferenceName Utilities, replacementReferenceName eval_global_context_flow} appended, validate before upsert, and a read-back via 'dxs source branch replacements'.",
+      "files": [],
+      "expectations": [
+        "Impact analysis (impact-analysis skill or 'dxs source explore reverse-trace' on the module-qualified Utilities flow) runs BEFORE the replacements body is pushed",
+        "The answer states that replacements are invisible to reverse-trace / reference-following, so every caller of the original gets the replacement",
+        "The original flow is read from the referenced package (e.g. 'dxs configuration get flow Utilities/get_global_context_flow') and the new flow's inParams/outParams match it one-for-one",
+        "The new flow's description is non-empty and at most 100 characters",
+        "The own replacements id is resolved from 'dxs configuration list replacements' by applicationId equal to the branch id and isExternal false (or cross-checked against that filter) — not hardcoded",
+        "The pushed replacements body contains exactly one entry for this swap with configurationTypeId 9, referenceName get_global_context_flow, applicationReferenceName Utilities, replacementReferenceName eval_global_context_flow",
+        "The replacement flow is pushed before (or verified to exist before) the replacements entry, since validate does not check targets",
+        "No envelope is printed to the transcript",
+        "The transcript contains 'dxs configuration validate replacements' run before 'dxs configuration upsert replacements' (or before the documented update fallback)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "contract-mismatch-stop",
+      "prompt": "On connection 9, branch {branch_id}: register a replacement so that FootprintManager's sales_order_editor is swapped for an editor called eval_sales_order_editor that takes a single inParam named order_lookup_code instead of the original's parameters. Just add the entry; we'll build the editor later.",
+      "expected_output": "The agent fetches the original editor's contract read-only, detects that a replacement taking different inParams breaks every caller (they pass the original's arguments), notes that the replacement does not exist yet and validate would not catch that, and stops (or asks) rather than registering the entry — offering to build a contract-identical replacement first.",
+      "files": [],
+      "expectations": [
+        "The original editor's inParams are read from the referenced package (Module/ref form or equivalent read-only fetch) before any decision",
+        "The answer states that the replacement must keep the original's inParams/outParams identical because every caller passes the original's arguments",
+        "The answer notes that eval_sales_order_editor does not exist yet and that 'dxs configuration validate replacements' does not check that targets exist",
+        "No replacements entry pointing at a nonexistent or contract-mismatched component is upserted without explicit user confirmation after the risk is explained",
+        "Impact analysis on FootprintManager.sales_order_editor is run or explicitly required before any swap is registered",
+        "If any replacements body is pushed, 'dxs configuration validate replacements' runs before 'dxs configuration upsert replacements' and the body description stays non-empty and at most 100 characters"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "never-create-replacements",
+      "prompt": "On connection 9, branch {branch_id}: create a new replacements component called eval_swaps_replacements for this app, empty for now.",
+      "expected_output": "A refusal — every application and package already has exactly one replacements config with the fixed referenceName replacements, which is edited, never created or deleted — plus the current own entries read back via 'dxs source branch replacements' or a get on the own row.",
+      "files": [],
+      "expectations": [
+        "No 'dxs configuration create replacements' is run and no pushed body has a referenceName other than replacements",
+        "The answer explains that the replacements singleton is auto-provisioned once per package with the fixed referenceName replacements and is never created or deleted",
+        "The existing own row is located (applicationId == branch id, isExternal false) or its entries are read with 'dxs source branch replacements'",
+        "No envelope is printed to the transcript",
+        "If any body is pushed, its description stays non-empty and at most 100 characters and 'dxs configuration validate replacements' runs before 'dxs configuration upsert replacements'"
+      ]
+    }
+  ]
+}
