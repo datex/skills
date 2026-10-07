@@ -122,6 +122,8 @@ Always respond in this three-part structure (see "Response Format" below). It ma
 - **No speculation.** If you can't find the answer, say "not found in <sources consulted>" rather than guessing.
 - **Respect read-only.** If during inspection you notice a bug or improvement, mention it in Caveats but do not fix it. The consumer decides what to do with the finding.
 
+- **Check replacements for "what does the user actually see" questions.** A component's own config is not always what renders — the app's replacement swap table (see [`replacements-editor`](../replacements-editor/SKILL.md), `dxs source branch replacements <branchId>`) can redirect a reference to a different component at runtime. When the question is about observed/live behavior rather than a specific component's source, check replacements before concluding from the config alone.
+
 ## Response Format
 
 Answer the question directly and concisely. Use this three-part structure:
