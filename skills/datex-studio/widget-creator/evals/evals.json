@@ -1,0 +1,80 @@
+{
+  "skill_name": "widget-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"widget-creator-eval-{timestamp}\" --description \"Temporary branch for widget-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "fat-number-from-standalone-datasource",
+      "prompt": "On connection 9, branch {branch_id}: I want a tile showing how many outbound orders are still open for a given warehouse. Create the widget eval_open_orders_count_widget (and whatever it needs to get its number) so a hub can pass in a warehouse id.",
+      "expected_output": "A standalone single-result datasource authored first, then a fatNumber widget (cti 8) that references it via datasourceConfig with the datasource's own moduleId, full configParameters/configOutParameters mirrors, and a null-guarded value binding over $widget.entity, validated before upsert.",
+      "files": [],
+      "expectations": [
+        "A standalone datasource is created (validated and upserted) BEFORE the widget is upserted",
+        "The datasource returns a single result (isCollection false on its result) — not a collection",
+        "The widget body has type \"fatNumber\" and a fatNumberConfig block, configurationTypeId 8, and referenceName eval_open_orders_count_widget",
+        "datasourceConfig references the datasource by configId with moduleId set to the datasource's package and does NOT set isOwned: true",
+        "datasourceConfig.configParameters has an entry for every datasource inParam, bound to $widget.inParams.<id>",
+        "datasourceConfig.configOutParameters contains a result entry with isCollection false that mirrors every field of the datasource's result (no trimmed subset)",
+        "fatNumberConfig.value is a TS expression reading $widget.entity.<field> with a null guard (?? 0 or an isDefined ternary), and useAbbreviations is a JSON boolean",
+        "The widget declares a warehouse inParam with a snake_case id (e.g. warehouse_id)",
+        "The widget's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate widget' run before 'dxs configuration upsert widget'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "pie-block-name-and-slice-outparam",
+      "prompt": "On connection 9, branch {branch_id}: add a pie chart widget eval_tasks_by_status_widget that splits a warehouse's open tasks by status (one slice per status, sized by count). A host will want to react when the user clicks a slice later, so expose whatever the host needs for that.",
+      "expected_output": "A collection-shaped standalone datasource plus an apexPieChart widget whose config block is pieChartConfig with label/value bound to $slice.entity fields, a slice outParam whose entity mirrors the result fields, and no styling code.",
+      "files": [],
+      "expectations": [
+        "The widget body has type \"apexPieChart\" and its config block is named pieChartConfig — NOT apexPieChartConfig",
+        "pieChartConfig.label and pieChartConfig.value are TS expressions over $slice.entity.<field> (not $widget.entity)",
+        "The referenced datasource returns a collection (configOutParameters result isCollection true), one row per status",
+        "The widget declares outParams with id \"slice\": an object whose objectTypeDef contains an \"entity\" object mirroring the datasource result fields",
+        "The widget does not write $widget.outParams in flow code and declares no events or click flow",
+        "The widget does not call $widget.styles or read $widget.entity anywhere (neither exists on a pie's IWidget)",
+        "referenceName eval_tasks_by_status_widget ends in _widget; description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate widget' run before 'dxs configuration upsert widget'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "host-embed-in-hub-with-refresh",
+      "prompt": "On connection 9, branch {branch_id}: create a hub eval_orders_overview_hub with a warehouse filter and a toolbar button that runs some update, and put the open-orders count widget eval_open_orders_count_widget (create it if it does not exist, taking warehouse_id) at the top of the hub so it follows the filter and refreshes after the button's update.",
+      "expected_output": "A hub whose top-level widgets[] entry references the widget with the widget's moduleId and a full configParameters mirror (warehouse bound to the hub filter, a boolean refresh inParam bound to a declared hub var that the button flow flips), with both widget and hub validated before upsert.",
+      "files": [],
+      "expectations": [
+        "The hub body has a top-level widgets array with an entry {id, widgetConfig{configId, moduleId, configParameters}} where configId is eval_open_orders_count_widget",
+        "widgetConfig.moduleId is the widget's own package (not a guess or the hub's package when they differ)",
+        "widgetConfig.configParameters contains an entry for EVERY widget inParam, with warehouse_id bound to $hub.filters.<filter>.control.value",
+        "The widget declares a boolean refresh-style inParam, and the hub binds it to a $hub.vars.<id> that is declared in the hub's vars array",
+        "The toolbar button's flow assigns that hub var after the update (toggling or setting it) — it does not call a nonexistent $hub.widgets.<id>.refresh()",
+        "No dashboard is used as the host",
+        "The transcript contains 'dxs configuration validate widget' run before 'dxs configuration upsert widget' and 'dxs configuration validate hub' run before 'dxs configuration upsert hub'",
+        "Every new component's description is non-empty and at most 100 characters"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "threshold-styling",
+      "prompt": "On connection 9, branch {branch_id}: create eval_count_accuracy_widget showing a count-accuracy percentage for a warehouse with a % suffix. It should turn green at 98 or above, amber from 90 up to 98, and red below 90.",
+      "expected_output": "A fatNumber widget with suffix '%' as plain text, an on_data_loaded flow wired via onDataLoadedFlowConfig that calls setGoodClass()/setMediumClass()/setBadClass() with parentheses after a null check on $widget.entity, validated before upsert.",
+      "files": [],
+      "expectations": [
+        "The widget is type \"fatNumber\" with a fatNumberConfig block and a single-result standalone datasource reference",
+        "fatNumberConfig.suffix is the plain text \"%\" — not TS-quoted (no \"'%'\" or backticks)",
+        "A flow (e.g. on_data_loaded) contains the threshold logic and is referenced by onDataLoadedFlowConfig.flowId; no flow in flows[] is left unreferenced by a hook",
+        "The flow calls $widget.styles.setGoodClass(), $widget.styles.setMediumClass(), and $widget.styles.setBadClass() — each WITH parentheses",
+        "The thresholds read $widget.entity.<field> and guard against an undefined value before comparing",
+        "The styling is not placed only in on_init for this datasource-backed widget",
+        "referenceName eval_count_accuracy_widget ends in _widget; description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate widget' run before 'dxs configuration upsert widget'"
+      ]
+    }
+  ]
+}
