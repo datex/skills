@@ -100,7 +100,7 @@ Consult references/db.md → API Surface before picking
 Fluent DSL only — no native operators:
   - .equals / .in / .isNull / .and / .or  (NOT === / && / ||)
   - .update(id, patch) takes id string DIRECTLY, not a callback
-  - Result rows are TypeScript-optional even for required columns
+  - Result rows mirror `required`: required columns come back non-optional, others stay optional
   - Field ids must match storage objectTypeDef[].id exactly
 Walk references/db.md → Pre-Flight Checklist before push
         |
@@ -129,9 +129,10 @@ Schema change in flight? -> invoke `impact-analysis` with
 1. If the parent skill (typically `function-creator`) hasn't already established branch and connection, follow [../datex-studio-shared/branch-setup.md](../datex-studio-shared/branch-setup.md) for selection. **Never assume a branch ID** — confirm with the user.
 2. **Identify the storage being accessed.** The access path is `$db.<Package>.<storage_referenceName>`:
    - `<storage_referenceName>` matches the `-storage.json` filename stem (e.g. `widget_rule_storage`).
-   - `<Package>` is the storage component's package placement — typically the feature package (`Acme`), not the default `Utilities`. Read the storage file's package declaration directly; never infer from the feature folder name.
+   - `<Package>` is the storage's owning package — the package the branch belongs to, or a package the caller's package references. Read the storage file's package declaration directly; never infer from the feature folder name or assume it matches the caller's package.
 3. **Confirm caller tier.** `$db` is function-tier only. Verify the calling configuration is either a function (`configurationTypeId: 9`, `-flow.json`) or a flow slot inside a flow-type datasource (`getListFlow` / `getByKeysFlow` / `getFlow` on a `-datasource.json` with `type: "flows"`, configurationTypeId `6` or `19`). It is **not** available inside actions (`-footprintFlow.json`) and **not** exposed to UI components. When an action needs storage access, wrap the read/write in a function and call it via `$apis.<Package>.FootprintApi.extendedActions.<function>`.
 4. **Read the storage schema** — the `objectTypeDef[]` array on the storage file lists every column's `id` (snake_case), `type`, `isCollection`, and `required` flag. Field names referenced in predicates and patches must match these `id`s exactly; a rename in the schema breaks every unupdated call site (see Phase 4 schema-change audit).
+   - If the branch's application has never had a storage component before, confirm it has a storage connection string configured (`dxs source branch settings <branchId>`, looking for an `apiConnectionType: 8` setting). `$db` calls validate and run fine against a component that itself imports cleanly, but `dxs source branch validate` fails at the end of the change with `"There must be exactly one storage connection string configured"` if the application's appConfig has no Mongo connection wired up — this is a branch-level gate, not something either the storage or the calling function's own validate catches. To add the Mongo binding, use [`app-config-editor`](../app-config-editor/SKILL.md).
 
 ### Phase 2: Pick the `$db` operation
 
@@ -164,7 +165,7 @@ Write the call against the rules in [references/db.md](references/db.md). The ke
 4. **Field ids match `objectTypeDef[].id` exactly.** Snake_case from the storage carries through into every predicate and patch.
 5. **Package access is correct.** The caller's package must have access to the storage's package (same package, or a declared dependency).
 6. **Cursor terminals are present.** Every `.where(...)` chain ends in `.toList()` (or `.count()` for counts, or a mutation call). Unterminated cursors don't execute.
-7. **Local types for result rows are fully optional** (or left inferred). `$db` results come back with every field typed as `T | undefined`, even for `required: true` columns — the platform's type generator does not propagate `required` into the caller-side row type. A strict local annotation fails the import. Same behavior as OData and flow-type datasources — treat all three result shapes identically at the type level.
+7. **Local types for result rows mirror `required`** (or left inferred). `$db` results type `required: true` columns non-optional and every other column `T | undefined` — the platform's type generator *does* propagate `required` into the caller-side row type for storage, unlike OData and flow-type datasources (where every field stays optional regardless of the entity's required flags). Don't treat the three result shapes as identical at the type level.
 
 Walk [references/db.md → Pre-Flight Checklist](references/db.md#pre-flight-checklist) before handing back to the parent creator skill.
 
@@ -202,7 +203,7 @@ Walk the full checklist in [references/db.md](references/db.md). The fast versio
 5. **Field names match the storage's `objectTypeDef[]` ids** exactly.
 6. **Package access is correct.** The caller's package has access to the storage's package.
 7. **Cursor terminals present.** Every `.where(...)` chain ends in `.toList()` (or `.count()`, or a mutation call); unterminated cursors don't execute.
-8. **Local types for result rows are fully optional** (or left inferred). Strict annotations — including `id: string` — fail the import because `$db` results come back with every field typed as `T | undefined`, matching OData and flow-type datasources.
+8. **Local types for result rows mirror `required`** (or left inferred): a `required: true` column is non-optional on the generated row type, every other column is `T | undefined`. This is the opposite of OData and flow-type datasources, where every field stays optional regardless of the entity's required flags — don't copy that all-optional shape onto a `$db` result type.
 9. **If this is a flow-type datasource over `$db`** (grid or selector backing), walk the additional checklist in [references/flow-db-datasources.md → Pre-Flight Checklist](references/flow-db-datasources.md#pre-flight-checklist) — `getQuery()` factory, single `.where` callback, paging pushed to `$db`, `(?i)` regex full-text, helper flows called at top, `$orderby` / `$filter` declared in `getListFlow.inParams`, snake_case verbatim rule, four registration arrays mirrored, per-column `dynamicFilterControl` matches type, `mapRow` keeps result shape consistent, five-location row-shape sync, `$orderby` / `$filter` oneOf-literal sync, hub mount inParams match the grid's inParams.
 10. **Schema change in flight?** Invoke `impact-analysis` with `$db.<Package>.<storage_referenceName>` and audit every hit before the parent creator skill pushes the storage edit.
 
@@ -215,7 +216,7 @@ Walk the full checklist in [references/db.md](references/db.md). The fast versio
 | Omitting a `required: true` column from a `.update` patch | The platform validates the patch against the full column schema; the call fails even when the existing record has that field populated. Read-then-patch — echo every required field. |
 | Patching a column to `null` to clear it | Null-valued patch keys are **silently dropped** — the column keeps its old value, no error. Write a typed sentinel (e.g. `0` on an epoch-ms column) and map it back to null on read. See [references/db.md](references/db.md#api-surface). |
 | Assuming multi-row writes are atomic | `$db` has no transactions. Order writes so every crash interleaving self-heals (mark losers before atomically flipping the winner via `.findOneAndModify`), and make each write no-op when the row is already in the target state. |
-| Annotating result rows with a strict local type (`id: string`) | `$db` returns every field as `T | undefined`. Strict annotations fail the import. Leave inferred or annotate with optional fields; narrow at access sites with `?.` / `??` / `$utils.isDefined`. |
+| Annotating every result-row field as optional, including `required: true` columns | `$db` returns `required: true` columns non-optional and every other column as `T | undefined` — it's the one result shape where `required` propagates into the type. Leave inferred, or annotate matching that split; narrow the nullable fields at access sites with `?.` / `??` / `$utils.isDefined`. |
 | Using `$db` inside an action (`-footprintFlow.json`) | Tier mismatch — `$db` is function-tier only. Wrap the read/write in a function and call it from the action via `$apis.<Package>.FootprintApi.extendedActions.<function>`. |
 | Forgetting a terminal on a `.where(...)` chain | Cursors don't execute until a terminal runs. The line `const cursor = $db.<...>.where(...);` returns the cursor; you still need `.toList()` (or `.count()`, or a mutation). |
 | Field id in predicate / patch doesn't match storage `objectTypeDef[].id` | Silent — predicate accesses an undefined column expression, the resulting query effectively collapses. Match the snake_case id exactly. Run `impact-analysis` after any rename. |

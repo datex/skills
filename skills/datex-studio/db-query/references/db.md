@@ -13,6 +13,7 @@ $db.<Package>.<storage_referenceName>
 ```
 
 The package is determined by the storage component's package placement (typically the feature package, e.g. `Acme`, not the default `Utilities`), and the storage's `referenceName` matches the filename stem — e.g. `$db.Acme.widget_option_storage`.
+**Resolving `<Package>` when you don't already know it.** `<Package>` is the storage's *owning* package — concretely, either the package the current branch belongs to (the common case: the storage lives in the same package as the function calling it), or, when the call crosses package lines, the name of a package the caller's package references. Read the storage component's own package declaration directly (`dxs configuration get storage <referenceName> -b <branchId>`, or `dxs source explore` by referenceName) rather than guessing from a feature folder name or assuming it matches the calling function's package — a storage can be declared in a different package than every one of its callers.
 
 ## Tier Restriction — Function-Tier Only
 
@@ -49,6 +50,21 @@ The observed API surface is grown as we encounter more usages — this table is 
 > **Patches cannot write `null` over a set value.** `$db.update` / `.updateMany` / `.findOneAndModify` silently drop null-valued patch keys — the write succeeds, the other keys apply, and the null'd column keeps its old value with no error (probe-verified 2026-07-20: a sibling string column cleared while the null'd column kept its create-time value). A patch like `{ next_due_on: computed ?? null }` is a latent no-op on the null branch. **Fix: a typed sentinel plus read-side mapping** — write a value that is invalid in the domain (e.g. `0` for an epoch-ms column: `{ next_due_on: computed ?? 0 }`) and map it back to null wherever rows are hydrated (`row.next_due_on <= 0 ? null : row.next_due_on`). Document the sentinel in the storage column's `description` so readers know `0` means "cleared".
 
 > **`$db` has no transactions.** There is no multi-write atomicity beyond a single `.findOneAndModify` call. For multi-row state changes, **order the writes so every crash interleaving self-heals** — e.g. in a winner-election pattern, mark the losers *before* atomically flipping the winner: dying between the writes leaves the winner unclaimed and the next pass re-elects it, whereas the reverse order strands the losers as a fresh group that acts twice. Design each write so a concurrent or repeated pass no-ops on rows already in the target state (predicate on the pre-state, patch to the post-state).
+> **Shared budget / semaphore without a counter column.** `$db` has no atomic increment/decrement, so a "no more than N concurrent" budget can't be enforced with a single counter row (a read-then-write counter races). The one-row-per-lease pattern sidesteps this: each concurrent unit of work `.add()`s its own lease row (holder id, acquired-at timestamp), and the budget check is `.where(...).toList().length < N` immediately before adding — add-then-count rather than count-then-add, so the race window is the gap between the count and the add, not a stale counter. Reap stale leases (rows older than a timeout) before counting, since a crashed holder never gets to release. Back off with jitter and retry the count+add when the budget is full, rather than failing immediately. Always release (`.remove(leaseId)`) in a `finally` so a thrown error still frees the slot.
+>
+
+**The query builder enforces stage order in its types.** Each stage returns `Omit<IQueryBuilder<T>, …>`, removing the stages that may no longer follow, so an out-of-order chain fails validation with *"Property 'take' does not exist on type 'Omit<…>'"* (or `'toList'`). The order is **select → where → sort → skip → take → terminal**. Every stage is optional, and `select` may also come after `where`.
+
+| After | Removed from the chain |
+|---|---|
+| `.select(...)` | `where`, `select`, `sort` |
+| `.where(...)` | `where`, `skip`, `take`. **To page or limit a filtered query, `.sort(...)` first**: `.where(p).sort({...}).take(n).toList()` |
+| `.sort(...)` | `sort`, `where`, `single` |
+| `.skip(n)` | `sort`, `select`, `where`, `skip` |
+| `.take(1)` | `toList` (and `sort`, `select`, `where`, `skip`, `take`). Finish with `.single()` |
+| `.take(n)`, n > 1 | `single` (and `sort`, `select`, `where`, `skip`, `take`). Finish with `.toList()` |
+
+Terminals: `.toList(): Promise<Partial<T>[]>`, `.single(): Promise<Partial<T>>`, `.first(): Promise<Partial<T>>` and `.count(): Promise<number>`. `.first()` is the cheapest one-row read and works straight off the storage: `$db.<Pkg>.<storage>.select('id').first()`. The typedef promises a row, but on an empty collection expect no row rather than an error (`_TODO_ (runtime unverified)`). Code that treats a missing row as an error, such as a reachability probe, must coalesce: `.first().then(row => row ?? {})`.
 
 ## Predicate DSL — Fluent Operators, Not Raw TypeScript
 
@@ -90,6 +106,8 @@ const cursor = $db.Acme.widget_rule_storage
 
 TypeScript accepts it (the column-expression objects have loose types), so there is no compile-time signal. The misbehavior appears at runtime: the predicate either errors during translation, or the conjunction collapses and the resulting set is wrong. Treat **every** comparison and boolean composition inside a `$db` predicate as a method call on the column expression, not a native operator.
 
+**`$utils.isDefined(value: any): boolean` is not a TypeScript type predicate** — it returns a plain `boolean`, not `value is T`, so guarding `if ($utils.isDefined(optionalArg))` does not narrow `optionalArg` from `string | undefined` to `string` for TypeScript's purposes. Passing the still-optional-typed variable straight into a strictly-typed predicate method (e.g. `.equals(optionalArg)` on a `StringExprBuilder`, which wants `string | StringExprBuilder`) is a type error even though the `isDefined` guard makes it logically safe at runtime. Use a non-null assertion inside the guarded branch (`.equals(optionalArg!)`) or an explicit `!= null` check, which TypeScript does narrow on.
+
 ### Observed operators
 
 Grown as encountered. Document additions here when you use a new one:
@@ -110,34 +128,31 @@ Grown as encountered. Document additions here when you use a new one:
 
 This is the complete method set, confirmed from the platform's designer-context definition (the `StringExprBuilder` / `NumberExprBuilder` / `DateExprBuilder` / `BoolExprBuilder` / `ArrayExpressionBuilder` / `BaseExprBuilder` interfaces in `DesignerConfigContextTemplates.Global.cs`). The comparison methods are the short `te`-suffixed forms `.gt` / `.gte` / `.lt` / `.lte` — there is **no** `.greaterThan`, `.notEquals`, `.ge`, or `.le`. `equals` / `ne` / `in` apply to string, number, and Date columns; `gt`/`gte`/`lt`/`lte` to number and Date; `includes` (regex) to string; `isNull`/`isNotNull` to any column; `any()` to array-typed columns; `and`/`or` compose `BoolExprBuilder`s. Operators can also be applied dynamically via the accessor form `r[column][operator](value)` (see [`flow-db-datasources.md`](flow-db-datasources.md)).
 
-## Result fields are TypeScript-optional on the caller side
+## Result field optionality mirrors `required`, unlike datasources
 
-Records returned by `$db` reads (`.toList()`, `.add(...)` return, row access inside `.where(...)` callbacks' result) are typed with **every field optional** — `T | undefined` — even for columns declared `required: true` on the storage. The platform's type generator does not propagate the storage's `required` slot into the caller-side row type, so a strict local annotation will fail the import.
-
-This matches the same behavior on datasources (see [`odata-datasources.md` → Result fields are TypeScript-optional on the caller side](../../datasource-creator/references/odata-datasources.md#result-fields-are-typescript-optional-on-the-caller-side) and [`flow-datasources.md` → Result fields are TypeScript-optional on the caller side](../../datasource-creator/references/flow-datasources.md#result-fields-are-typescript-optional-on-the-caller-side)) — treat `$db`, OData datasource, and flow-datasource result records identically at the type level.
+Records returned by `$db` reads (`.toList()`, `.add(...)` return, row access inside `.where(...)` callbacks' result) are typed in the generated context against the storage's own `required` flag per column: a column declared `required: true` on the storage comes back **non-optional** on the caller-side row type; every other column comes back optional (`T | undefined`). This is the opposite of what an author coming from the OData/flow-datasource result shape expects — on those, **every** field is optional regardless of the entity's own required flags (see [`odata-datasources.md` → Result fields are TypeScript-optional on the caller side](../../datasource-creator/references/odata-datasources.md#result-fields-are-typescript-optional-on-the-caller-side) and [`flow-datasources.md` → Result fields are TypeScript-optional on the caller side](../../datasource-creator/references/flow-datasources.md#result-fields-are-typescript-optional-on-the-caller-side)). Storage rows are the one result shape where `required` actually propagates into the type — don't assume `$db`, OData, and flow-datasource rows are identical at the type level.
 
 ```typescript
 // Storage has: id (required), owner_id (nullable), project_id (nullable), is_active (nullable)
-// $db-returned row type: { id?: string, owner_id?: number, project_id?: number, is_active?: boolean, ... }
+// $db-returned row type: { id: string, owner_id?: number, project_id?: number, is_active?: boolean, ... }
 
 const rules = await $db.Acme.widget_rule_storage.toList();
 
-// ✗ Strict local type — import fails with "Type '{ id?: string, ... }[]' is not assignable to type '{ id: string, ... }[]'."
-type Rule = { id: string, owner_id: number | null, project_id: number | null, is_active: boolean };
+// ✓ Required columns typed non-optional, nullable columns optional — matches the storage schema
+type Rule = { id: string, owner_id?: number, project_id?: number, is_active?: boolean };
 const typed: Rule[] = rules;
 
-// ✓ Every field optional on the local type, or leave inferred
-type Rule = { id?: string, owner_id?: number, project_id?: number, is_active?: boolean };
-const typed: Rule[] = rules;
+// ✗ Marking a required column optional, or a nullable column non-optional, mismatches the
+// generated type and can fail the import depending on how the local type is used downstream.
 
-// ✓ Inferred — use ?. / ?? on access
+// ✓ Inferred — use ?. / ?? on access to the nullable columns only
 for (const r of rules) {
     const active = r.is_active ?? true;
     // ...
 }
 ```
 
-The same rule applies to nested objects and collections inside a row (e.g. child records loaded through a flow-datasource-then-$db pipeline). Either leave result variables inferred and narrow at the access site with `?.` / `??` / `$utils.isDefined`, or annotate with a fully-optional shape. Never annotate with a strict shape — the import will fail.
+The same rule applies to nested objects and collections inside a row (e.g. child records loaded through a flow-datasource-then-$db pipeline): a nested `required: true` field stays non-optional, siblings stay optional. Narrow nullable fields at the access site with `?.` / `??` / `$utils.isDefined`; don't blanket-mark every field optional on a local annotation — that drifts from the generated shape for the required columns.
 
 ## The Implicit `id` Column
 
@@ -204,7 +219,7 @@ When a storage schema changes (column added / removed / renamed), every caller r
 4. **Predicate uses `.equals(...)` / `.and(...)` / `.or(...)` / `.isNull()` — never `===`, `&&`, `||`.**
 5. `.update(id, patch)` passes the id string directly as the first argument (not a predicate callback).
 6. If the storage has any `required: true` columns, `.update` calls **read the current row first** and echo the required fields in the patch.
-7. **Local types for `$db` result rows treat every field as optional** (`T | undefined`), even for `required: true` columns. Strict annotations fail the import — leave inferred or annotate with optional fields.
+7. **Local types for `$db` result rows mirror `required`** — a `required: true` column is non-optional on the generated row type, every other column is optional (`T | undefined`). Leave inferred, or annotate matching that split; don't blanket-mark every field optional (that's the datasource rule, not the storage one).
 8. After any storage schema change, find callers via `impact-analysis` (`dxs source explore reverse-trace <storage_referenceName> --branch <id>`) and audit each one.
 9. Reads coalesce the materialized array before indexing — `(await …toList()) ?? []` — because a never-written storage returns `undefined`, not `[]`.
 
