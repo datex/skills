@@ -1,0 +1,78 @@
+{
+  "skill_name": "wizard-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"wizard-creator-eval-{timestamp}\" --description \"Temporary branch for wizard-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "two-step-form-then-grid",
+      "prompt": "On connection 9, branch {branch_id}: build a two-step dialog eval_line_pick_wizard in Utilities. Step 1 is a small form (create eval_line_qty_form) where the user enters a target quantity; step 2 is a grid (create eval_line_pick_grid, any simple flow datasource is fine) that receives that quantity and lets the user tick rows, returning the selected row ids. The user must not be able to leave step 1 without a quantity, nor finish without at least one row selected. The caller needs to know whether the user finished or cancelled.",
+      "expected_output": "Validated and upserted form, grid and wizard (cti 13). The wizard's step 1 hosts the form and step 2 the grid; step 2's configParameters bind the quantity from $wizard.steps step1 outParams; both steps are gated via nextButtonDisabledCondition; on_init sets confirm false and on_finish copies the selected ids and sets confirm true.",
+      "files": [],
+      "expectations": [
+        "A wizard body is created with configurationTypeId 13 and referenceName eval_line_pick_wizard (ends in _wizard)",
+        "The wizard has exactly two steps: the first with contentType \"form\" and configId eval_line_qty_form, the second with contentType \"grid\" and configId eval_line_pick_grid",
+        "Step 1 sets next to step 2's id",
+        "Step 2's configParameters bind the grid's quantity inParam to an expression reading $wizard.steps …step1… outParams (not to a wizard var or a literal)",
+        "Step 1's nextButtonDisabledCondition disables the button while the quantity outParam is undefined; step 2's disables it while the selected-ids outParam is empty or undefined",
+        "Gating expressions read step outputs via $wizard.steps (optional chaining on the step) — not via a per-step flow or a toolbar",
+        "The form and the grid each write their outParams and call events.outParamsChange.emit() so the wizard sees the values",
+        "The wizard declares a confirm boolean outParam; the init flow sets it false and the finish flow sets it true after copying the selected ids into a wizard outParam",
+        "onInitFlowConfig.flowId and onFinishFlowConfig.flowId each name a flow present in the wizard's flows[]",
+        "The wizard's title is sentence case and not equal to its referenceName; its description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate wizard' run before 'dxs configuration upsert wizard'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "configoutparameters-parity",
+      "prompt": "On connection 9, branch {branch_id}: create a grid eval_lot_pick_grid whose outParams are selected_lot_ids (number collection) and total_quantity (number), then a one-step wizard eval_lot_pick_wizard hosting it that returns both values to its caller. Afterwards, add a third grid outParam, selected_warehouse_id (number), and make the wizard return that too.",
+      "expected_output": "A wizard whose step configOutParameters mirror the grid's declared outParams exactly, re-mirrored after the grid change, with validate run on both components and a branch-level validate after the shared-callee change.",
+      "files": [],
+      "expectations": [
+        "Before writing the wizard, the transcript reads the grid's declared outParams (from the body it authored or a dxs configuration get grid)",
+        "The wizard step's configOutParameters lists exactly the grid's outParams (selected_lot_ids as a number collection, total_quantity as a number) — no omissions, no extra entries",
+        "After the grid gains selected_warehouse_id, the wizard step's configOutParameters is updated to include it with type number, and the wizard is re-validated and re-upserted",
+        "The response explains that configOutParameters is a manual copy of the callee's outParams (not inherited) and that drift surfaces as 'Outdated contract. Type mismatch for output parameters'",
+        "The finish flow copies all three values from $wizard.steps …outParams into declared wizard outParams",
+        "The transcript runs 'dxs source branch validate' (or names it as the required check) after changing the shared grid's contract",
+        "The wizard's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate wizard' run before 'dxs configuration upsert wizard'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "early-close-and-opener-branching",
+      "prompt": "On connection 9, branch {branch_id}: create eval_order_confirm_wizard with an order_id inParam and one grid step (create a simple eval_order_lines_grid that takes order_id). If on_init finds order_id missing it must show an error and close the wizard immediately. Then give me the flow code a hub toolbar button would use to open the wizard and run a follow-up only when the user actually finished it.",
+      "expected_output": "A wizard whose on_init closes early with `// @ts-ignore` above `$wizard.close()`, a confirm outParam set false in init and true in finish, and opener code calling the package-qualified Dialog opener and branching on result?.confirm.",
+      "files": [],
+      "expectations": [
+        "The on_init flow calls $wizard.close() when order_id is missing, with a '// @ts-ignore' comment on the line directly above the call",
+        "The response states that IWizard has no close() in its generated typings (so the ignore is required to pass validate)",
+        "The wizard declares a confirm boolean outParam set to false in on_init and true in on_finish",
+        "The opener code calls $shell.<Package>.openeval_order_confirm_wizardDialog(...) with the snake_case referenceName preserved and the wizard's own package as the segment — and no non-Dialog full-view opener",
+        "The opener passes { order_id: … } as the first argument and branches on the resolved result's confirm (e.g. if (!result?.confirm) return;) before the follow-up",
+        "The wizard step's configParameters include an entry for the grid's order_id inParam bound to $wizard.inParams.order_id",
+        "The wizard's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate wizard' run before 'dxs configuration upsert wizard'"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "route-side-by-side-to-dashboard",
+      "prompt": "On connection 9, branch {branch_id}: I need a wizard where the user sees available inventory on the left and their picked inventory on the right, side by side, with a running total above both, and confirms once to return the picked lines. Build it.",
+      "expected_output": "The skill recognises a side-by-side composed selection, recommends and routes to dashboard-creator (dual-grid selection dashboard with a dialog contract) instead of creating a wizard, explaining that wizards have no side-by-side layout.",
+      "files": [],
+      "expectations": [
+        "The response identifies that a wizard has no side-by-side or multi-panel layout (each step hosts one component) and so cannot meet the requirement",
+        "The response routes the work to dashboard-creator (a dialog dashboard with available and selected grids plus a summary section)",
+        "No wizard body (configurationTypeId 13) is upserted for this request",
+        "If any component is created, it is a dashboard (configurationTypeId 35) or its grids, and the response mentions the dashboard's confirm/is_confirmed outParam dialog contract",
+        "The transcript does not run 'dxs configuration upsert wizard'"
+      ]
+    }
+  ]
+}
