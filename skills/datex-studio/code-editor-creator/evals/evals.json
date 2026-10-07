@@ -1,0 +1,81 @@
+{
+  "skill_name": "code-editor-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"code-editor-creator-eval-{timestamp}\" --description \"Temporary branch for code-editor-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "json-viewer-dialog",
+      "prompt": "On connection 9, branch {branch_id}: support keeps asking to see the raw JSON of an integration message. Create a code editor eval_message_json_code_editor that shows a JSON payload passed in by the caller, pretty-printed as soon as it opens, with a Beautify button and a dialog title the caller can set. Then write the grid-side flow code that opens it as a flyout dialog for the selected row's message (the row has message_id and a payload object).",
+      "expected_output": "A validated and upserted code editor (cti 21, mode json) whose value binds the payload inParam, whose on_init beautifies and sets $codeEditor.title from an inParam, with every toolbar flowId resolving; plus caller code using the package-qualified $shell.<Package>.open<ref>Dialog with a stringified payload and no return-value handling.",
+      "files": [],
+      "expectations": [
+        "The body has configurationTypeId 21, mode \"json\", and referenceName eval_message_json_code_editor",
+        "The top-level value is the raw unwrapped expression \"$codeEditor.inParams.payload\" (no backticks, no quotes) — or value is \"\" and on_init assigns $codeEditor.value",
+        "The on_init flow calls $codeEditor.beautify() and assigns $codeEditor.title from a title inParam (with a fallback when it is empty)",
+        "onInitFlowConfig.flowId and the Beautify button's clickFlowConfig.flowId each name a flow that exists in flows[]",
+        "The caller code calls $shell.<Package>.openeval_message_json_code_editorDialog(...) with the code editor's own package segment and the snake_case referenceName preserved (not camelCased)",
+        "The caller passes the payload as a string (e.g. JSON.stringify(row.payload, null, 2)) and does not destructure or rely on a return value from the dialog (it resolves Promise<void>)",
+        "No readOnly key and no outParams are added to the body",
+        "The code editor's description is non-empty and at most 100 characters",
+        "The transcript contains a 'dxs configuration validate codeeditor' command run before 'dxs configuration upsert codeeditor'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "close-ts-ignore",
+      "prompt": "On connection 9, branch {branch_id}: create eval_log_text_code_editor, a read-only XML viewer for a log entry (inParams log_xml and title) with a Close button in its toolbar. When I tried this before, writing $codeEditor.close() in the button flow gave me \"Property 'close' does not exist on type 'ICodeEditor'\". Make the Close button work and explain what is going on.",
+      "expected_output": "A validated and upserted xml code editor with a Close toolbar button whose flow calls $codeEditor.close() preceded by // @ts-ignore, an explanation that the generated ICodeEditor typing omits close() while the method exists at runtime (to be confirmed in Preview), and read-only achieved by having no Save button rather than a readOnly key.",
+      "files": [],
+      "expectations": [
+        "The body has configurationTypeId 21, mode \"xml\", and referenceName eval_log_text_code_editor",
+        "The Close button's flow contains a // @ts-ignore comment on the line immediately before $codeEditor.close()",
+        "The response explains that the generated ICodeEditor TypeScript interface omits close() even though production code editors call it at runtime, so the directive only silences the compile error",
+        "The response flags the close() runtime behaviour as something to confirm in Preview (not asserted as verified)",
+        "Read-only is achieved by having no Save button — no readOnly key is added to the body, and the response does not claim a readOnly setting exists",
+        "The Close button's clickFlowConfig.flowId names a flow that exists in flows[]",
+        "The code editor's description is non-empty and at most 100 characters",
+        "The transcript contains a 'dxs configuration validate codeeditor' command run before 'dxs configuration upsert codeeditor'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "xml-editor-save-through-function",
+      "prompt": "On connection 9, branch {branch_id}: users need to correct a carrier label template stored as XML. Create eval_label_template_code_editor that opens with the template XML (inParams template_id number, template_xml string), lets the user edit it, and on Save persists the edited XML and closes. Also create the function eval_save_label_template_flow it calls (inParams template_id number, template_xml string; it can just log for now), and show how a hub button opens the editor and refreshes afterwards.",
+      "expected_output": "A validated and upserted xml code editor whose on_save awaits $flows.<Package>.eval_save_label_template_flow with the edited $codeEditor.value and then closes via // @ts-ignore $codeEditor.close(); a validated and upserted function; and caller code that awaits the package-qualified Dialog opener and refreshes afterwards without expecting outParams.",
+      "files": [],
+      "expectations": [
+        "The code editor body has configurationTypeId 21, mode \"xml\", and referenceName eval_label_template_code_editor",
+        "The on_save flow passes $codeEditor.value (the edited text) to the function — NOT $codeEditor.inParams.template_xml",
+        "The on_save flow awaits $flows.<Package>.eval_save_label_template_flow(...) (a function via $flows — not an action, not $apis)",
+        "$codeEditor.close() is called only after the awaited save call, with // @ts-ignore on the line immediately before it",
+        "The code editor declares no outParams; the edited value leaves the editor only through the function call",
+        "The caller code awaits $shell.<Package>.openeval_label_template_code_editorDialog(...) with the code editor's own package and refreshes its own data after the await, without reading a return value",
+        "A function eval_save_label_template_flow (configurationTypeId 9) is created with inParams template_id (number) and template_xml (string)",
+        "Every flowId referenced by the code editor (init and toolbar clicks) names a flow that exists in flows[]",
+        "Both components have non-empty descriptions of at most 100 characters",
+        "The transcript contains a 'dxs configuration validate codeeditor' command run before 'dxs configuration upsert codeeditor'"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "naming-and-mode",
+      "prompt": "On connection 9, branch {branch_id}: copy the pattern of the existing view_json_payload code editor and create one called carrier_request_viewer for a carrier's JSON rate request. Also, we have plain-text carrier logs — can the same code editor show those with a plain text mode?",
+      "expected_output": "A code editor created under a convention-compliant referenceName ending in _code_editor (the requested name is corrected or explicitly flagged), not a verbatim copy of the legacy view_json_payload body; mode json; and an answer that plain text is not a code-editor mode (only json/xml are observed; plaintext is rejected by validate), pointing to a codeBox or textBox instead.",
+      "files": [],
+      "expectations": [
+        "The created code editor's referenceName ends in _code_editor (e.g. carrier_request_viewer_code_editor) — the response explains the type-indicator rule rather than silently using carrier_request_viewer",
+        "The response identifies view_json_payload as a legacy name violating the _code_editor convention and does not reuse that name",
+        "The title is a distinct sentence-case display name, not byte-identical to the referenceName",
+        "The body has configurationTypeId 21 and mode \"json\"",
+        "No body with mode plaintext, text, or any value other than json/xml is upserted; the response states that code editors support json and xml (full list unconfirmed) and points plain-text logs to a form codeBox or multiline textBox",
+        "No orphan flow is carried over from the legacy template — every flow in flows[] is referenced by onInitFlowConfig, a toolbar clickFlowConfig, or a $codeEditor.<flow>() call",
+        "The code editor's description is non-empty and at most 100 characters",
+        "The transcript contains a 'dxs configuration validate codeeditor' command run before 'dxs configuration upsert codeeditor'"
+      ]
+    }
+  ]
+}
