@@ -57,7 +57,7 @@ A complete copy-pasteable grid with an **embedded flow-type datasource**. The ex
       "hyperLink": false,
       "displayControl": {
         "type": "text",
-        "textConfig": { "value": "$row.entity.id?.toString()", "fontSize": null, "fontColor": null, "tooltip": "''" },
+        "textConfig": { "value": "$row.entity.id?.toString()", "hasFormat": false, "formatType": null, "format": null, "tooltip": "''" },
         "checkBoxConfig": null,
         "selectBoxConfig": null,
         "numberBoxConfig": null,
@@ -80,7 +80,7 @@ A complete copy-pasteable grid with an **embedded flow-type datasource**. The ex
       "hyperLink": false,
       "displayControl": {
         "type": "text",
-        "textConfig": { "value": "$row.entity.name", "fontSize": null, "fontColor": null, "tooltip": "''" },
+        "textConfig": { "value": "$row.entity.name", "hasFormat": false, "formatType": null, "format": null, "tooltip": "''" },
         "checkBoxConfig": null,
         "selectBoxConfig": null,
         "numberBoxConfig": null,
@@ -121,8 +121,7 @@ A complete copy-pasteable grid with an **embedded flow-type datasource**. The ex
           { "id": "id", "type": "number", "isCollection": false, "required": false, "objectType": null, "isSecured": false },
           { "id": "name", "type": "string", "isCollection": false, "required": false, "objectType": null, "isSecured": false }
         ]
-      },
-      { "id": "totalCount", "type": "number", "isCollection": false, "isSecured": null, "required": null, "description": null, "fromBaseConfiguration": null, "objectType": null, "oneOf": null, "isConstant": null, "constantValue": null, "objectTypeDef": null }
+      }
     ],
     "configEvents": null,
     "outParamsChangeFlowConfig": null,
@@ -244,8 +243,7 @@ A complete copy-pasteable grid with an **embedded flow-type datasource**. The ex
             { "id": "id", "type": "number", "isCollection": false, "required": false, "objectType": null, "isSecured": false },
             { "id": "name", "type": "string", "isCollection": false, "required": false, "objectType": null, "isSecured": false }
           ]
-        },
-        { "id": "totalCount", "type": "number", "isCollection": false, "required": false, "objectType": null, "isSecured": false }
+        }
       ],
       "vars": null,
       "events": null,
@@ -305,7 +303,21 @@ Platform errors surface in **two phases**, and passing the first proves nothing 
 
 Static validation (the grid-validator rule set, JSON-parse checks) catches neither phase — it derives from these docs, not from the platform's binding model. When a new field draws an import or build error despite matching this doc, treat the doc as wrong, fix the component against the platform's actual contract, and update this doc + the skeleton with the verified value.
 
+> **`totalCount` lives only inside `getListFlow.outParams` — never on the datasource's own top-level `outParams`, and never on the grid's `datasourceConfig.configOutParameters`.** Carrying a `totalCount` entry at either of those two outer levels (an easy mistake — it mirrors `getListFlow.outParams` closely) fails `dxs configuration validate grid` server-side with `Output parameters do not match the entity definition, linked datasources and custom columns` on the datasource, surfacing as `Outdated contract. Type mismatch for output parameters` on the grid once the datasource-level copy is fixed. Both outer `outParams`/`configOutParameters` arrays carry exactly one entry: `result`. Verified live, dxs 0.5.8.
+
+### Minimal Valid Skeleton — External/Standalone Datasource Variant
+
+The skeleton above covers the embedded/owned case only. When the grid references a **standalone** datasource (one that lives as its own `-datasource.json` elsewhere, possibly in another application), the `datasourceConfig` block changes shape and `datasources` stays empty:
+
+- `datasourceConfig.isOwned` — absent or `false` (omit the key rather than setting it `false`, for consistency with fetched bodies).
+- `datasourceConfig.configId` / `datasourceConfig.moduleId` — point at the standalone datasource's `referenceName` and its owning package/module, which may be a different application than the grid's own. See [`datasources.md` → Resolving an Owned Reference](../../datasource-creator/references/datasources.md#resolving-an-owned-reference--isowned-alone-decides) for how the two reference styles differ.
+- `datasourceConfig.configOutParameters` — the **full** output shape of the referenced datasource, per the point 5 rule in [Datasource Wiring — Five Places Must Stay in Sync](#datasource-wiring--five-places-must-stay-in-sync) above.
+- `datasources` — `null` or absent; there is no embedded definition to carry since the datasource is not owned by this grid.
+
+Everything else (`columns`, `topToolbar`, `flows`, `rowFlows`) is unchanged from the embedded-case skeleton — the standalone variant has full parity with the owned skeleton at every other top-level field: `pageSize`, `rowSizingType`, `columnSizingType`, `fullTextSearch`, `filters`, `selection`, `inParams`/`outParams`/`vars`/`rowVars` all behave identically regardless of which datasource shape backs the grid.
+
 ## Columns
+**`hasFormat` must be a boolean when present** — validate rejects `null` (`columns[*].displayControl.textConfig.hasFormat` cannot be null); submit `false` or omit the key entirely. The platform accepts a trimmed column payload and defaults the rest on round-trip: a `displayControl.textConfig` submitted with only `{ value, tooltip }` imports cleanly, and re-fetching afterward shows the full sibling set (`hasFormat`, `formatType`, `format`, `source`, `disabled`, …) backfilled with `null`/`false` defaults. The column's full field list — `source`, `textAlignment`, `defaultStyleClass`, `required`, `fromBaseConfiguration`, `removed` and the `hasFormat`/`formatType`/`format` triad — is what you'll see when you fetch the component back, not what you're required to submit when authoring.
 
 Each entry in `columns` has:
 
@@ -330,7 +342,7 @@ Inside grid flows (`flows[]` and `rowFlows[]`):
 - `$grid.outParams.<id>` — grid-level outputs, assigned from flow code. Changes notify the host via `$grid.events.outParamsChange.emit()` — call this after updating any `outParams.*` field that hosts are subscribed to.
 - `$grid.filters.<id>.control.value` — filter panel field values.
 - `$grid.topToolbar.<id>` / `$grid.toolbar.<id>` — toolbar entry handles. Top-level `.hidden = true` hides the entry; the nested control (`.buttonConfig` / `.control` under the shared alias) carries `.readOnly`, `.disabled`, etc. Useful to gate button `readOnly` on selection. The nested control's `.label` is also writable — imperative assignment (`$grid.topToolbar.<id>.control.label = ...`) is the proven pattern for state-reflecting button text (e.g. showing an applied-filter summary on a Filters button); there is no declarative binding for a live label. The control's `.styles` object carries semantic class toggles (`setPrimaryClass()`) and resets (`resetStyle()`, `resetClasses()`) for marking a button active/inactive — the same `.control.styles` API exists on hub toolbar buttons.
-- `$grid.canAdd`, `$grid.canEdit` — booleans controlling the add-row / inline-edit affordances. Flip in `on_init` or `on_apply_operations` based on permission checks (`$operations.<Package>.<Op>.isAssignedToAll()`).
+- `$grid.canAdd`, `$grid.canEdit` — booleans controlling the add-row / inline-edit affordances. Flip in `on_init` or `on_apply_operations` based on permission checks (`$operations.<Package>.<Op>.isAssignedToAll()`). Declare the operation with [authorization-editor](../../authorization-editor/references/authorization.md).
 - `$grid.refresh()` — re-triggers the backing datasource.
 - `$grid.fullTextSearch` — current search box value. To forward this value to the embedded datasource as `full_text_search`, you must wire it explicitly via a `datasourceConfig.configParameters` entry whose `value` is `"$grid.fullTextSearch"` — see [`datasourceConfig.configParameters` — Feeding Inputs to the Datasource](#datasourceconfigconfigparameters--feeding-inputs-to-the-datasource).
 - `$grid.vars.<id>` — grid-scope scratch state, declared at top-level `vars[]`. See [`component-wiring.md` → Component Variables Must Be Declared](../../component-wiring-check/references/component-wiring.md#component-variables-must-be-declared).
@@ -361,7 +373,7 @@ Every embedded datasource must carry these identity fields alongside the query/s
 | `title` | Usually same as `referenceName`. |
 | `description` | Non-empty, ≤ 100 chars (same rule as any component). |
 | `hasKey` | `true` for paginated/collection datasources with a `keyDef`. |
-| `hasResult` | `true` — the datasource returns a row shape. |
+| `hasResult` | `true` — the datasource returns a row shape. Flow-variant datasources only; an OData-variant embedded grid datasource does not carry this key at all. |
 | `id` | Numeric id on imported datasources; `null` on net-new (the platform assigns on first save). |
 | `linkedDatasources` | `null` unless the datasource chains to another. |
 | `customColumns` | `null` unless the datasource declares customer-specific column metadata. |
@@ -399,7 +411,7 @@ A grid-embedded flow datasource carries the result shape in **five** independent
 2. `datasources[0].outParams[result].objectTypeDef` — the datasource component's own top-level outParams result shape.
 3. `datasources[0].getListFlow.outParams[result].objectTypeDef` — the paginated-list flow's result shape.
 4. `datasources[0].getByKeysFlow.outParams[result].objectTypeDef` — the key-lookup flow's result shape.
-5. `datasourceConfig.configOutParameters[result].objectTypeDef` — the grid's consumer-side reference; only fields the grid actually binds against need to appear here, but they must match the entity's types exactly.
+5. `datasourceConfig.configOutParameters[result].objectTypeDef` — the grid's consumer-side reference. **For a standalone/external datasource reference** (`datasourceConfig.isOwned` absent or `false`), this must mirror the datasource's **complete** output shape field-for-field — a trimmed subset containing only the columns the grid actually binds against fails import with `Outdated contract. Type mismatch for output parameters`. Confirmed against production grids referencing a standalone datasource: every one mirrors the entire result shape, including fields no column renders. For an **owned/embedded** datasource, the embedded entry and this reference are edited together as part of the same five-location change, so the distinction rarely bites — but mirror the full shape there too when in doubt.
 
 Plus the `code` strings inside `getListFlow` / `getByKeysFlow` that populate the new field.
 
@@ -692,6 +704,8 @@ The `type` field selects which sibling `<type>Config` block the platform reads �
 
 `fromBaseConfiguration` and `removed` on toolbar entries (and on nested `buttonConfig` for button-detail fields) are tailoring-overlay markers — see [`tailoring.md`](../../tailoring-overlay/references/tailoring.md). On a standalone grid they stay `null`.
 
+**Toolbar entries round-trip the same way columns do.** The platform accepts a trimmed toolbar entry — author only the sibling config block your `type` needs (plus the shared identity fields) — and backfills the rest of the sibling `*Config` keys as `null`/default on the next fetch. Submitting a toolbar entry missing a sibling key is not a validation error; re-fetching afterward shows the full set present again.
+
 ## Imperative Cell API
 
 Row flows and grid-level flows can mutate individual cell state in addition to reading `$row.entity.<field>`. The mutable surface per cell:
@@ -713,7 +727,7 @@ Two common idioms:
 Three constraints govern imperative cell icons/styling. Local TypeScript accepts violations of all three; they surface only at platform validation — or as silently missing visuals:
 
 - **`displayControl.icon` exists only on button-typed cells.** A cell whose display control is a button (`IButtonModel`) exposes `.icon` — assign a Fluent class string (e.g. `'icon-ic_fluent_arrow_up_20_regular'`), clear with `null`. Text-typed cells (`ITextModel`) do **not** have `.icon`; assigning it compiles locally but fails platform validation with `Property 'icon' does not exist on type 'ITextModel'`. To put an icon on a text column, change the column's `displayControl.type` to `button` — a structural column edit, not a code-only change.
-- **`ICellStyles` exposes only `setAttentionClass()` (plus `clearClasses()` to reset).** The richer semantic class toggles — `setCreationClass()`, `setPlannedClass()`, `setDestructiveClass()`, `setClass(<name>)` — live on button / button-group styles (`IButtonStyles` / `IButtonsStyles`, i.e. toolbar buttons and editor/hub controls), **not** on grid cells. Consequence: two row states cannot be distinguished by cell background color alone — both land on the same attention class. Carry the distinction in the cell text (e.g. prefix a failure label) or in a sibling cell.
+- **`ICellStyles` carries the full container class set, not just `setAttentionClass()`.** The styles interface hierarchy is `IStyles` → `IControlContainerStyles` → `ICellStyles`, and `ICellStyles` inherits the container-level semantic toggles (`setCreationClass()`, `setPlannedClass()`, `setDestructiveClass()`, `setClass(<name>)`, `setAttentionClass()`, `clearClasses()`/`resetClasses()`) — these are available on `$row.cells.<col>.styles`, the same as on `$row.cells.<col>.displayControl.styles`. The richer button-only toggles (split-button/press-state styling) live solely on button / button-group styles (`IButtonStyles` / `IButtonsStyles` — toolbar buttons and editor/hub controls), not on plain cells. Verify the exact member set from the designer's generated type definitions before relying on an unlisted method name. To style an entire row rather than one cell, loop `$grid.headers`/`columns` and call the same `setClass`/`setAttentionClass` on each `$row.cells.<col>.styles` for that row.
 - **`setStyle(prop, value)` has two targets — pick by which DOM element the property affects.** Every cell carries two `.styles` objects that apply inline CSS to *different* elements:
 
   | Target | Element styled | Properties that belong here |
@@ -742,6 +756,8 @@ The same rule applies to any declarative string slot that accepts an entity-fiel
 
 For columns whose value comes from **imperative** assignment in `on_data_loaded` (`$row.cells.<col>.displayControl.text = ...`), leave the declarative `value` as `""` — see [Empty Declarative Bindings Are Legitimate](#empty-declarative-bindings-are-legitimate).
 
+**Declarative date formatting (`hasFormat`/`formatType`/`format`) is the production pattern for date columns**, as an alternative to the `$utils.date.format(...)` string-coercion idiom above. Instead of coercing at the bind site, leave `textConfig.value` bound to the raw field and set `hasFormat: true`, `formatType` to the date-format member, and `format` to the pattern string (optionally bound to a shared var, e.g. `$grid.vars.date_time_format`, so every date column in the grid shares one format). Both patterns validate and render correctly; the declarative route is what hand-authored production grids use for dates, and keeps the coercion expression out of `textConfig.value`.
+
 ### Empty Declarative Bindings Are Legitimate
 
 A column whose value is populated imperatively intentionally leaves `displayControl.<cfg>.value` and `editControl.<cfg>.value` as empty strings. Do not "fix" these to `$row.entity.<field>` unless the field actually exists on the entity — doing so overwrites the imperative population on every render. See the general rule in [`file-format.md` → Declarative String Values Are TypeScript Expressions](../../datex-studio-conventions/file-format.md#declarative-string-values-are-typescript-expressions); imperatively-populated cells are the one allowed exception.
@@ -763,9 +779,41 @@ Secondary datasources follow the normal embedded-datasource shape (same five-loc
 
 Tailored grids use this pattern heavily — a tailored overlay often ships a `tailored_ds_<base>` secondary datasource that queries extra fields keyed by the primary's row Ids. When flattening a tailored grid into a standalone, the secondary is typically merged back into the primary's `select` list. See [`tailoring.md`](../../tailoring-overlay/references/tailoring.md).
 
+## Expanded Rows (`rowExpandConfig`) — Child Grids
+
+A grid can mount a **child grid** inside each row's expand affordance via `rowExpandConfig`, following the same embed contract a hub tab uses to mount a grid (see [Mounting a Grid from a Hub](#mounting-a-grid-from-a-hub) below):
+
+- **Downward wiring** — the parent passes values into the child through the child mount's `configParameters`, same as any other component reference: one-for-one against the child grid's declared `inParams`. A typical binding feeds the expanding row's key (e.g. `"$row.entity.id"`) into a child inParam the child's own datasource filters by.
+- **Upward wiring** — the child notifies the parent through `configEvents` on the mount, routed to a parent-side flow in `rowFlows` (since the handler needs `$row` to know which row's child fired). There is no separate "child→parent" global; it's the same events-up mechanism as any embedded component.
+- **Re-initialization per expand** — the child grid re-runs its own `on_init` every time its row's expand toggles open, rather than persisting state across collapse/expand cycles. Code that needs to survive a collapse must stash state on the parent (`$row.vars` or `$grid.vars`), not on the child.
+- **Bindings refresh on reassignment, not mutation** — the child's inParam bindings re-evaluate when the bound value is **reassigned** (e.g. the parent row flow sets `$row.vars.selected_id = newId`), not when an object referenced by that value is mutated in place. Prefer reassigning a fresh value over mutating a nested property when the child needs to pick up the change.
+- **`IRow` exposes no child-grid handle.** There's no `$row.childGrid` or similar accessor from the parent row to its mounted child instance — communication is limited to the `configParameters` / `configEvents` contract above. If the parent needs to imperatively drive the child (e.g. force a refresh), that control has to be expressed through an inParam/outParam/event the child flow explicitly honors, not through a direct handle.
+
 ## Mounting a Grid from a Hub
 
 Hubs embed grids inside `tabs[].contentConfig` (when `contentType: "grid"`). The mount carries its own `configId` + `moduleId` — which must point to where the grid **actually** lives (see [`component-wiring.md` → Cross-Component References Use the Target's Module](../../component-wiring-check/references/component-wiring.md#cross-component-references-use-the-targets-module)). `configParameters` on the mount feed the grid's own `inParams`, and `configEvents` subscribe to grid-emitted events.
+## Worked Example — Row Action Opens a Form Dialog and Refreshes
+
+A common pattern: a row-level button (or a hyperlinked cell via `onCellClickFlowConfig`) opens a form in a dialog, collects/confirms input, and on confirm the grid refreshes to show the result. The handler must live in `rowFlows[]` (it reads `$row`):
+
+```typescript
+// rowFlows[] entry, e.g. referenceName "on_click_adjust_quantity"
+const outParams = await $shell.Utilities.openAdjustQuantityFormDialog({
+  entity_id: $row.entity.id
+});
+
+// openXDialog resolves to the form's outParams, or undefined if the user cancelled.
+if ($utils.isDefined(outParams)) {
+  await $row.refresh();
+}
+```
+
+Notes:
+
+- `$shell.<Package>.open<FormRef>Dialog(inParams, mode?, size?)` is the generated opener for any form (see [`form-creator/references/forms.md`](../../form-creator/references/forms.md)) — mirror the form's `inParams` one-for-one in the call's argument object.
+- The `Promise` resolves to the form's `outParams` on confirm and to `undefined` on cancel — gate the refresh on `$utils.isDefined(outParams)` rather than assuming the dialog always closed via confirm.
+- Prefer `$row.refresh()` over `$grid.refresh()` when only the one row changed — it re-fetches through `getByKeysFlow` instead of re-paging the whole grid. Use `$grid.refresh()` when the action could affect row membership or ordering (e.g. the row might no longer match the current filter).
+- The same pattern works from a `topToolbar`/`toolbar` button (`clickFlowConfig`) instead of a row action — the only difference is the flow lives in `flows[]`, not `rowFlows[]`, and there is no `$row` to pass; pass the selected row's id from `$grid.selectedRows` instead.
 
 ## Conventions
 
@@ -778,3 +826,16 @@ Hubs embed grids inside `tabs[].contentConfig` (when `contentType: "grid"`). The
 - **Icons** use the `icon-ic_fluent_<name>_<size>_<style>` identifier set (Fluent icons), e.g. `icon-ic_fluent_arrow_upload_20_regular`, `icon-ic_fluent_arrow_download_20_regular`. Used on `buttonConfig.icon`, column `displayControl.imageConfig`, and other icon-taking fields.
 - **Injected CSS must be scoped.** Stylesheets injected at runtime from component flow code are document-global, so unscoped rules leak into every other component on screen. Scope rules to the owning component by anchoring selectors on a unique inline-style marker set imperatively (e.g. a distinctive `border-left-color` assigned in `on_init`, matched via `[style*="<rgb-value>"]`). Keep marker values distinct across states — attribute `*=` matching is substring-based, so overlapping RGB strings inherit each other's rules. Toolbar/action-bar buttons can be targeted through their stable wrapper attribute, `.toolContainer[data-cy="tool-id-<id>"]`.
 - **Tailoring overlay**. Grids can be extended by a tailored overlay (`baseConfiguration` + `onCustomization*FlowConfig`) without forking. See [`tailoring.md`](../../tailoring-overlay/references/tailoring.md) for the overlay model, the `fromBaseConfiguration: true` marker semantics, and the recipe for flattening a tailored grid into a standalone custom one.
+
+- **Calendars reuse the grid shape.** A calendar's columns/events datasources sit under the same `filters` / `topToolbar` / `flows` top-level arrays a grid uses — see [`calendar-creator/references/calendars.md`](../../calendar-creator/references/calendars.md).
+- **Known runtime behaviors (not caught by validate):**
+  - `uiValueChangeFlowConfig` on a DISPLAY-mode column control type-checks and validates but never fires at runtime (a known platform issue); `onCellClickFlowConfig`, toolbar `clickFlowConfig`, row selection, and `onSaveExistingRowFlowConfig` are reliable.
+  - `$grid.selection` is not runtime-writable (`Property 'selection' does not exist on type 'IGrid'`); `$grid.filters.<id>.hidden` is writable.
+  - Per-column `dynamicFilterType` / `dynamicFilterControl` are structured objects, not scalar strings — a scalar fails with `Error converting value ... to TypeConfig/ControlDesignerConfig`, and a descriptor `id` that doesn't equal the dynamic-filter path fails with `Type mismatch for 'Dynamic filtering by' <path>`. Clone from a working column and fix the `id`.
+  - A filter `checkBox`'s toggle-style rendering comes from an inner `type: "slideToggle"` in its `checkBoxConfig`.
+
+## Cross-References
+
+- **Card-per-row layout.** When the design calls for a card-style tile per record instead of tabular rows/columns, that's a list, not a grid — see [`list-creator/references/lists.md`](../../list-creator/references/lists.md) (list-vs-grid).
+- **Hosted in a dashboard (dual mode).** A grid embedded twice in one dashboard section (available vs. selected) follows the dual-grid selection pattern — see [`dashboard-creator/references/dashboards.md` → Dual Grid Selection](../../dashboard-creator/references/dashboards.md#dual-grid-selection-available-vs-selected). Because every host of a shared grid must mirror its `inParams`/`outParams`, adding a param to a grid used this way breaks every host silently until `dxs source branch validate` sweeps them — rerun the sweep after any inParam/outParam change to a grid with more than one host.
+- **Hosted as a wizard step.** Write `$grid.outParams.<id>` and call `events.outParamsChange.emit()`; the wizard step's `configOutParameters` must mirror your `outParams` exactly — changing them requires a host sweep (see the `impact-analysis` skill) and a fresh `dxs source branch validate`. See [`wizard-creator/references/wizards.md` → Invocation Contract](../../wizard-creator/references/wizards.md#invocation-contract).
