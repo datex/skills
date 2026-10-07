@@ -1,0 +1,77 @@
+{
+  "skill_name": "dashboard-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"dashboard-creator-eval-{timestamp}\" --description \"Temporary branch for dashboard-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "dual-grid-selection-dialog",
+      "prompt": "On connection 9, branch {branch_id}: build a dialog where the user picks orders for a wave. Left half: available orders for a warehouse (warehouse_id passed in). Right half: the orders already picked, collapsed until there is something in it. A header shows how many orders are picked; the Confirm button stays disabled until at least one is picked. Confirm returns the picked order ids to the caller; Cancel returns nothing usable. Create the grid as eval_order_pick_grid and the dashboard as eval_order_pick_dashboard, and show the caller-side code that opens it.",
+      "expected_output": "One dual-mode grid (optional is_selected_mode, emitted add/remove events) embedded twice in a 50/50 dashboard row with the selected section collapsible/collapsed, a summary fieldset updated imperatively via $dashboard.fields, an is_confirmed outParam, confirm/cancel flows that emit outParamsChange before close(), and a caller using $shell.<Package>.openeval_order_pick_dashboardDialog(..., 'modal', EModalSize.Xlarge) branching on is_confirmed.",
+      "files": [],
+      "expectations": [
+        "Exactly one grid (eval_order_pick_grid) is created and embedded TWICE in the dashboard — not two separate grids",
+        "The grid declares an optional (required: false) is_selected_mode boolean inParam; the available embed binds it to \"false\" and the selected embed to \"true\"",
+        "The selected-mode datasource filter uses $utils.odata.formatNumberArray(... ?? []) (or equivalent) so the selected grid renders empty, not unfiltered, when nothing is selected",
+        "The grid emits add/remove events and the dashboard has a handler flow for every configEvents flowConfig.flowId it wires",
+        "The two embeds sit in a container row (hasSubsections: true) whose child sections split widthPercent 50/50, and the selected section has collapsible: true and expanded: false",
+        "The dashboard outParams include an is_confirmed boolean; both the confirm and cancel flows call $dashboard.events.outParamsChange.emit() BEFORE $dashboard.close()",
+        "The count header is a fieldset field written as $dashboard.fields.<id>.control.value, and confirm gating writes $dashboard.toolbar.<id>.control.readOnly",
+        "Caller code uses $shell.<Package>.openeval_order_pick_dashboardDialog(...) with the snake_case referenceName preserved and branches on is_confirmed",
+        "Both components' descriptions are non-empty and at most 100 characters; the dashboard has configurationTypeId 35",
+        "The transcript contains 'dxs configuration validate dashboard' run before 'dxs configuration upsert dashboard'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cli-transport-round-trip",
+      "prompt": "On connection 9, branch {branch_id}: create a minimal dashboard eval_status_board_dashboard with one fieldset showing a read-only 'Last refreshed' text field. Then, as a separate follow-up edit, add a second read-only 'Open count' field to the same fieldset without disturbing the first.",
+      "expected_output": "A create via dxs configuration validate/upsert dashboard, then a round-trip edit (get by numeric id, extract the inner .json, edit, validate, upsert) preserving the first field — no raw dxs api routes.",
+      "files": [],
+      "expectations": [
+        "The create runs 'dxs configuration validate dashboard' before 'dxs configuration upsert dashboard'",
+        "The follow-up edit fetches with 'dxs configuration get dashboard <id>' using the NUMERIC id and extracts the inner body (jq .json or .configuration.json) before editing — the envelope is never fed to upsert",
+        "No 'dxs api' call against /dashboardconfigurations routes is used for create, validate, or update",
+        "The edit is surgical: the original 'Last refreshed' field survives in the pushed body",
+        "TS-expression slots on the new field (value, tooltip) are encoded as \"''\" rather than \"\" when empty",
+        "configurationTypeId is 35, referenceName ends in _dashboard, and the description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate dashboard' again before the second 'dxs configuration upsert dashboard'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "sections-and-flattened-fields",
+      "prompt": "On connection 9, branch {branch_id}: create eval_ops_panel_dashboard laid out as two rows: a top row of three side-by-side filter panels (warehouse, carrier, a 'late only' checkbox) and a bottom row with a placeholder for a chart we'll add later. A flow should copy the three filter values into dashboard vars whenever a value changes. Users expect a hub-style filter bar on top.",
+      "expected_output": "A dashboard with a container row of three fieldset sections, no empty placeholder section, no filters[] array (filter context via fieldset fields), and flow code addressing fields as $dashboard.fields.<id> with every written var declared.",
+      "files": [],
+      "expectations": [
+        "The top row is a container (hasSubsections: true) whose three child sections are fieldset leaves with widthPercent values summing to 100",
+        "No empty section is left in the body for the future chart (the placeholder is omitted, or the response explains that an empty section fails validation with \"Section '<ref>' is empty\")",
+        "The body has no top-level filters array; the response states dashboards have no hub-style filter bar and the filter context lives in fieldset fields",
+        "Flow code reads the filter values as $dashboard.fields.<id>.control.value — never through $dashboard.sections.<row>.fieldsets",
+        "Every $dashboard.vars.<id> written in flow code is declared in the top-level vars array",
+        "The description is non-empty and at most 100 characters; configurationTypeId is 35",
+        "The transcript contains 'dxs configuration validate dashboard' run before 'dxs configuration upsert dashboard'"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "shared-grid-host-sweep",
+      "prompt": "On connection 9, branch {branch_id}: first create eval_lines_grid (a simple grid with a warehouse_id inParam) and two hosts that embed it: eval_lines_hub (a hub tab) and eval_lines_dashboard (a dashboard tab). Then add a new optional inParam exclude_ids (number[]) to eval_lines_grid so the dashboard can bind it to a dashboard var. Make sure the branch is left in a valid state.",
+      "expected_output": "The grid gains the optional param; the dashboard binds it to a declared var; the hub's tab configParameters are updated with a mirrored entry (value \"\") — and the work ends with a clean dxs source branch validate, since component validate does not catch the host break.",
+      "files": [],
+      "expectations": [
+        "The new exclude_ids inParam on the grid is declared required: false",
+        "The dashboard's grid embed configParameters gain an exclude_ids entry bound to a declared $dashboard.vars.<id>",
+        "The hub's tab configParameters gain a mirrored exclude_ids entry (value \"\" when unbound) — the host that does not use the param is still swept",
+        "Each embed's moduleId is the grid's package, and each configParameters list mirrors the grid's inParams one-for-one",
+        "The transcript runs 'dxs source branch validate' after the edits, and the response notes that a missed host surfaces there as 'Outdated contract. Missing input parameter' rather than at the component validate",
+        "Every created component's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate dashboard' run before 'dxs configuration upsert dashboard'"
+      ]
+    }
+  ]
+}
