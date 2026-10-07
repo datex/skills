@@ -11,6 +11,13 @@ Choose a form when you need the user to review, enter, or confirm data before an
 - Prompt for a structured value (a schedule, a set of options) and return it to the caller.
 
 Avoid forms for read-only data display — a grid or a simple label in a hub is usually cheaper. Avoid forms for long-running workflows that span multiple screens — compose multiple forms with dialog chaining instead.
+Adjacent types:
+
+- A dialog dedicated to one JSON/XML payload with beautify / save / export → a code editor ([`code-editors.md`](../../code-editor-creator/references/code-editors.md)); a JSON field among other inputs stays a `codeBox` field here.
+- A per-item template inside a list or calendar → a card ([`cards.md`](../../card-creator/references/cards.md)).
+- Side-by-side panels or a two-grid selection dialog → a dashboard; dashboards reuse this fieldset/field shape and the `is_confirmed` confirm/cancel rule ([`dashboards.md`](../../dashboard-creator/references/dashboards.md)).
+- A preferences form persisting per-user values → declare the schema with [`user-config-editor`](../../user-config-editor/SKILL.md) and read/write through `$userSettings` ([`runtime-globals.md`](../../datex-studio-runtime/runtime-globals.md#usersettings--per-user-settings)).
+- To put a form in the app navigation or toolbar, edit the package shell with [`shell-editor`](../../shell-editor/SKILL.md); changing the form's `inParams` makes the shell's `configParameters` mirror stale.
 
 ## File Location & Naming
 
@@ -32,6 +39,15 @@ Avoid forms for read-only data display — a grid or a simple label in a hub is 
         "label": "Confirm",
         "buttonDefaultStyleClass": "primary",
         "clickFlowConfig": { "flowId": "on_click_confirm", "flowParameters": null }
+      }
+    },
+    {
+      "id": "cancel",
+      "type": "button",
+      "buttonConfig": {
+        "label": "Cancel",
+        "buttonDefaultStyleClass": null,
+        "clickFlowConfig": { "flowId": "on_click_cancel", "flowParameters": null }
       }
     }
   ],
@@ -67,7 +83,21 @@ Avoid forms for read-only data display — a grid or a simple label in a hub is 
         "id": "step1", "type": "step",
         "stepConfig": {
           "type": "ExecuteCodeActivity",
-          "executeCodeConfig": { "code": "$form.outParams.value = $form.fields.example_field.control.value;\r\n$form.close();" }
+          "executeCodeConfig": { "code": "$form.outParams.is_confirmed = false;" }
+        }
+      }],
+      "referenceName": "on_init",
+      "title": "on_init",
+      "description": "Default is_confirmed to false before any user interaction.",
+      "accessModifier": "public"
+    },
+    {
+      "start": "step1",
+      "nodes": [{
+        "id": "step1", "type": "step",
+        "stepConfig": {
+          "type": "ExecuteCodeActivity",
+          "executeCodeConfig": { "code": "$form.outParams.value = $form.fields.example_field.control.value;\r\n$form.outParams.is_confirmed = true;\r\n$form.close();" }
         }
       }],
       "referenceName": "on_click_confirm",
@@ -76,7 +106,8 @@ Avoid forms for read-only data display — a grid or a simple label in a hub is 
       "accessModifier": "public"
     }
   ],
-  "onInitFlowConfig": null,
+  "formValidationFlows": [],
+  "onInitFlowConfig": { "flowId": "on_init", "flowParameters": null },
   "onFormValidateFlowConfig": null,
   "configurationTypeId": 5,
   "id": null,
@@ -85,17 +116,35 @@ Avoid forms for read-only data display — a grid or a simple label in a hub is 
   "description": "≤100 chars description.",
   "inParams": [],
   "outParams": [
-    { "id": "value", "type": "string", "required": false, "isCollection": false, "isSecured": false }
+    { "id": "value", "type": "string", "required": false, "isCollection": false, "isSecured": false },
+    { "id": "is_confirmed", "type": "boolean", "required": false, "isCollection": false, "isSecured": false }
   ],
   "vars": null,
   "events": null,
   "accessModifier": "public"
 }
 ```
+`formValidationFlows` is a top-level array **separate from `flows`** — confirm-button gating logic referenced by `onFormValidateFlowConfig` lives here, not inside `flows[]`. The skeleton above leaves it empty (`[]`) since this minimal example has no gating; see [Common Patterns → Validate-then-gate-confirm](#validate-then-gate-confirm) for a populated example.
+
+**The `is_confirmed` false-default pattern.** `on_init` runs on every open, before any user interaction, and unconditionally sets `is_confirmed` to `false`. Only `on_click_confirm` flips it to `true`, immediately before `$form.close()`. `on_click_cancel` is a bare `$form.close()` — it relies on the `on_init` default rather than re-setting the flag itself. This guarantees a caller distinguishing confirm from cancel never sees `is_confirmed: undefined`: closing via Cancel (or the dialog's own close affordance) leaves the `on_init` default in place.
 
 Unused config slots on a `controlConfig` (e.g. `buttonConfig` on a `textBox` field) are explicitly `null` in existing component files. Match that convention when authoring new forms — keep all sibling `*Config` keys present and null to aid structural diffing.
 
 **Many string fields in `controlConfig` are TypeScript expressions, not plain text.** `value`, `tooltip`, `placeholder`, `format`, and similar slots get inlined into generated component code verbatim. Wrap display text in backticks (e.g. `` "`Set schedule…`" ``), wrap plain-string literals in TS quotes (e.g. `"'MM/DD/YYYY'"`), and leave raw expressions unwrapped (e.g. `"$form.inParams.foo"`). See [`file-format.md` → Declarative String Values Are TypeScript Expressions](../../datex-studio-conventions/file-format.md#declarative-string-values-are-typescript-expressions) for the full rule.
+    },
+    {
+      "start": "step1",
+      "nodes": [{
+        "id": "step1", "type": "step",
+        "stepConfig": {
+          "type": "ExecuteCodeActivity",
+          "executeCodeConfig": { "code": "$form.close();" }
+        }
+      }],
+      "referenceName": "on_click_cancel",
+      "title": "on_click_cancel",
+      "description": "Close without confirming; is_confirmed stays at its on_init default.",
+      "accessModifier": "public"
 
 ## Required Top-Level Fields
 
@@ -108,7 +157,8 @@ Unused config slots on a `controlConfig` (e.g. `buttonConfig` on a `textBox` fie
 | `accessModifier` | Visibility | Default `public`; see [`defaults.md`](../../datex-studio-conventions/defaults.md) |
 | `toolbar` | Toolbar buttons (e.g. confirm, cancel) | Array of toolbar items; each item's `buttonConfig.clickFlowConfig.flowId` references an entry in `flows` |
 | `fieldsets` | Field groupings | Each has `fields`; a field's `controlConfig.type` selects which sub-config is active. Per-control-type schema and authoring notes: [`control-types.md`](../../datex-studio-runtime/control-types.md) |
-| `flows` | Code flows referenced by field/toolbar click handlers, `onInitFlowConfig`, `onFormValidateFlowConfig`, field `uiValueChangeFlowConfig` / `onValidationFlowConfig` | Each flow has a `referenceName` used by the handler references |
+| `flows` | Code flows referenced by field/toolbar click handlers, `onInitFlowConfig`, field `uiValueChangeFlowConfig` / `onValidationFlowConfig` | Each flow has a `referenceName` used by the handler references |
+| `formValidationFlows` | Validation flows referenced by `onFormValidateFlowConfig` | **Separate top-level array from `flows`** — don't put the validation flow in `flows[]`. Empty array (`[]`), not `null`, when unused. |
 | `inParams` | Optional caller-provided inputs | Shape mirrored in caller's dialog-open call |
 | `outParams` | Values returned to caller on close | Populated via `$form.outParams.<id> = ...` before `$form.close()` |
 | `vars` | Form-local state | Typed; accessible as `$form.vars.<id>` in flow code. Every var written in flow code must be declared here — see [`component-wiring.md` → Component Variables Must Be Declared](../../component-wiring-check/references/component-wiring.md#component-variables-must-be-declared) |
@@ -149,6 +199,7 @@ Inside any `executeCodeConfig.code` string on a form flow:
 Plus the platform-wide globals from [`runtime-globals.md`](../../datex-studio-runtime/runtime-globals.md): `$flows`, `$apis`, `$api`, `$datasources`, `$types`, `$utils`.
 
 The dialog-opening shell global — `$shell.<Package>.open<referenceName>Dialog(...)` — is available inside form/grid/hub flow code.
+**Hosted as a wizard step.** Write `$form.outParams.<id>` and call `$form.events.outParamsChange.emit()`; the wizard step's `configOutParameters` must mirror your `outParams`, so changing them needs a host sweep (`impact-analysis`) and `dxs source branch validate`. See [wizards.md → Invocation Contract](../../wizard-creator/references/wizards.md#invocation-contract).
 
 ## Invocation Contract
 
