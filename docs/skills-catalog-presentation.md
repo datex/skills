@@ -679,8 +679,8 @@ These files expand the catalog's usefulness without adding separate skills to th
 
 | Reference | Useful for |
 |---|---|
-| [Cards](../skills/datex-studio/datex-studio-shared/cards.md) | Repeated item UI, inline editing, and refresh behavior |
-| [Lists](../skills/datex-studio/datex-studio-shared/lists.md) | Card-based collections and datasource/item wiring |
+| [Cards](../skills/datex-studio/card-creator/references/cards.md) | Repeated item UI, inline editing, and refresh behavior |
+| [Lists](../skills/datex-studio/list-creator/references/lists.md) | Card-based collections and datasource/item wiring |
 | [Frontend flows](../skills/datex-studio/datex-studio-shared/frontend-flows.md) | Browser-tier flow behavior and keyboard handling |
 | [Scheduled jobs](../skills/datex-studio/datex-studio-runtime/scheduled-jobs.md) | Background execution and recurring job lifecycle |
 | [Datex app design system](../skills/datex-studio/datex-studio-shared/design-system/README.md) | Styling hand-authored UI using the shared Datex design language |

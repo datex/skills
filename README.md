@@ -36,9 +36,9 @@ Cross-skill content used to live in a plain `shared/` directory. `npx skills` on
 
 ## Skill catalog
 
-**40 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities, workflow orchestration). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
+**53 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities, workflow orchestration). The per-skill inventory is the catalog below; most of these skills were introduced by the 2026-08 skills merge.
 
-### Datex Studio — Component creators (16)
+### Datex Studio — Component creators (23)
 
 Skills for authoring NEW component configurations on a branch. Each owns the rules and lifecycle for one component type.
 
@@ -60,8 +60,15 @@ Skills for authoring NEW component configurations on a branch. Each owns the rul
 | [`selector-creator`](skills/datex-studio/selector-creator/SKILL.md) | Datasource-backed dropdowns / autocompletes (`*-selector.json`) | 7 |
 | [`storage-creator`](skills/datex-studio/storage-creator/SKILL.md) | Cloud-persisted Mongo storage (`*-storage.json`) | 17 |
 | [`type-definition-creator`](skills/datex-studio/type-definition-creator/SKILL.md) | Interfaces (`i_*`) and enums (`e_*`) (`*-customType.json`) | 22 |
+| [`card-creator`](skills/datex-studio/card-creator/SKILL.md) | Card item templates for lists and calendar events (`*-card.json`) | 11 |
+| [`list-creator`](skills/datex-studio/list-creator/SKILL.md) | Card-based lists over a datasource (`*-list.json`) | 14 |
+| [`dashboard-creator`](skills/datex-studio/dashboard-creator/SKILL.md) | Section-tree compositions with a dialog contract (`*-dashboard.json`) | 35 |
+| [`widget-creator`](skills/datex-studio/widget-creator/SKILL.md) | KPI tiles, pie charts and image widgets hosted by hubs and editors (`*-widget.json`) | 8 |
+| [`calendar-creator`](skills/datex-studio/calendar-creator/SKILL.md) | Day-view calendars with card events and drag/drop flows (`*-calendar.json`) | 12 |
+| [`code-editor-creator`](skills/datex-studio/code-editor-creator/SKILL.md) | JSON/XML code editors opened as dialogs (`*-codeEditor.json`) | 21 |
+| [`wizard-creator`](skills/datex-studio/wizard-creator/SKILL.md) | Stepped dialogs over grids, forms and editors (`*-wizard.json`) | 13 |
 
-### Datex Studio — Component editors (2)
+### Datex Studio — Component editors (8)
 
 Modifying EXISTING component configurations.
 
@@ -69,6 +76,12 @@ Modifying EXISTING component configurations.
 |---|---|
 | [`hub-editor`](skills/datex-studio/hub-editor/SKILL.md) | Toolbar buttons and click flows on an existing hub |
 | [`report-editor`](skills/datex-studio/report-editor/SKILL.md) | 5-category triage (label/style, rearrange, add column, datasource gap, new section) |
+| [`app-config-editor`](skills/datex-studio/app-config-editor/SKILL.md) | A package's `appConfig` settings (connection bindings and literal values); references are owned by `package-cascade` |
+| [`authorization-editor`](skills/datex-studio/authorization-editor/SKILL.md) | A package's `authorization` operations and role assignments (`$operations` declaration side) |
+| [`security-policy-editor`](skills/datex-studio/security-policy-editor/SKILL.md) | A package's `securityPolicy` content-security-policy directives |
+| [`replacements-editor`](skills/datex-studio/replacements-editor/SKILL.md) | An application's `replacements` swap table (build-time component substitution) |
+| [`user-config-editor`](skills/datex-studio/user-config-editor/SKILL.md) | A package's `userConfig` per-user settings schema (`$userSettings`) |
+| [`shell-editor`](skills/datex-studio/shell-editor/SKILL.md) | A package's `shell`: home, menus, toolbar and the boot flow |
 
 ### Datex Studio — Tailoring (1)
 
@@ -92,7 +105,7 @@ Reference-only library skills. **Not invoked directly.** Other skills link into 
 
 | Skill | Content |
 |---|---|
-| [`datex-studio-shared`](skills/datex-studio/datex-studio-shared/SKILL.md) | Branch & connection setup, Studio lifecycle, context navigation, flow code patterns, RDLX-JSON report authoring, vendored Datex app design system (Fluent 2) |
+| [`datex-studio-shared`](skills/datex-studio/datex-studio-shared/SKILL.md) | Branch & connection setup, Studio lifecycle, context navigation, flow code patterns, RDLX-JSON report authoring, vendored Datex app design system (Fluent 2), singleton configuration lifecycle, stub references for localization, visualization and footprint queries |
 | [`datex-studio-conventions`](skills/datex-studio/datex-studio-conventions/SKILL.md) | File format invariants, naming conventions, defaults |
 | [`datex-studio-runtime`](skills/datex-studio/datex-studio-runtime/SKILL.md) | Runtime globals, three-tier execution model, control-type catalog |
 
@@ -125,7 +138,7 @@ Cross-cutting workflow skills that orchestrate multiple `dxs` command families i
 |---|---|
 | [`package-cascade`](skills/datex-studio/package-cascade/SKILL.md) | Propagate a published package change up the dependency graph — re-pin and republish every consuming package, bottom-up, stopping at applications (reported as stale) |
 
-### Footprint (3 skills, out of scope for the Mitch merge)
+### Footprint (3 skills, out of scope for the 2026-08 skills merge)
 
 | Skill | Status |
 |---|---|
@@ -135,12 +148,13 @@ Cross-cutting workflow skills that orchestrate multiple `dxs` command families i
 
 ## Recent history
 
-The Datex Studio skill set was substantially expanded by the **Mitch skills merge**: 20 net-new skills added (12 component creators, 2 validators, 1 post-edit verification, 3 command-replacement skills, 2 shared/library siblings to `datex-studio-shared`) plus targeted absorption of Mitch's domain depth into 4 existing Datex skills (`datasource-creator`, `function-creator`, `impact-analysis`, `hub-editor` ↔ `hub-creator` cross-link).
+The Datex Studio skill set was substantially expanded by the **2026-08 skills merge**: 20 net-new skills added (12 component creators, 2 validators, 1 post-edit verification, 3 command-replacement skills, 2 shared/library siblings to `datex-studio-shared`) plus targeted absorption of earlier workspace contributions into 4 existing Datex skills (`datasource-creator`, `function-creator`, `impact-analysis`, `hub-editor` ↔ `hub-creator` cross-link).
 
 ## Not yet covered (roadmap)
 
 Component types the platform supports but that no skill or reference doc covers yet. When feature work first touches one, add a skill and a reference doc following [docs/component-doc-template.md](docs/component-doc-template.md).
 
-- `card`, `calendar`, `wizard`, `list`, `widget`, `visualization`, `codeeditor`, `localization`, `securitypolicy`, `shell`, `footprintquery`, `footprintquerymanager`, `appconfig`, `replacements`, `authorization`, `dashboard`, `userconfig` — real, CLI-addressable config types with no skill covering them yet. The full platform enumeration, with each type's `configurationTypeId` and CLI type name, is the table in [`file-format.md`](skills/datex-studio/datex-studio-conventions/file-format.md#configurationtypeid-reference); regenerate it with `dxs api GET /configurationtypes`.
-- Reports and API endpoints appeared on the original backlog but are now covered by `report-creator` and `endpoint-creator`.
-- Custom Angular Components (type 36) are now covered by `custom-angular-component-creator`.
+- `localization` (cti 16) — stub reference only: the type is CLI-addressable but no instance exists to document its body; see `datex-studio-shared/localization.md`.
+- `visualization` (cti 25) — stub reference only (one instance, code-driven renderer); see `datex-studio-shared/visualization.md`.
+- `footprintquery` (29), `footprintquerymanager` (31) and the nested filter form (30) — stub reference only; rollout in progress; see `datex-studio-shared/footprint-queries.md`.
+- Everything else in the registry now has a creator or editor skill.

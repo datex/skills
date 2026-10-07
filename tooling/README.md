@@ -27,7 +27,7 @@ The script creates one directory junction per skill (no admin rights needed) so 
 - `<skill>/references/*.md` — the deep reference docs (canonical platform knowledge).
 - `<skill>/evals/evals.json` — integration eval suite (dev-time only; excluded from packaging). Run via the `skill-creator` plugin's eval loop; creator-skill suites provision a throwaway `dxs` branch in `setup` and delete it in `teardown`.
 - `<skill>-workspace/` — eval run artifacts (git-ignored).
-- Cross-cutting knowledge lives in `datex-studio-conventions/` (file format, naming, defaults), `datex-studio-runtime/` (globals, calling conventions, control types, scheduled jobs), and `datex-studio-shared/` (dxs round-trip, flow code patterns, cards/lists/frontend-flows, report authoring).
+- Cross-cutting knowledge lives in `datex-studio-conventions/` (file format, naming, defaults), `datex-studio-runtime/` (globals, calling conventions, control types, scheduled jobs), and `datex-studio-shared/` (dxs round-trip, flow code patterns, frontend flows, singleton configuration lifecycle, localization, visualization, Footprint queries, report authoring). Card and list authoring lives in the `card-creator` and `list-creator` references.
 
 ## Rules for contributors
 
