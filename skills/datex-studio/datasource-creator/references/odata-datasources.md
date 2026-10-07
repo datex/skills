@@ -126,6 +126,8 @@ The `value` is a **TypeScript template literal — stored as a string with the b
 
 - For navigation collections, use OData lambda operators: `` `ShipmentOrderLookups/any(sol: sol/ShipmentId in ${$utils.odata.formatNumberArray($datasource.inParams.shipment_ids)})` ``. The lambda variable (`sol` here) is arbitrary.
 
+  **`$utils.odata.formatValue(...)` is a valid generic alternative** to the type-specific formatters above, and `dxs datasource generate --param-filter`/`--detect-params` emits it for several operators (observed for `in` on a number array and `ge` on a date) rather than the matching `formatNumberArray` / `formatDate`. It is not a bug or a stale generator — both forms are accepted and correct; don't "fix" a generated `formatValue(...)` call back to the type-specific formatter unless you have another reason to touch that line.
+
 ## Expands
 
 Recursive. Each entry is `{ isCollection: null, property: "<NavProp>", queryOptions: { ...same shape... } }`. Nest expands to whatever depth the OData entity model allows. Omit `expands` from `queryOptions` entirely when not needed (do not write `expands: null` if you can avoid it; minimal is safer).
@@ -210,6 +212,24 @@ A field declared in every type-metadata location but missing from `queryOptions.
 When adding or removing a field, update `queryOptions.selects` in the **same edit** as the type-metadata locations. For nested fields accessed through an expanded navigation property, the leaf goes in the corresponding `expands[].queryOptions.selects` — not the top-level `selects`.
 
 On grids, this makes `queryOptions.selects` a **sixth location** in the "entity shape" rule, distinct from and orthogonal to the five type-metadata locations documented in [grids.md → OData-Backed Grid Datasources](../../grid-creator/references/grids.md#odata-backed-grid-datasources--queryoptionsselects-is-a-sixth-runtime-only-location).
+> **Hand-authored vs CLI-generated: both the simple ("slim") and the fat interface-style descriptor are accepted at upsert; the server stores the slim shape.** `dxs datasource generate` has been observed emitting the fat descriptor (every field, with `required`/`description`/etc.) locally for the result shape even on current CLI builds. The upsert response — and a subsequent `dxs configuration get` / `datasource-fields` read — comes back normalized to the simple descriptor documented above. So: a **hand-authored** body should still use the simple descriptor directly (it's the form you control, and it's guaranteed correct); a **generator-produced** fat body is not a defect to fix before upserting — the import path normalizes it. The "import fails on the fat shape" warning above applies to the top-level `outParams[0]` object literally missing its `type`/`isCollection` keys (the `Cannot read properties of undefined` failure), not to an otherwise-complete fat descriptor.
+
+### Type-Metadata Drift
+
+Branch validation can fail with:
+
+> Selected property '`<Name>`' is missing from the entity definition
+> Expanded property '`<Nav>`.`<Name>`' is missing from the entity definition
+> Output parameters do not match the entity definition, linked datasources and custom columns. Open the datasource in Studio and save it to refresh them.
+
+**"Entity definition" here means the datasource's own declared type tree** (`queryOptionsObjectTypeDef` and/or `outParams[0].objectTypeDef`) — **not** the OData schema in `metadata.xml`. The property usually still exists on the live entity; what's missing is the datasource's own copy of the result shape. Either tree can lag behind a `queryOptions` edit: adding a `selects`/`expands` entry without also adding the matching node to both type-metadata locations leaves the query asking for more than the declared contract promises.
+
+The canonical regeneration order (what the Studio designer's open-and-save produces, and what a repair script should reproduce) is: key scalar(s) first, then remaining scalars, then expands in query order — each level of the tree ordered independently. Two ways to repair the drift:
+
+- **Designer open-and-save** — open the datasource in Studio and save without other changes; the designer regenerates both type-metadata trees from `queryOptions`.
+- **A CLI-side repair script** — reads the component body plus an OData `metadata.xml`, diffs `queryOptions` against the declared type trees, and inserts the missing nodes in canonical order. See [`scripts/refresh_outparams.py`](../scripts/refresh_outparams.py).
+
+This drift is frequently **pre-existing** — introduced by an earlier edit that never got a designer save, not necessarily by the change you're currently making. Don't assume you caused it; check whether the datasource already carried the drift before your edit.
 
 ## Single-Object vs Collection Queries
 
