@@ -4,8 +4,8 @@ description: |
   Datex Studio platform conventions for component file authoring: file format
   invariants (configurationTypeId table, file locations and suffixes, TS-expression
   encoding rule for declarative string slots, the `return;` outparam pitfall),
-  naming conventions (per-component-type suffix indicators, tailored_/custom_
-  provenance prefixes, sentence-case display-text rule, user-facing `title`
+  naming conventions (per-component-type suffix indicators, fixed-referenceName
+  singletons, tailored_/custom_ provenance prefixes, sentence-case display-text rule, user-facing `title`
   vs `referenceName` distinction), and defaults (package=Utilities,
   accessModifier=public, descriptions ≤100 chars and mandatory), plus the
   universal cross-cutting component checklist that validators and creators link.
@@ -22,6 +22,20 @@ depends:
   - post-edit-verification
   - tailoring-overlay
   - type-definition-creator
+  - datex-studio-shared
+  - card-creator
+  - list-creator
+  - widget-creator
+  - calendar-creator
+  - wizard-creator
+  - code-editor-creator
+  - dashboard-creator
+  - shell-editor
+  - security-policy-editor
+  - app-config-editor
+  - replacements-editor
+  - authorization-editor
+  - user-config-editor
 ---
 
 # Datex Studio — Component Authoring Conventions
@@ -37,7 +51,7 @@ If you're asked a platform question that isn't already scoped to a more specific
 ## Reference index
 
 - [file-format.md](file-format.md) — Component file JSON format: file locations and suffixes per type, the `configurationTypeId` numeric table, the TS-expression encoding rule for declarative string slots, the dynamic-tooltip-via-vars pattern, the `return;` outparam pitfall, TypeScript strictness inside flow code, datasource result types declared as optional.
-- [naming-conventions.md](naming-conventions.md) — Component name patterns per type (per-type suffix indicators, the `_dd` reservation), `tailored_`/`custom_` provenance prefixes, sentence-case display-text rule, user-facing `title` vs `referenceName` distinction, the visible-types bound list.
+- [naming-conventions.md](naming-conventions.md) — Component name patterns per type (per-type suffix indicators, the `_dd` reservation, fixed-referenceName singletons), `tailored_`/`custom_` provenance prefixes, sentence-case display-text rule, user-facing `title` vs `referenceName` distinction, the visible-types bound list.
 - [defaults.md](defaults.md) — Default package (`Utilities`), default access modifier (`public`), description mandatory and ≤100 chars.
 - [universal-checklist.md](universal-checklist.md) — The single enumeration of the cross-cutting checks that apply to **every** component (description ≤100, accessModifier, referenceName↔stem, minified JSON, correct `configurationTypeId`, snake_case new params, `id: 0`). Referenced by `component-validator`, `grid-validator`, `post-edit-verification`, and every creator's "File basics" pre-flight item rather than restated in each.
 

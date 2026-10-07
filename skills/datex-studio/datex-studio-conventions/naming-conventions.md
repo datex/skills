@@ -20,12 +20,31 @@ Every component's name carries a type indicator that makes its kind legible at a
 | Interface (customType) | `i_<name>` | `i_auto_invoice_rule-customType.json` |
 | Enum (customType) | `e_<name>` | `e_allocation_base_strategy-customType.json` |
 | Storage | `<name>_storage` | `widget_rule_storage-storage.json` |
+| Dashboard | `<name>_dashboard` | `wave_planning_dashboard-dashboard.json` |
+| Card | `<name>_card` | `order_line_card-card.json` |
+| List | `<name>_list` | `order_lines_list-list.json` |
+| Widget | `<name>_widget` | `open_orders_count_widget-widget.json` |
+| Calendar | `<name>_calendar` | `dock_schedule_calendar-calendar.json` |
+| Code editor | `<name>_code_editor` | `payload_viewer_code_editor-codeEditor.json` |
+| Wizard | `<name>_wizard` | `inventory_by_lot_selection_wizard-wizard.json` |
+
+**Fixed-referenceName singletons.** Six configuration types are provisioned once per package with a platform-fixed `referenceName` — never renamed, never given a `_suffix`, never created. The `referenceName` is camelCase while the CLI type is all-lowercase; the provisioned `title` is exempt from the display-name rule below. Rules for each: [singleton-config-lifecycle.md](../datex-studio-shared/singleton-config-lifecycle.md).
+
+| cti | `referenceName` | CLI type | Naming inside the body |
+|---|---|---|---|
+| 1 | `shell` | `shell` | `title` = package name. Menu/toolbar item `id`s snake_case; `label`s sentence case; icon-only toolbar items carry `label: " "`. |
+| 28 | `securityPolicy` | `securitypolicy` | Directive names are camelCase enum members (`frameSrc`, not `frame-src`). |
+| 32 | `appConfig` | `appconfig` | Setting `name`s are PascalCase code identifiers (`$settings.<Package>.<name>`, e.g. `FootprintApi`). |
+| 33 | `replacements` | `replacements` | Replacement components use the `tailored_` / `custom_` prefixes below. |
+| 34 | `authorization` | `authorization` | Operation names `Disable_<Area>_<Action>` / `Enable_<Area>_<Action>` ([authorization.md](../authorization-editor/references/authorization.md)). |
+| 37 | `userConfig` | `userconfig` | `title` "User configuration" is the platform default; setting ids snake_case. |
 
 **Actions are the one asymmetric case.** The `_action` indicator is carried by the component's `referenceName` (stored inside the JSON), not by the file suffix — the file suffix remains `-footprintFlow.json` per the platform file-format convention. All other types — Storage included — carry the indicator in both the component name *and* the filename stem.
 
 **Missing type indicator = flaw.** A component whose name lacks the appropriate indicator is a naming violation. When you encounter one, call it out and list it for cleanup; do not replicate the pattern when authoring new components. Rename the existing one as a targeted edit only when the surrounding work already touches the file (renames ripple into every cross-reference).
 
 **`_dd` reserved for dropdown backing.** The `_dd` suffix is reserved for datasources (and their selectors) dedicated to backing a dropdown selector. General-purpose datasources — even ones that happen to be queried by key or return a collection — do not use `_dd`. Reserve the suffix for the selector-backing case so the name signals intent at a glance.
+Names lacking the dashboard suffix are legacy. **Code editors** use the two-word indicator `_code_editor` (stem) with the `-codeEditor` file suffix.
 
 ## Parameter and Variable Ids Are snake_case
 
@@ -87,6 +106,13 @@ User-facing components must carry a user-friendly display `title` distinct from 
 | Hub | yes (page title, breadcrumb) | **yes** |
 | Grid | yes (when surfaced as a hub tab or dialog) | **yes** |
 | Embed | yes (dialog title, flyout heading) | **yes** |
+| Dashboard | yes (page title, breadcrumb) | **yes** |
+| List | yes (dialog / view title) | **yes** |
+| Calendar | yes (hub tab content, page / dialog heading, `$calendar.title`) | **yes** |
+| Code editor | yes (dialog header, until `on_init` overrides `$codeEditor.title`) | **yes** |
+| Wizard | yes (dialog header); step `title` and `nextButtonLabel` are plain display text | **yes** |
+| Card | no — top-level `title` is a designer label; the rendered header is `headerConfig.title` | no (sentence case preferred) |
+| Singletons (shell, appConfig, …) | fixed by the platform | no — exempt |
 | Selector | indirectly (control's placeholder when used standalone) | yes if standalone; doesn't matter in field-bound use |
 | Function | no — internal callable | no |
 | Action | no — internal callable | no |
@@ -114,3 +140,13 @@ Easy to spot manually — open a component JSON and compare `title` vs `referenc
 ## Known Violations
 
 **Storage naming.** Some pre-existing storage components may predate the `_storage` suffix convention and lack the type indicator. They're treated as violations per the "Missing type indicator = flaw" rule above and should be renamed when surrounding work already touches them — don't replicate the pattern when authoring new storage components.
+
+**Code-editor naming.** `view_json_payload`, `view_xml_payload`, `messages_json_payload` and `config_content_code` lack the `_code_editor` indicator and carry `title` == `referenceName`; they are copied across many packages — don't replicate.
+
+**Calendar title.** A production calendar ships with `title` == `referenceName`. Calendars are a bound type; give new ones a sentence-case title.
+
+**Wizard titles and params.** Shipped wizard titles are in Title Case ("Inventory by Location Batch Move Wizard"), and several shipped wizard inParam ids are camelCase (`warehouseId`, `taskId`). New wizards use sentence-case titles and snake_case ids.
+
+**List and card names.** A list named `inquiry_entities_list_choice` has its type indicator mid-name, and a card is named just `card`. About half the shipped cards carry `title` == `referenceName` — harmless for cards (not bound), but prefer a sentence-case designer label.
+
+**Widget naming.** 16 of 146 production widgets lack the `_widget` suffix — legacy.

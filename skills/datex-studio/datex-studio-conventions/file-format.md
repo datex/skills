@@ -16,6 +16,15 @@ A component's JSON body is its canonical shape. The platform generates TypeScrip
 - **Backend-test**: `-backendTest` suffix, CLI type `backendtest` (conventionally `src/backend-tests/`) — mocha test suites with four hook flows (`before_suite` / `after_suite` / `before_each` / `after_each`) and a `testCaseFlows` collection. See [backend-tests.md](../backend-test-creator/references/backend-tests.md).
 - **Frontend flow**: `-frontendFlow` suffix, CLI type `frontendflow` — client-side flow with the exact function body shape (`nodes[].stepConfig.executeCodeConfig.code`), registered under `$frontendFlows.<Pkg>` (see [runtime-globals.md](../datex-studio-runtime/runtime-globals.md)); only the `configurationTypeId` distinguishes it from a function (see below). Full component-type doc: [frontend-flows.md](../datex-studio-shared/frontend-flows.md).
 
+- **Card** (cti 11, `card`, `-card.json`) — per-item template rendered by a list or a calendar; never opened on its own. [cards.md](../card-creator/references/cards.md).
+- **List** (cti 14, `list`, `-list.json`) — card-per-row sibling of the grid. [lists.md](../list-creator/references/lists.md).
+- **Widget** (cti 8, `widget`, `-widget.json`) — large-number / pie / image tile hosted by hubs and editors. [widgets.md](../widget-creator/references/widgets.md).
+- **Calendar** (cti 12, `calendar`, `-calendar.json`) — day view of columns × events, events rendered through a card. [calendars.md](../calendar-creator/references/calendars.md).
+- **Wizard** (cti 13, `wizard`, `-wizard.json`) — multi-step dialog hosting forms/grids/editors per step. [wizards.md](../wizard-creator/references/wizards.md).
+- **Code editor** (cti 21, `codeeditor`, `-codeEditor.json`) — dialog/view dedicated to one JSON/XML payload. [code-editors.md](../code-editor-creator/references/code-editors.md).
+- **Dashboard** (cti 35, `dashboard`, `-dashboard.json`) — recursive section tree of side-by-side panels. [dashboards.md](../dashboard-creator/references/dashboards.md).
+- **Singletons** (cti 1 / 28 / 32 / 33 / 34 / 37) — one per package, fixed `referenceName`, edited never created: shell → [shell.md](../shell-editor/references/shell.md), securityPolicy → [security-policy.md](../security-policy-editor/references/security-policy.md), appConfig → [app-config.md](../app-config-editor/references/app-config.md), replacements → [replacements.md](../replacements-editor/references/replacements.md), authorization → [authorization.md](../authorization-editor/references/authorization.md), userConfig → [user-config.md](../user-config-editor/references/user-config.md). Shared rules: [singleton-config-lifecycle.md](../datex-studio-shared/singleton-config-lifecycle.md).
+
 ## Editing Rules
 
 - When editing the code string inside the JSON, preserve existing escaping conventions (e.g. `\r\n` for newlines, `\"` for quotes). Inspect the file to confirm the escaping style before editing.
@@ -25,7 +34,7 @@ A component's JSON body is its canonical shape. The platform generates TypeScrip
 
 ## `configurationTypeId` Reference
 
-Every component JSON carries a numeric `configurationTypeId` identifying its component kind. This table is the platform's own enumeration, generated from `dxs api GET /configurationtypes` (verified 2026-09-03, dxs 0.5.5). Regenerate it rather than hand-editing rows:
+Every component JSON carries a numeric `configurationTypeId` identifying its component kind. This table is the platform's own enumeration, generated from `dxs api GET /configurationtypes` (verified live, dxs 0.5.5; CLI types re-checked on 0.5.8). Regenerate it rather than hand-editing rows:
 
 ```bash
 dxs api GET /configurationtypes --raw | jq -r 'sort_by(.id)[] | "| \(.id) | \(.name) |"'
@@ -34,50 +43,51 @@ dxs configuration types      # the CLI type names, for the third column
 
 | ID | Platform name | CLI type | File suffix |
 |---|---|---|---|
-| 1 | Shell | `shell` | — |
+| 1 | Shell | `shell` | `-shell.json` (fixed referenceName, so the exported name is always `shell-shell.json`) |
 | 2 | Hub | `hub` | `-hub.json` |
 | 3 | Grid | `grid` | `-grid.json` |
 | 4 | Editor | `editor` | `-editor.json` |
 | 5 | Form | `form` | `-form.json` |
 | 6 | Datasource | `datasource` | `-datasource.json` |
 | 7 | Selector | `selector` | `-selector.json` |
-| 8 | Widget | `widget` | — |
+| 8 | Widget | `widget` | `-widget.json` |
 | 9 | Flow — a **function** at top level, **or** an embedded flow step node | `flow` | `-flow.json` (top-level); n/a (embedded) |
-| 11 | Card | `card` | — |
-| 12 | Calendar | `calendar` | — |
-| 13 | Wizard | `wizard` | — |
-| 14 | List | `list` | — |
+| 11 | Card | `card` | `-card.json` |
+| 12 | Calendar | `calendar` | `-calendar.json` |
+| 13 | Wizard | `wizard` | `-wizard.json` |
+| 14 | List | `list` | `-list.json` |
 | 15 | Report | `report` | n/a — folder authored via `dxs report` |
-| 16 | Localization | `localization` | — |
+| 16 | Localization | `localization` | — (stub: [localization.md](../datex-studio-shared/localization.md)) |
 | 17 | Storage | `storage` | `-storage.json` |
 | 18 | FootprintFlow — called an **action** in these skills | `footprintflow` | `-footprintFlow.json` |
 | 19 | FootprintDatasource | `footprintdatasource` | `-footprintDatasource.json` |
 | 20 | Embed | `embed` | `-embed.json` |
-| 21 | CodeEditor | `codeeditor` | — |
+| 21 | CodeEditor | `codeeditor` | `-codeEditor.json` |
 | 22 | CustomType (interface or enum) | `customtype` | `-customType.json` |
 | 23 | FootprintWorkflow | `footprintworkflow` | `-footprintWorkflow.json` |
 | 24 | BackendTest | `backendtest` | `-backendTest.json` |
-| 25 | Visualization | `visualization` | — |
+| 25 | Visualization | `visualization` | — (stub: [visualization.md](../datex-studio-shared/visualization.md)) |
 | 26 | Endpoints | `endpoint` | n/a — managed via `dxs endpoint` |
 | 27 | FrontendFlow | `frontendflow` | `-frontendFlow.json` |
-| 28 | SecurityPolicy | `securitypolicy` | — |
-| 29 | FootprintQuery | `footprintquery` | — |
+| 28 | SecurityPolicy | `securitypolicy` | `-securityPolicy.json` (fixed referenceName, so the exported name is always `securityPolicy-securityPolicy.json`) |
+| 29 | FootprintQuery | `footprintquery` | — (stub: [footprint-queries.md](../datex-studio-shared/footprint-queries.md)) |
 | 30 | FootprintQueryFilterForm | — | — |
-| 31 | FootprintQueryManager | `footprintquerymanager` | — |
-| 32 | AppConfig | `appconfig` | — |
-| 33 | Replacements | `replacements` | — |
-| 34 | Authorization | `authorization` | — |
-| 35 | Dashboard | `dashboard` | — |
+| 31 | FootprintQueryManager | `footprintquerymanager` | — (stub: [footprint-queries.md](../datex-studio-shared/footprint-queries.md)) |
+| 32 | AppConfig | `appconfig` | `-appConfig.json` (fixed referenceName, so the exported name is always `appConfig-appConfig.json`) |
+| 33 | Replacements | `replacements` | `-replacements.json` (fixed referenceName, so the exported name is always `replacements-replacements.json`) |
+| 34 | Authorization | `authorization` | `-authorization.json` (fixed referenceName, so the exported name is always `authorization-authorization.json`) |
+| 35 | Dashboard | `dashboard` | `-dashboard.json` |
 | 36 | CustomAngularComponent | `customangularcomponent` | n/a — `dxs ng` working folder |
-| 37 | UserConfig | `userconfig` | — |
+| 37 | UserConfig | `userconfig` | `-userConfig.json` (fixed referenceName, so the exported name is always `userConfig-userConfig.json`) |
 
 Reading the table:
 
 - **ID 10 does not exist** — it is absent from the platform enumeration, not omitted here.
 - **The platform name is not always the skill vocabulary.** Most notably `FootprintFlow` (18) is what these skills call an **action**, and `Flow` (9) is what they call a **function**. Match on the ID, not the word.
 - **A `—` CLI type means the type is not addressable through `dxs configuration <verb>`.** Only **FootprintQueryFilterForm (30)** has no entry in `dxs configuration types` (35 of the 36 platform types do); it is managed by the platform, not by the generic config CRUD surface. The set has shrunk over time — 29, 33, 34, 35 and 37 became addressable after dxs 0.4.18 — so regenerate the third column rather than trusting a remembered gap.
-- **A `—` file suffix means no suffix is *verified*, not that none exists.** The convention is `-<camelCaseName>.json`, but per the repo's source-of-truth rule the local filename is scratch anyway — confirm against a working component of the same type before relying on it. `n/a` is different: that type genuinely has no single-file JSON body.
-- **A CLI type with no creator skill is a documented gap, not a nonexistent type.** `card`, `calendar`, `wizard`, `list`, `widget`, `visualization`, `codeeditor`, `localization`, `securitypolicy`, `shell`, `footprintquery`, `footprintquerymanager`, `appconfig`, `replacements`, `authorization`, `dashboard`, and `userconfig` are all real and reachable, with no skill covering them yet — see the roadmap section of the repo README.
+- **A `—` file suffix means no suffix is *verified*, not that none exists.** The convention is `-<camelCaseName>.json`, but per the source-of-truth rule the local filename is scratch anyway — confirm against a working component of the same type before relying on it. `n/a` is different: that type genuinely has no single-file JSON body.
+- **Singletons carry a fixed `referenceName`, so their exported name never varies.** Shell, SecurityPolicy, AppConfig, Replacements, Authorization and UserConfig are auto-provisioned once per package; because the `referenceName` is fixed and unique per package, the `<referenceName>-<Suffix>.json` convention collapses to one literal filename per type (`shell-shell.json`, `securityPolicy-securityPolicy.json`, `appConfig-appConfig.json`, `replacements-replacements.json`, `authorization-authorization.json`, `userConfig-userConfig.json`). They are edited, never created — see [singleton-config-lifecycle.md](../datex-studio-shared/singleton-config-lifecycle.md) and the matching `*-editor` skill. (`dxs source document build` exports a suffix-less YAML tree instead — the JSON suffix convention above describes Studio downloads and `dxs configuration get -O <file>`, not that export pipeline.)
+- **Remaining gaps are stubs, not nonexistent types.** `localization` (16), `visualization` (25), `footprintquery` (29), `footprintquerymanager` (31) and FootprintQueryFilterForm (30, no CLI type) are real and reachable but have no creator skill yet; their stub reference docs are [localization.md](../datex-studio-shared/localization.md), [visualization.md](../datex-studio-shared/visualization.md) and [footprint-queries.md](../datex-studio-shared/footprint-queries.md). Every other addressable type has a creator or editor skill — see [Component Types and Suffixes](#component-types-and-suffixes).
 
 `configurationTypeId: 9` is shared between top-level function files and embedded step nodes inside any flow's `nodes[]` — the file suffix (`-flow.json` vs no file) is the distinguisher. Actions use a different top-level id (`18`), so action vs function top-level files are unambiguously identifiable by `configurationTypeId` alone.
 
@@ -106,7 +116,9 @@ An unwrapped plain-English tooltip like `"Opens the dialog."` compiles as bare T
 - An unwrapped pipe `|` (`"include | exclude | demote"`) — parses as a union/OR at type or value level; runs into syntax errors when chained.
 - A backtick at the value boundary with `|` inside (`` "`include | exclude | demote`" ``) — backticks open a template literal, but the `|` inside might still be misparsed downstream. Backtick-wrapped values are fine for plain `Display Text` but avoid them for delimiter-style listings.
 
-**Symptom pattern**: these broken values **slip past Studio's Validate and surface only in the Preview build** — Validate doesn't run codegen, it only checks declarative wiring, so the bad expression compiles into TS only when Preview builds the frontend. When the broken value is in a component that's referenced from elsewhere (or compiled in a class with multiple methods), the FIRST error in the Preview Frontend console output is the root cause. The visible last-error line is usually the cascade endpoint — TS recovers from the parse failure many lines later. Always read the full error stream, not just the truncated tail.
+**Symptom pattern**: these broken values **slip past Studio's Validate and surface only in the Preview build** — Validate type-checks flow code and, for some types, declarative expressions (below), but plain-text slots it does not evaluate compile into TS only when Preview builds the frontend. When the broken value is in a component that's referenced from elsewhere (or compiled in a class with multiple methods), the FIRST error in the Preview Frontend console output is the root cause. The visible last-error line is usually the cascade endpoint — TS recovers from the parse failure many lines later. Always read the full error stream, not just the truncated tail.
+
+**Which declarative slots validate compiles is per type** (verified live, dxs 0.5.8). Compiled — a bad expression fails validate with `Property '<x>' does not exist on type …` / `Cannot find name …`: wizard `configParameters[].value`, `nextCondition`, `nextButtonDisabledCondition`, `repeatOver`; calendar `columnsConfig.text`, `eventsConfig.start` / `end` / `title` / `draggable`, `matchEventToColumn`, `viewDate`; list item `configParameters` bindings. **Not** compiled — bare words and bad references pass validate: calendar `columnsConfig.nextPageText` / `previousPageText` / `currentPageInfoText` and `unscheduledEventsConfig.title`; the convention there is still a TS-quoted literal. Each creator's reference doc lists its own slots.
 
 **Recovery for plain-text content**: wrap the value in single quotes inside the JSON string — `"info": "'v2: per-candidate score weights. Higher final score wins, tiebreak on smaller delta.'"`. The leading `'` makes it a TS string literal, so semicolons / colons / pipes inside become inert text. Replace any unavoidable `;` with `,` or rephrase, and avoid unwrapped pipes — even inside a string, downstream interpolation (e.g. into UI templates) can re-tokenize them.
 
