@@ -1,0 +1,58 @@
+{
+  "skill_name": "user-config-editor",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt. The branch's own userConfig singleton is edited in place; teardown discards it with the branch.",
+    "command": "dxs source branch create --repo 213 --title \"user-config-editor-eval-{timestamp}\" --description \"Temporary branch for user-config-editor skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "nested-setting-and-set-with-spread",
+      "prompt": "On connection 9, branch {branch_id}: users want the app to remember their default warehouse and default owner. Add a per-user setting for this to the package's user configuration, then write the save-side flow code for a preferences form that stores both values — including what happens when the user clears the owner field and saves.",
+      "expected_output": "The own userConfig row's settings[] gains one type:object descriptor (e.g. defaults) whose objectTypeDef holds warehouse_id and owner_id number descriptors; validate runs before the write; the consumer code reads defensively and saves with read-then-set() spreading the current object, omitting cleared keys rather than relying on update() with null.",
+      "files": [],
+      "expectations": [
+        "The own userConfig row is located by applicationId == branch id and isExternal == false (or by a bare 'get userconfig userConfig' whose returned id/applicationId is checked) — no dependency package's row is edited",
+        "The edited body keeps referenceName \"userConfig\", configurationTypeId 37 and title \"User configuration\" unchanged, and its id is the own row's id (not 0)",
+        "settings[] contains a descriptor with type \"object\" whose objectTypeDef holds warehouse_id and owner_id descriptors with type \"number\" and isCollection false",
+        "All new setting ids are snake_case",
+        "The consumer save code calls $userSettings.<Package>.get() and then $userSettings.<Package>.set({ ...current, ... }) — the spread of the current object is present",
+        "Clearing the owner is handled by omitting (or deleting) the key before set(), and the response states that update() with a null value would not clear it",
+        "The consumer read code uses optional chaining or a null-coalescing default (e.g. settings?.defaults?.warehouse_id ?? null)",
+        "The userConfig description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate userconfig' run before 'dxs configuration upsert userconfig' (or before the documented fallback write)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "refuse-second-userconfig",
+      "prompt": "On connection 9, branch {branch_id}: create a new userConfig component called reporting_user_config with a boolean setting compact_mode so each user can toggle a compact report layout.",
+      "expected_output": "The agent declines to create a second user configuration, explains that every package has exactly one fixed-name userConfig singleton, and instead adds compact_mode as a boolean descriptor to the own row's settings[] after validate.",
+      "files": [],
+      "expectations": [
+        "No 'dxs configuration create userconfig' command is run, and no body with a referenceName other than \"userConfig\" is pushed",
+        "The response explains that userConfig is a per-package singleton with the fixed referenceName \"userConfig\" that cannot be created or renamed",
+        "The response offers or performs the alternative: adding compact_mode to the existing own row's settings[]",
+        "If the edit is performed, the compact_mode descriptor has type \"boolean\" and isCollection false, and existing settings are preserved",
+        "The userConfig description is non-empty and at most 100 characters",
+        "If a write is performed, 'dxs configuration validate userconfig' runs before 'dxs configuration upsert userconfig'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "same-branch-schema-and-consumer",
+      "prompt": "On connection 9, branch {branch_id}: a teammate will build a form on another branch that reads $userSettings.<Package>.get() and uses settings.last_report_id. Add the last_report_id setting here so they can start. Is there anything they need to know about which branch their form must live on?",
+      "expected_output": "The agent adds a number descriptor last_report_id to the own userConfig and explains that I<Package>UserSettings is regenerated per branch, so the consumer form must land on the same branch as the schema change (or wait for publish when consuming cross-package), otherwise it fails validate with Property 'last_report_id' does not exist on type 'I<Package>UserSettings'.",
+      "files": [],
+      "expectations": [
+        "settings[] gains a last_report_id descriptor with type \"number\"",
+        "The response states that the generated interface I<Package>UserSettings is regenerated per branch from the userConfig schema",
+        "The response states that the consumer form and the schema change must land on the same branch, and names the failure mode (validate error: Property 'last_report_id' does not exist on type 'I<Package>UserSettings')",
+        "The response does not claim the setting becomes visible to other branches as soon as it is written",
+        "The userConfig description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate userconfig' run before 'dxs configuration upsert userconfig' (or before the documented fallback write)"
+      ]
+    }
+  ]
+}
