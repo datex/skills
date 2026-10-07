@@ -129,8 +129,8 @@ Walk this before push (the `function-creator` SKILL.md carries the authoritative
 
 1. Top-level fields: `configurationTypeId: 9`, `referenceName` ending in `_flow`, `description` non-null and ≤ 100 chars, `accessModifier` set.
 2. File suffix is `-flow.json` (distinguishes top-level function from embedded flow step).
-3. `code` string line endings are `\r\n` inside the decoded string (the JSON layer escapes them as `\\r\\n`). Preserve existing escaping when editing — prefer Python `json.load`/`json.dump`.
-4. Every `inParams`/`outParams` entry uses the full fat parameter-descriptor boilerplate.
+3. `code` string line endings are `\r\n` inside the decoded string (the JSON layer escapes them as `\\r\\n`) — preferred for byte-stable diffs against fetched bodies; the server accepts `\n` too, so this is a diff-hygiene convention, not an import requirement.
+4. Every `inParams`/`outParams` entry uses the full fat parameter-descriptor boilerplate — preferred for byte-stable diffs; the server accepts trimmed descriptors and backfills the omitted siblings as `null` on the next fetch.
 5. All `$datasources.*` calls target `-datasource.json` (same tier); no cross-tier calls to `-footprintDatasource.json`.
 6. Any callers of this function include a full `configParameters` contract.
 7. Code-body rules hold (see the section above): no bare `return;` at top scope when outParams are declared; no `const`/`let` in the post-return helper region; no reliance on state surviving across invocations.

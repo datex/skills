@@ -16,6 +16,20 @@ $flow.outParams.success = true;
 // WRONG: return is not used for output
 return { result: computedValue, success: true };
 ```
+// UI tier: save / open files (fileName defaults to "Untitled" — always pass it for a Blob built in code)
+await $utils.blob.saveFile(blob, { fileName: 'export.xlsx' });
+const file = await $utils.blob.openFile();
+`$utils.excel` is SheetJS (`IExcelService`). Full surface from the designer typings: `readBlob(blob)`, `writeBlob(wb)`, `read(data, { type })`, `write(wb, { type: 'array' | 'buffer' | 'base64' | 'binary' | 'string' })`, `aoa_to_sheet`, `sheet_add_aoa`, `json_to_sheet`, `sheet_add_json`, `sheet_to_json`, `book_new`, `sheet_new`, `book_append_sheet`, `book_modify_sheets`, `book_set_sheet_visibility`, `format_cell`, `cell_set_number_format`, `cell_set_hyperlink`, `cell_set_internal_link`, `cell_add_comment`.
+
+// Array-of-arrays → workbook → bytes (the typed options omit `compression`; SheetJS honours it where built in)
+const ws2 = $utils.excel.aoa_to_sheet([headers, ...rows]);
+const wb2 = $utils.excel.book_new();
+$utils.excel.book_append_sheet(wb2, ws2, 'Sheet1');
+const bytes = $utils.excel.write(wb2, { type: 'array', compression: true } as any) as ArrayBuffer;
+Full surface: `openFile`, `saveFile(blob, { fileName })`, `toBase64`, `fromBase64`, `isBlob`, `isFile`, `humanSize`, `isBrowserSupportedImgFormat`, `isValidDataUrl`. `openFile`/`saveFile` are UI-tier only (they drive the browser's file picker/download); the rest work at both tiers.
+
+**The function-tier `Blob` is not the browser's `Blob`.** `blob.slice()` and `blob.arrayBuffer()` throw `Not supported` at the function tier, even though `size`, `type`, and `new Blob([Uint8Array, …], { type })` work there. To reach a stored blob's bytes at function tier, go through `$utils.blob.toBase64(blob)` and decode (try `Buffer.from(b64, 'base64')` first, then `atob`, then a manual decoder if neither is available) — cut ranges from the decoded byte array and re-wrap them in a fresh `Blob` rather than calling `.slice()`/`.arrayBuffer()` directly. **A flow's `outParams` may carry exactly one `blob`-typed param and nothing else** — the platform rejects more with *"Only one item with type blob is allowed exclusively"* — so return any accompanying metadata (filename, size, content type) from a sibling outParam or a separate call, not alongside the blob itself.
+**No streaming API, and every method materializes the whole workbook in memory.** `aoa_to_sheet` allocates one object per cell, and `write` builds the complete sheet XML as a string before zipping — a large sheet (tens of thousands of rows by dozens of columns) can peak near a gigabyte of worker memory. Above a few thousand rows, write the OOXML package yourself instead of going through SheetJS: inline strings, typed numbers/booleans/dates, a hand-built ZIP, DEFLATE via `CompressionStream('deflate-raw')` when the runtime has it (feature-detect with `eval('typeof CompressionStream')`, then fall back to Node's `zlib`, then to uncompressed STORE), feeding rows page by page rather than building the full sheet in one pass. The function tier's runtime is Node-based: `Buffer.from(b64, 'base64')` is available and is the fastest base64 decoder, and `zlib`/`CompressionStream` DEFLATE support means a hand-streamed workbook can still come out compressed. Verify a hand-built workbook's output against both a reference Excel-reading library and SheetJS's own reader before trusting it.
 
 ## Calling Other Functions
 
@@ -192,6 +206,8 @@ const wb: IExcelWorkBook = { SheetNames: ['Sheet1'], Sheets: { Sheet1: ws } };
 
 // Read worksheet to JSON
 const rows = $utils.excel.sheet_to_json(worksheet);
+// Round-trip a Blob (works for CSV too) — the cheapest structural check of a generated file
+const back = $utils.excel.sheet_to_json((await $utils.excel.readBlob(blob)).Sheets['Sheet1'], { header: 1 } as any);
 ```
 
 ## File Operations ($utils.blob)
