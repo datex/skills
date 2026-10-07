@@ -1,0 +1,57 @@
+{
+  "skill_name": "security-policy-editor",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"security-policy-editor-eval-{timestamp}\" --description \"Temporary branch for security-policy-editor skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "frame-src-data-for-embed",
+      "prompt": "On connection 9, branch {branch_id}: our email preview embed builds a data:text/html URI and the iframe renders blank; the console says it refused to frame 'data:' because it violates frame-src. Fix the policy for this package.",
+      "expected_output": "The own securityPolicy row resolved by applicationId == branch id and isExternal false, the body extracted without printing the envelope, one directive row {directive: frameSrc, value: data:, note naming the embed} appended, validate before upsert, and a note that the runtime effect needs the user's Preview check (and that the hosting application may need the same row).",
+      "files": [],
+      "expectations": [
+        "The own securityPolicy id is resolved from 'dxs configuration list securitypolicy' by applicationId equal to the branch id and isExternal false (or cross-checked against that filter) — not hardcoded",
+        "The pushed body contains a directives[] row with directive exactly 'frameSrc' (camelCase, not 'frame-src') and value exactly 'data:'",
+        "The new row has a non-empty note naming what needs the source (the preview embed)",
+        "No bare '*', 'unsafe-inline' or 'unsafe-eval' source is added",
+        "The body tail is unchanged: configurationTypeId 28, referenceName securityPolicy, title and description 'Security Policy' (description non-empty and at most 100 characters)",
+        "No envelope is printed to the transcript",
+        "The transcript contains 'dxs configuration validate securitypolicy' run before 'dxs configuration upsert securitypolicy' (or before the documented update fallback)",
+        "The answer says the runtime effect must be confirmed in Preview (validate does not check CSP behaviour)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "third-party-hosts-one-per-row",
+      "prompt": "On connection 9, branch {branch_id}: we're adding a chat widget. Its loader script comes from cdn.evalchat.example and it talks to api.evalchat.example and wss://rt.evalchat.example. The vendor also says their inline bootstrap needs 'unsafe-inline' for scripts. Update the security policy.",
+      "expected_output": "Separate rows per source — scriptSrcElem (or scriptSrc) for the CDN host, connectSrc for the API host and for the websocket origin — each with a note; the 'unsafe-inline' request challenged (prefer a sha256 hash of the bootstrap) and only added with explicit user agreement; validate before upsert.",
+      "files": [],
+      "expectations": [
+        "Each source is its own directives[] row — no value contains more than one source expression",
+        "The CDN host is added under a script directive (scriptSrcElem or scriptSrc) and the two call-home origins under connectSrc",
+        "All directive names are camelCase members (no kebab-case such as 'script-src')",
+        "'unsafe-inline' is not added silently: the answer flags the risk and proposes a hash source (\"'sha256-...'\" with the single quotes kept inside the JSON string) or asks the user before adding it",
+        "Every new row has a non-empty note naming the chat widget",
+        "No bare '*' source is added",
+        "The transcript contains 'dxs configuration validate securitypolicy' run before 'dxs configuration upsert securitypolicy' (or the documented update fallback), and the body description stays non-empty and at most 100 characters"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "never-create-security-policy",
+      "prompt": "On connection 9, branch {branch_id}: create a new security policy component eval_csp_securityPolicy that allows frames from *.powerbi.com.",
+      "expected_output": "A refusal to create a second security policy — one already exists per package with the fixed referenceName securityPolicy — and the equivalent edit on the existing own row offered or applied (frameSrc *.powerbi.com with a note), validate before upsert.",
+      "files": [],
+      "expectations": [
+        "No 'dxs configuration create securitypolicy' is run and no pushed body has a referenceName other than securityPolicy",
+        "The answer explains that the security policy is auto-provisioned once per package with the fixed referenceName securityPolicy and is never created or deleted",
+        "The existing own row is resolved by applicationId == branch id and isExternal false, or the user is offered that edit",
+        "If the edit is applied, the row is {directive: frameSrc, value: *.powerbi.com} with a non-empty note",
+        "If any body is pushed, its description stays non-empty and at most 100 characters and 'dxs configuration validate securitypolicy' runs before 'dxs configuration upsert securitypolicy'"
+      ]
+    }
+  ]
+}
