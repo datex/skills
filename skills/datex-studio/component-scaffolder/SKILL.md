@@ -10,10 +10,15 @@ description: |
   the matching creator (action-creator, function-creator, grid-creator,
   hub-creator, form-creator, editor-creator, embed-creator, selector-creator,
   storage-creator, type-definition-creator, backend-test-creator,
-  datasource-creator) for body authoring. Triggers: "scaffold a new
-  component", "create a new grid/hub/form/editor/embed/selector/storage/
-  interface/enum/backendTest/action/function/datasource", "starter
-  <type> file", "new <type> from scratch".
+  datasource-creator, card-creator, list-creator, widget-creator,
+  calendar-creator, wizard-creator, code-editor-creator, dashboard-creator)
+  for body authoring. Never scaffolds the six auto-provisioned singletons
+  (shell, appConfig, authorization, securityPolicy, replacements,
+  userConfig) — routes those to their *-editor skill. Triggers: "scaffold a
+  new component", "create a new grid/hub/form/editor/embed/selector/storage/
+  interface/enum/backendTest/action/function/datasource/card/list/widget/
+  calendar/wizard/code editor/dashboard", "starter <type> file", "new <type>
+  from scratch".
 depends:
   - datex-studio-conventions
   - action-creator
@@ -29,6 +34,21 @@ depends:
   - storage-creator
   - tailoring-overlay
   - type-definition-creator
+  - custom-angular-component-creator
+  - card-creator
+  - list-creator
+  - widget-creator
+  - calendar-creator
+  - wizard-creator
+  - code-editor-creator
+  - dashboard-creator
+  - shell-editor
+  - security-policy-editor
+  - app-config-editor
+  - replacements-editor
+  - authorization-editor
+  - user-config-editor
+  - datex-studio-shared
 ---
 
 # Component Scaffolder
@@ -50,8 +70,8 @@ Creator skills (action-creator, function-creator, grid-creator, etc.) own author
 ## Workflow
 
 1. **Gather the three required inputs:**
-   - **Type** — one of: `action`, `function`, `interface`, `enum`, `grid`, `hub`, `form`, `editor`, `embed`, `selector`, `storage`, `backendTest`, `datasource` (OData or flow query type, platform variant), `footprintDatasource` (OData or flow query type, Footprint variant). If the caller said "datasource" without qualifying the variant, ask which variant they want (platform `-datasource` vs Footprint `-footprintDatasource`) — they're a different `configurationTypeId` and a different component variant. See [datasource-creator/references/datasources.md](../datasource-creator/references/datasources.md) for the full taxonomy.
-   - **Name** — the component reference name (without file suffix). Carry the type indicator on the name itself (`_storage`, `_hub`, `_form`, `_editor`, `_embed`, `_grid`, `_dd` for selectors, `_action`, `_flow` for functions, `i_` prefix for interfaces, `e_` prefix for enums) per [../datex-studio-conventions/naming-conventions.md](../datex-studio-conventions/naming-conventions.md).
+   - **Type** — one of: `action`, `function`, `interface`, `enum`, `grid`, `hub`, `form`, `editor`, `embed`, `selector`, `storage`, `backendTest`, `datasource` (OData or flow query type, platform variant), `footprintDatasource` (OData or flow query type, Footprint variant), `customAngularComponent`, `card`, `list`, `widget`, `calendar`, `wizard`, `codeEditor`, `dashboard`. A request for a shell, appConfig, authorization, securityPolicy, replacements or userConfig is **not** a scaffold — see [Never scaffold singletons](#never-scaffold-singletons). If the caller said "datasource" without qualifying the variant, ask which variant they want (platform `-datasource` vs Footprint `-footprintDatasource`) — they're a different `configurationTypeId` and a different component variant. See [datasource-creator/references/datasources.md](../datasource-creator/references/datasources.md) for the full taxonomy.
+   - **Name** — the component reference name (without file suffix). Carry the type indicator on the name itself (`_storage`, `_hub`, `_form`, `_editor`, `_embed`, `_grid`, `_card`, `_list`, `_widget`, `_calendar`, `_wizard`, `_code_editor`, `_dashboard`, `_dd` for selectors, `_action`, `_flow` for functions, `i_` prefix for interfaces, `e_` prefix for enums) per [../datex-studio-conventions/naming-conventions.md](../datex-studio-conventions/naming-conventions.md).
    - **Description** — non-null, non-empty, **≤100 characters**. This is a hard SQL column cap on the Footprint side — imports fail with a SQL truncation error if exceeded. Ask the caller for one if not provided; do not proceed without a description.
 
 2. **Look up the dispatch row** in the table below for the requested type. That gives you the suffix, `configurationTypeId`, the reference doc with the canonical skeleton, and the creator skill to delegate to next.
@@ -60,7 +80,7 @@ Creator skills (action-creator, function-creator, grid-creator, etc.) own author
 
 4. **Apply the skeleton:**
    - `referenceName` → the component name. (Exception: actions — `referenceName` ends in `_action` while the file suffix is `-footprintFlow.json`. The creator-name pairing is intentional; see [action-creator/references/actions.md](../action-creator/references/actions.md).)
-   - `title` → for **backend types** (function, action, datasource, footprintDatasource, interface, enum, storage, backendTest) the title never reaches a screen, so set it equal to `referenceName`. For **user-facing types** (form, editor, hub, grid, embed, and standalone selectors) the `title` renders as a header / dialog title / tab label, so it must be a distinct sentence-case display name — a `title` byte-identical to `referenceName` is a naming violation per [../datex-studio-conventions/naming-conventions.md → Display Names for User-Facing Components](../datex-studio-conventions/naming-conventions.md#display-names-for-user-facing-components). Derive one from the name (e.g. `custom_example_map_embed` → `Example map`) or ask the caller.
+   - `title` → for **backend types** (function, action, datasource, footprintDatasource, interface, enum, storage, backendTest) the title never reaches a screen, so set it equal to `referenceName`. For **user-facing types** (form, editor, hub, grid, embed, list, calendar, wizard, code editor, dashboard, and standalone selectors) the `title` renders as a header / dialog title / tab label, so it must be a distinct sentence-case display name — a `title` byte-identical to `referenceName` is a naming violation per [../datex-studio-conventions/naming-conventions.md → Display Names for User-Facing Components](../datex-studio-conventions/naming-conventions.md#display-names-for-user-facing-components). Derive one from the name (e.g. `custom_example_map_embed` → `Example map`) or ask the caller.
    - `description` → the caller-supplied description (≤100 chars).
    - `accessModifier` → ask the caller; default to `"public"` if they don't have a preference.
    - `configurationTypeId` → the numeric ID from the dispatch table. Copy it from a working component of the same type if you have any doubt — wrong cti is a Validate-clean / Preview-broken failure mode (see [../datex-studio-conventions/file-format.md](../datex-studio-conventions/file-format.md)).
@@ -104,19 +124,45 @@ Creator skills (action-creator, function-creator, grid-creator, etc.) own author
 | `backendTest` | `-backendTest` | 24 | [backend-test-creator/references/backend-tests.md](../backend-test-creator/references/backend-tests.md) | `backend-test-creator` |
 | `datasource` (platform variant) | `-datasource` | 6 | [datasource-creator/references/datasources.md](../datasource-creator/references/datasources.md) | `datasource-creator` |
 | `footprintDatasource` (Footprint variant) | `-footprintDatasource` | 19 | [datasource-creator/references/datasources.md](../datasource-creator/references/datasources.md) | `datasource-creator` |
+| `customAngularComponent` | `-customAngularComponent` | 36 | [custom-angular-component-creator](../custom-angular-component-creator/SKILL.md) | `custom-angular-component-creator` |
+| `card` | `-card` | 11 | [card-creator/references/cards.md](../card-creator/references/cards.md#minimal-valid-skeleton) | `card-creator` |
+| `list` | `-list` | 14 | [list-creator/references/lists.md](../list-creator/references/lists.md#minimal-valid-skeleton) | `list-creator` |
+| `widget` | `-widget` | 8 | [widget-creator/references/widgets.md](../widget-creator/references/widgets.md#minimal-valid-skeleton) | `widget-creator` |
+| `calendar` | `-calendar` | 12 | [calendar-creator/references/calendars.md](../calendar-creator/references/calendars.md#minimal-valid-skeleton) | `calendar-creator` |
+| `wizard` | `-wizard` | 13 | [wizard-creator/references/wizards.md](../wizard-creator/references/wizards.md#minimal-valid-skeleton) | `wizard-creator` |
+| `codeEditor` | `-codeEditor` | 21 | [code-editor-creator/references/code-editors.md](../code-editor-creator/references/code-editors.md#minimal-valid-skeleton) | `code-editor-creator` |
+| `dashboard` | `-dashboard` | 35 | [dashboard-creator/references/dashboards.md](../dashboard-creator/references/dashboards.md#minimal-valid-skeleton) | `dashboard-creator` |
 
 Notes on the table:
+- **Custom Angular Components (cti 36) scaffold differently.** They are created through `dxs ng create`, not this skill's generic Steps 6–7 validate→upsert flow. Gather type/name/description per Step 1, then hand off immediately to `custom-angular-component-creator`, which owns its own creation command and screenshot-driven edit loop.
+
+- **Hosts and templates need their callees first.** Validate checks the references these skeletons carry, so create the callees before the host: a **list** needs its item card and its datasource; a **calendar** needs three datasources (columns, events, unscheduled) and one card; a **wizard** needs every step's form/grid/editor; a **widget** needs its standalone datasource (widgets cannot own one); a **dashboard** needs the grids its tabs embed. A **card** title is a designer label (title may equal `referenceName`, sentence case preferred); a **list** title is user-facing and must differ from `referenceName`.
 
 - **Datasources have two component variants** (`-datasource` and `-footprintDatasource`) which are different `configurationTypeId`s. Each variant can carry **either** query type (OData or flow) — the variant is the runtime tier, the query type is how the data is fetched. The selectability matrix (selectors only back to `-datasource.json`, etc.) is owned by [datasource-creator/references/datasources.md](../datasource-creator/references/datasources.md) — defer to that reference rather than re-deriving here.
 - **`interface` and `enum` share the `-customType.json` component type** (cti=22). The internal body differs substantially — see [type-definition-creator/references/type-definitions.md](../type-definition-creator/references/type-definitions.md) for the two shapes.
 - **For tailored variants** (e.g. tailoring an existing core-library grid via `baseConfiguration` overlay), do not scaffold from these skeletons — the tailored-overlay shape is different and is owned by the `tailoring-overlay` skill. Invoke that skill directly instead of routing through this scaffolder.
 - **For modifying an existing component**, do not scaffold a new file — invoke the matching creator skill directly. This skill scaffolds new components only.
 
+## Never scaffold singletons
+
+Six configuration types are provisioned by the platform once per package with a fixed `referenceName`; there is nothing to scaffold, and a create-path upsert would be wrong. Route the request to the editor skill, which edits the branch's own row:
+
+| Request | cti | Route to |
+|---|---|---|
+| shell / navigation / `on_init` of the app | 1 | [`shell-editor`](../shell-editor/SKILL.md) |
+| security policy / CSP | 28 | [`security-policy-editor`](../security-policy-editor/SKILL.md) |
+| app config / settings / connection bindings | 32 | [`app-config-editor`](../app-config-editor/SKILL.md) |
+| replacements | 33 | [`replacements-editor`](../replacements-editor/SKILL.md) |
+| authorization / operations / roles | 34 | [`authorization-editor`](../authorization-editor/SKILL.md) |
+| user configuration / per-user settings schema | 37 | [`user-config-editor`](../user-config-editor/SKILL.md) |
+
+Lifecycle rules shared by all six: [singleton-config-lifecycle.md](../datex-studio-shared/singleton-config-lifecycle.md).
+
 ## Rules
 
 - **Skeletons come from the reference docs.** Always read the matching `references/<type>.md` before building the body. Do not fabricate JSON structure from memory. The reference doc is authoritative for skeleton shape and skeleton defaults.
 - **The branch is the source of truth.** The skeleton reaches the branch via `dxs configuration upsert`; any local `body.json` is temp scratch, never the system of record. Check existence with `dxs configuration get`, not by inspecting local file paths.
-- **`referenceName` must equal the filename stem exactly.** The only exception is actions, whose `referenceName` ends in `_action` while the file suffix is `-footprintFlow.json` — this is the documented convention, not a typo. **`title`** equals `referenceName` for backend types, but user-facing types (form, editor, hub, grid, embed, standalone selector) require a distinct sentence-case display `title` — see step 4 and [../datex-studio-conventions/naming-conventions.md](../datex-studio-conventions/naming-conventions.md#display-names-for-user-facing-components).
+- **`referenceName` must equal the filename stem exactly.** The only exception is actions, whose `referenceName` ends in `_action` while the file suffix is `-footprintFlow.json` — this is the documented convention, not a typo. **`title`** equals `referenceName` for backend types, but user-facing types (form, editor, hub, grid, embed, list, calendar, wizard, code editor, dashboard, standalone selector) require a distinct sentence-case display `title` — see step 4 and [../datex-studio-conventions/naming-conventions.md](../datex-studio-conventions/naming-conventions.md#display-names-for-user-facing-components).
 - **Description is mandatory and ≤100 characters.** Per the SQL column cap. Do not proceed without one. Do not silently truncate — confirm with the caller.
 - **`configurationTypeId` matters at codegen time even though Studio's Validate doesn't enforce it.** Wrong cti → Preview cascade failures rooted in files that never touched the broken component. Always copy from a working component of the same type, or from the dispatch table above. See [../datex-studio-conventions/file-format.md](../datex-studio-conventions/file-format.md) for the failure-mode discussion.
 - **Minimum valid only.** No placeholder properties, filters, columns, or code beyond what the skeleton requires for Validate to pass. The creator skill owns body authoring; this skill creates an empty-but-valid component on the branch and hands off.
