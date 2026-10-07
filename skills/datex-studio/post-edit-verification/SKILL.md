@@ -7,7 +7,7 @@ description: |
   Edit/Write tool succeeded → JSON parses → description is non-null,
   non-empty, ≤100 chars (platform limit) → grep for obvious typos.
   Escalates to component-validator subagent for non-trivial edits.
-  Replaces Mitch's PostToolUse validate-component.py hook with a
+  Replaces a host-repo PostToolUse validate-component.py hook with a
   skill-based pattern. Triggers: invoked by every component-creator's
   closer; rarely invoked directly by users.
 depends:
@@ -19,7 +19,7 @@ depends:
 
 After editing a component file, the natural instinct is to re-read the full file to confirm the edit landed. **Don't, by default.** Component JSON files are minified single-line documents, often 20–100 KB, and re-reading them after every edit consumes parent-conversation context that the actual work needs. Several lighter-weight signals do the same job — apply them in this order.
 
-> **Hook-replacement context.** Mitch's repo carried a `PostToolUse` hook (`hooks/validate-component.py`) that auto-blocked any Edit/Write of a tracked component suffix when the `description` was null/empty/>100 chars or the JSON failed to parse. The Datex Skills repo has no `PostToolUse` mechanism — skills are not auto-invoked by tool events. This skill is the substitute: every component-creator skill ends with *"after your edit, invoke `post-edit-verification`"*, so the same two platform invariants are enforced in one place (DRY) at the skill layer instead of the harness layer. If a harness-level save-gate hook *is* installed in a given environment (a PostToolUse validator that blocks bad component saves), treat hook silence as a positive signal — those gates passed at the harness level — not as absent feedback; the skill checks below remain the portable floor.
+> **Hook-replacement context.** A host repo carried a `PostToolUse` hook (`hooks/validate-component.py`) that auto-blocked any Edit/Write of a tracked component suffix when the `description` was null/empty/>100 chars or the JSON failed to parse. The Datex Skills repo has no `PostToolUse` mechanism — skills are not auto-invoked by tool events. This skill is the substitute: every component-creator skill ends with *"after your edit, invoke `post-edit-verification`"*, so the same two platform invariants are enforced in one place (DRY) at the skill layer instead of the harness layer. If a harness-level save-gate hook *is* installed in a given environment (a PostToolUse validator that blocks bad component saves), treat hook silence as a positive signal — those gates passed at the harness level — not as absent feedback; the skill checks below remain the portable floor.
 
 ## Platform invariants (the minimum checks)
 
