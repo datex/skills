@@ -1,0 +1,83 @@
+{
+  "skill_name": "calendar-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"calendar-creator-eval-{timestamp}\" --description \"Temporary branch for calendar-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "day-view-with-card-events",
+      "prompt": "On connection 9, branch {branch_id}: build a calendar eval_dock_schedule_calendar that shows one day of dock appointments with one column per dock door. Doors come from a datasource you create (ds_eval_dock_doors), appointments from a second datasource (ds_eval_dock_appointments_by_day) that takes the start and end of the selected day. Each appointment tile must show its lookup code and carrier, so create the event card eval_dock_appointment_card for that. Add a date filter plus Previous / Today / Next buttons.",
+      "expected_output": "A validated and upserted calendar (cti 12, type day) whose events render through the newly created card, whose events datasource receives a day window derived from the date filter, and whose navigation buttons move the date and re-derive the window.",
+      "files": [],
+      "expectations": [
+        "A calendar body is created with configurationTypeId 12, type \"day\", and referenceName eval_dock_schedule_calendar (ends in _calendar)",
+        "The calendar title is a sentence-case display name that is not byte-identical to the referenceName",
+        "dayViewConfig.eventsConfig.eventContentType is \"card\" and eventContentConfig.configId is eval_dock_appointment_card with moduleId set to the card's package",
+        "The card (configurationTypeId 11) is upserted on the branch before the calendar that references it",
+        "eventContentConfig.configParameters contain one entry per card inParam, bound with $calendarEvent.entity.<field> expressions",
+        "columnsConfig.text and matchEventToColumn reference $column; eventsConfig start/end/title reference $calendarEvent",
+        "The events datasource receives the day window either from declared $calendar.vars (set in a date-change flow) or from an expression over the view_date filter",
+        "The Previous/Next flows shift the date filter with $utils.date.add(-1/1, 'day', ...) and re-derive the window (calling the date-change flow as $calendar.<flow>() and/or $calendar.refresh())",
+        "nextPageText, previousPageText and currentPageInfoText are TS-quoted string literals (e.g. \"'Next doors'\"), not bare words",
+        "Each datasourceConfig carries datasourceKeyDef, a configParameters entry for every datasource inParam, and the datasource's full configOutParameters",
+        "The calendar's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate calendar' run before 'dxs configuration upsert calendar'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "hour-segment-click-flow",
+      "prompt": "On connection 9, branch {branch_id}: on an existing day-view calendar eval_line_schedule_calendar (create a minimal one first if it does not exist), make clicking an empty time slot open a form eval_new_booking_form (create it) pre-filled with the clicked column's id and the clicked start time, and refresh the calendar if the user confirms.",
+      "expected_output": "The calendar's hour-segment click handler is a full inline cti-9 flow under dayViewConfig.hourSegmentClickedFlow with hasHourSegmentClickedFlow true, reading $event.date and $event.column, opening the form dialog and refreshing on confirm.",
+      "files": [],
+      "expectations": [
+        "dayViewConfig.hasHourSegmentClickedFlow is true",
+        "dayViewConfig.hourSegmentClickedFlow is a full inline flow object (configurationTypeId 9 with nodes[0].stepConfig.executeCodeConfig.code) — NOT a { flowId } reference and NOT null",
+        "The click-flow code reads $event.date and $event.column (e.g. $event.column.Id) and does not read $event.calendarEvent",
+        "The form is opened through the generated $shell.<Package>.open<referenceName>Dialog method with snake_case preserved (openeval_new_booking_formDialog)",
+        "The calendar calls $calendar.refresh() after a confirmed dialog result",
+        "Any edit to an existing calendar extracts the inner body (jq .json) from the get envelope before editing",
+        "The calendar's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate calendar' run before 'dxs configuration upsert calendar'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "drag-drop-reschedule",
+      "prompt": "On connection 9, branch {branch_id}: create eval_work_order_calendar where dragging an order to another slot or column reschedules it — keep the original duration, move the start to the drop time, and move it to the dropped column. Also add an unassigned side list; dropping an order there clears its column. Persist through a function, not an action.",
+      "expected_output": "A calendar with hasHourSegmentEventDroppedFlow and hasUnscheduledEvents/hasUnscheduledEventDroppedFlow true, each paired with a full inline flow; the drop flow computes the new end from the preserved duration, writes via a function, and refreshes.",
+      "files": [],
+      "expectations": [
+        "dayViewConfig.hasHourSegmentEventDroppedFlow is true and hourSegmentEventDroppedFlow is a full inline cti-9 flow object (not null, not a { flowId } reference)",
+        "The drop flow reads $event.calendarEvent.entity, $event.date and $event.column.Id",
+        "The drop flow preserves duration (computes the original end-minus-start and adds it to $event.date, e.g. via $utils.date.add)",
+        "hasUnscheduledEvents is true and unscheduledEventsConfig is populated with pageSize, datasourceConfig, a TS-quoted title (e.g. \"'Unassigned'\"), hasUnscheduledEventDroppedFlow true and an inline unscheduledEventDroppedFlow",
+        "The unscheduled-drop flow reads $event.calendarEvent and does not reference $event.column",
+        "Persistence goes through $flows.<Package>.<function> (no action call from the calendar), followed by $calendar.refresh()",
+        "No has<X>Flow flag is false while its sibling flow is populated, and none is true while its sibling is null",
+        "The response flags drag/drop persistence and revert behaviour as needing a Preview check rather than claiming it verified",
+        "The calendar's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate calendar' run before 'dxs configuration upsert calendar'"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "naming-title-and-view-type",
+      "prompt": "On connection 9, branch {branch_id}: we need a weekly production calendar. Name the component ProductionWeek and title it the same. Show production orders per line.",
+      "expected_output": "The skill explains that only the day view is authorable (week deserializes but fails codegen), proposes a day-view calendar with Previous/Next navigation, renames the component to a snake_case _calendar referenceName with a distinct sentence-case title, and validates before upsert.",
+      "files": [],
+      "expectations": [
+        "type is \"day\" in the authored body — the response states that week/month are not authorable (validate fails with Cannot find name 'ICalendarEvent' or equivalent) rather than silently authoring type \"week\"",
+        "The referenceName is snake_case and ends in _calendar (e.g. production_week_calendar), not ProductionWeek",
+        "The title is a sentence-case display name distinct from the referenceName (e.g. 'Production schedule'), not byte-identical to it",
+        "configurationTypeId is 12",
+        "Events render through a card (eventContentType \"card\")",
+        "The calendar's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate calendar' run before 'dxs configuration upsert calendar'"
+      ]
+    }
+  ]
+}
