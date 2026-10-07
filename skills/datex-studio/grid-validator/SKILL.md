@@ -74,6 +74,8 @@ This skill is typically invoked by `grid-creator` at the end of its authoring lo
 - The validator does not load raw OData schema documents. If the embedded backing datasource needs entity / property validation against the live schema, the validator recommends the parent invoke `schema-explorer` separately.
 - The validator does not speculate about intent. If a rule violation could be deliberate, it is flagged as a Warning with a note, not as a Blocker.
 
+   h. **Standalone datasource `configOutParameters` full-mirror check.** When `datasourceConfig.isOwned` is absent or `false` (a standalone/external datasource reference rather than an embedded one), confirm `configOutParameters[result].objectTypeDef` mirrors the referenced datasource's **complete** output shape, not just the fields the grid's columns bind against — see [grids.md → Datasource Wiring — Five Places](../grid-creator/references/grids.md#datasource-wiring--five-places-must-stay-in-sync), point 5. A trimmed subset is a **blocker**: the platform rejects it with `Outdated contract. Type mismatch for output parameters`. Confirming the full shape requires reading the referenced datasource's own `outParams[0].objectTypeDef`; if that file isn't available to you, flag as a **warning** recommending the parent fetch and compare it.
+
 ## Sub-agent
 
 The prompt template below is what the orchestrator passes to the Task-tool sub-agent dispatch. The sub-agent is read-only (`Read`, `Grep`, `Glob`).
