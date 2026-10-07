@@ -1,0 +1,58 @@
+{
+  "skill_name": "authorization-editor",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"authorization-editor-eval-{timestamp}\" --description \"Temporary branch for authorization-editor skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "disable-operation-polarity",
+      "prompt": "On connection 9, branch {branch_id}: users in the QA role must not be able to delete eval records. Add a permission for that to this package and assign it so QA loses the ability, then tell me exactly what that assignment does and show me the line of flow code a grid's on_init should use to enforce it. First show me which roles already exist.",
+      "expected_output": "Existing roles read via 'dxs configuration get authorization' (not 'dxs source branch roles'), the own row resolved by applicationId == branch id and isExternal false, a Disable_* operation declared and assigned to QA as a {name} object, validate then upsert, an explanation that assigning Disable_X removes the capability (and the isAssignedToAll semantics), and a consumer snippet checking $operations.<Package>.Disable_<X>.isAssignedToAll() to disable the delete affordance.",
+      "files": [],
+      "expectations": [
+        "Roles and operations are read with 'dxs configuration get authorization' — the transcript does not rely on 'dxs source branch roles' or 'dxs source branch operations' for the data (if tried, the 404 is recognised and the get path used instead)",
+        "The own authorization id is resolved from 'dxs configuration list authorization' by applicationId equal to the branch id and isExternal false (or cross-checked against that filter) — not hardcoded",
+        "The new operation name starts with Disable_ and is declared in operations[] as {name, description, isAuthorizable: true}",
+        "The new operation's description is non-empty and at most 100 characters",
+        "The QA role's assignedOperations gains an object {\"name\": \"Disable_...\"} — not a bare string",
+        "The answer states that assigning the Disable_ operation to QA REMOVES the capability from QA users (polarity), and notes that with isAssignedToAll a user holding another role without it keeps the capability",
+        "The consumer snippet uses `await $operations.<Package>.Disable_<X>.isAssignedToAll()` (with the package segment) and disables/hides the delete affordance when it returns true",
+        "No envelope is printed to the transcript (the body is extracted in the same command as the fetch)",
+        "The transcript contains 'dxs configuration validate authorization' run before 'dxs configuration upsert authorization' (or before the documented update fallback)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "enable-operation-and-undeclared-check",
+      "prompt": "On connection 9, branch {branch_id}: only Admins should see a new eval support panel. Set up the permission, and also assign an operation called Enable_Eval_Undeclared to the User role — I'm not sure it exists yet.",
+      "expected_output": "An Enable_* operation declared and assigned to Admin with the grant polarity explained and an isAssignedToAny-style consumer check; the Enable_Eval_Undeclared request checked against operations[] — either declared first (with the user told) or flagged — because validate does not catch assignments to undeclared operations.",
+      "files": [],
+      "expectations": [
+        "The operation for the panel starts with Enable_ and is assigned to the Admin role as a {name} object",
+        "The answer states that assigning an Enable_ operation GRANTS the capability, and the suggested consumer check uses isAssignedToAny() or explicitly justifies isAssignedToAll() by matching existing call sites",
+        "Before assigning Enable_Eval_Undeclared, the transcript checks whether it is declared in operations[]",
+        "Enable_Eval_Undeclared is never left assigned without a matching operations[] declaration in the pushed body",
+        "The answer notes that dxs configuration validate does not catch an assignment to an undeclared operation",
+        "Every new operation description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate authorization' run before 'dxs configuration upsert authorization' (or the documented update fallback)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "never-create-authorization",
+      "prompt": "On connection 9, branch {branch_id}: create a new authorization component called eval_permissions_authorization for this package with one operation Disable_Eval_Thing assigned to QA.",
+      "expected_output": "A refusal to create a second authorization config — every package already has exactly one, with the fixed referenceName authorization — and an offer (or execution) of the equivalent edit on the existing own row: Disable_Eval_Thing declared and assigned to QA, validate before upsert.",
+      "files": [],
+      "expectations": [
+        "No 'dxs configuration create authorization' is run and no pushed body has a referenceName other than authorization",
+        "The answer explains that the authorization singleton is auto-provisioned once per package with the fixed referenceName authorization and is never created or deleted",
+        "The existing own row is resolved by applicationId == branch id and isExternal false, or the user is offered that edit",
+        "If the edit is applied, Disable_Eval_Thing is declared in operations[] and assigned to QA as a {name} object, with the polarity (QA loses the capability) stated",
+        "If any body is pushed, its operation descriptions are non-empty and at most 100 characters and 'dxs configuration validate authorization' runs before 'dxs configuration upsert authorization'"
+      ]
+    }
+  ]
+}
