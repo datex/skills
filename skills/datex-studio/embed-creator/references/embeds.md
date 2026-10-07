@@ -12,6 +12,7 @@ Pick a **form** ([../../form-creator/references/forms.md](../../form-creator/ref
 
 - put the button **inside** the HTML you render (see [The Print Pattern](#the-print-pattern)), or
 - host the URL/HTML in an embed and treat any surrounding controls as a separate concern.
+To show or edit raw JSON/XML text rather than render HTML, use a code editor instead — [code-editors.md](../../code-editor-creator/references/code-editors.md).
 
 ## File Location & Naming
 
@@ -156,7 +157,7 @@ The `bodyOpen` pattern steps over `>` characters inside single- or double-quoted
 
 These only surface in the running app:
 
-- **`frame-src`** must permit the source. For an HTML-string preview the app CSP must allow `data:`; for a URL embed it must allow that origin. A disallowed source renders a **blank iframe**.
+- **`frame-src`** must permit the source. For an HTML-string preview the app CSP must allow `data:`; for a URL embed it must allow that origin. A disallowed source renders a **blank iframe**. Add the source with [security-policy-editor](../../security-policy-editor/SKILL.md) (`{ directive: "frameSrc", value: "data:" }`).
 - **`script-src`** governs the in-document Print button. Under a strict policy (no `'unsafe-inline'`), the inline `onclick` may be blocked — the preview still renders and `Ctrl+P` still works, but the button is inert. Confirm the app's CSP before depending on the button.
 
 `dxs configuration validate embed` checks body shape only (it catches a missing `href`, a bad `type`); it does not and cannot check CSP or print behavior.
@@ -208,7 +209,7 @@ The host that opens the embed must declare a `configParameters` entry for **ever
 |---|---|---|
 | `HREF is required` on validate | `iframeConfig.href` missing | Add `href`; it's mandatory. |
 | `Error converting value "..." to type 'EEmbedDesignerType'` | `type` set to a non-member value (`html`/`script`/`content`/`code`) | Use `iframe` — the only codegen-supported type (never `powerBi`); wrap inline markup in a `data:` URI. |
-| Blank iframe, no console error | CSP `frame-src` blocks the source (`data:` or the URL origin) | Allow the source in the app CSP, or host the content at an allowed origin. |
+| Blank iframe, no console error | CSP `frame-src` blocks the source (`data:` or the URL origin) | Add the source with [security-policy-editor](../../security-policy-editor/SKILL.md) (`{ directive: "frameSrc", value: "data:" }`), or host the content at an allowed origin. |
 | Preview renders, Print button does nothing | Strict `script-src` blocks the inline `onclick` | Acceptable degradation (`Ctrl+P` works), or relax CSP / use a CSP-compatible trigger. |
 | Garbled/truncated HTML | HTML not URL-encoded into the `data:` URI | Wrap in `encodeURIComponent(...)`. |
 | `iframe.contentWindow.print()` from the host throws/no-ops | `data:` iframe is cross-origin | Move the Print trigger inside the HTML (`window.print()`). |

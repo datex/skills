@@ -33,6 +33,7 @@ Author or modify a Datex Studio embed (configurationTypeId=20) on a branch — a
 - [../datex-studio-runtime/runtime-globals.md](../datex-studio-runtime/runtime-globals.md) — platform-injected globals available in embed code (`$embed`, `$shell`, `$datasources`, `$utils`, ...)
 - [../form-creator/references/forms.md](../form-creator/references/forms.md) — sibling component; pick a form when you need field controls/buttons alongside the content (the form-vs-embed decision)
 - [../component-wiring-check/references/component-wiring.md](../component-wiring-check/references/component-wiring.md) — host reference contracts, vars-must-be-declared rule, `moduleId` rule for the component that opens the embed
+- [../security-policy-editor/SKILL.md](../security-policy-editor/SKILL.md) — add a CSP `frameSrc` allowance when an iframe renders blank (not a depends — a referral for the CSP failure mode only)
 
 ## Dependencies
 
