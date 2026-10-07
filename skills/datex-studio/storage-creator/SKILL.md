@@ -167,6 +167,8 @@ doesn't break existing call sites
    - **Brief exists** — use it. The brief should establish what data the storage holds (configuration values, business rules, daily snapshots, …), the column set with types, whether any columns are genuinely required at rest, the consuming surfaces (functions that write, datasources that read for UI), and the feature package the storage belongs to.
    - **No brief** — invoke the `requirements-gathering` skill first. Getting the column set and `required` decisions right up front avoids painful schema migrations later — once a storage ships, `required: true` is effectively additive-only (existing callers haven't been updated to echo new required columns).
 
+   - If this is the first storage component on the branch's application, also confirm a storage connection string is configured (`dxs source branch settings <branchId>`, looking for an `apiConnectionType: 8` setting). Component-level `validate`/`upsert` do not check this — the gap only surfaces at `dxs source branch validate`, which fails with `"There must be exactly one storage connection string configured"`. See [references/storage.md → Purpose & When to Use](references/storage.md#purpose--when-to-use) — to add the MongoDB binding, use [`app-config-editor`](../app-config-editor/SKILL.md).
+
 ### Phase 2: Decide storage vs Footprint entity
 
 Consult [references/storage.md → Purpose & When to Use](references/storage.md#purpose--when-to-use) before authoring. The decision drives whether you're in the right skill at all.
@@ -251,6 +253,8 @@ Before push, walk the full checklist in [references/storage.md → Pre-Flight Ch
 7. **Sibling slots null.** `inParams`, `outParams`, `vars`, `events` stay `null` — storage has no code strings of its own.
 8. **Consumers are on the right tier.** `$db` callers are functions (`-flow.json`, `configurationTypeId: 9`) or flow slots inside flow-type datasources. Actions cannot reach `$db`; UI components cannot reach `$db`.
 9. **Predicates use the fluent DSL.** `.equals(...)` / `.and(...)` / `.or(...)` / `.isNull()` / `.in([...])` — never `===`, `&&`, `||`. (TypeScript accepts native operators without complaint, but at runtime the predicate either errors during translation or the logic silently collapses.)
+
+0. **Storage connection configured**, if this is the first storage component on the branch's application — `dxs source branch validate` fails at the end of the change otherwise, even though the component itself validates and upserts cleanly.
 
 ## Common Mistakes
 

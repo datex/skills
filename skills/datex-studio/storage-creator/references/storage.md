@@ -10,7 +10,9 @@ Choose a storage component when the data:
 - Doesn't warrant a first-class OData entity (no navigation relationships to WMS entities, no business-object lifecycle).
 - Wants a simple column-set with implicit GUID identity, not an SQL schema.
 
-Pick a first-class Footprint entity instead when the data has business meaning beyond the feature (e.g. a customer, a shipment, a task) — those belong in the platform OData schema and are reached through CRUD actions and OData datasources.
+Pick a first-class Footprint entity instead when the data has business meaning beyond the feature (e.g. a customer, a shipment, a task) — those belong in the platform OData schema and are reached through CRUD actions and OData datasources. Pick [`user-config-editor`](../../user-config-editor/references/user-config.md) instead when the value is per-user, per-package rather than feature-wide.
+
+**Branch-level prerequisite — the application needs a storage connection.** A storage component's body validates and upserts with no complaint even when the branch's application has no MongoDB connection string configured. The gate only surfaces at `dxs source branch validate`, which fails with `"There must be exactly one storage connection string configured"` once the branch has one or more storage components and the application's appConfig has no storage-kind (`apiConnectionType: 8`) connection setting wired up. Check `dxs source branch settings <branchId>` before authoring the first storage component on a branch whose application may not have had storage before — component-level `validate`/`upsert` will not catch the gap; only the branch-wide validate does, and typically only at the end of a change. To add the MongoDB binding, use [`app-config-editor`](../../app-config-editor/SKILL.md).
 
 ## File Location & Naming
 
@@ -69,6 +71,8 @@ Pick a first-class Footprint entity instead when the data has business meaning b
 }
 ```
 
+Note what's absent: there is no top-level `package` field. Package placement is a branch/application-level concept (which package you upsert the component to), not something carried in the component JSON itself — don't add a speculative `"package": "<Name>"` key.
+
 ## Required Top-Level Fields
 
 | Field | Purpose | Notes |
@@ -105,6 +109,14 @@ Each entry in `objectTypeDef[]` uses the same shape as an inParam:
 - **"Still part of the model, just nullable now":** leave the column on the schema as `required: false`. Use only when new writes will keep populating it.
 
 Off-schema + bracket-notation signals "legacy-only, delete me"; on-schema + non-required signals "durable part of the model." Don't confuse the two.
+### Blob storage (`isBlob: true`)
+
+Setting `isBlob: true` switches the storage to Mongo GridFS-backed blob storage instead of ordinary structured records, and changes the runtime contract:
+
+- The row type is `IBlobStorageItem` rather than the usual column-shaped record — it carries the binary payload plus GridFS metadata (filename, content type, length), not an `objectTypeDef`-described column set.
+- There is no select/range read — a blob is read whole. There is no 16 MB document-size cap (the normal Mongo BSON document limit), since GridFS chunks the payload; large attachments are the intended use case.
+- The API surface is narrower than structured storage: `.add` / `.where` / `.removeMany` are available; there is no in-place partial-patch update for blob content (replace by removing and re-adding).
+- Passing a large blob through a `$flows` call (rather than reading it directly via `$db` at function tier) goes through flow serialization, which has its own size/encoding overhead — prefer reading the blob directly at the function tier that owns the `$db` call when the payload is large.
 
 ## Runtime Globals
 
@@ -172,6 +184,8 @@ The opposite direction of drift also applies: adding a new `required: true` colu
 7. Don't declare an explicit `id` column — the platform adds an implicit GUID.
 8. Default every column's `required` to `false`; validate at the flow layer. `required: true` breaks partial patches via `$db.update(id, patch)` unless every caller **reads-then-patches** to echo the required columns (see [Common Patterns → Patching a record with required columns](#patching-a-record-with-required-columns)).
 9. If adding a column to an existing storage, ensure the caller code tolerates nulls on pre-existing rows, or run a backfill in the same edit.
+
+0. If this is the first storage component on the branch's application, confirm a storage connection string is configured (`dxs source branch settings <branchId>`, looking for an `apiConnectionType: 8` setting) — otherwise `dxs source branch validate` fails at the end with `"There must be exactly one storage connection string configured"` even though the component itself validates and upserts cleanly. To add the MongoDB binding, use [`app-config-editor`](../../app-config-editor/SKILL.md).
 
 ## Cross-References
 
