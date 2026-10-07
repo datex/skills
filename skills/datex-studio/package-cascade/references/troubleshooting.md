@@ -47,15 +47,80 @@ So on a timeout: do nothing special — let the run finish. Do **not** re-run th
 would try to republish already-published nodes). For a genuinely slow machine, raise the ceiling
 once with `dxs settings set publish_timeout <seconds>`.
 
+## Validation errors about module settings after a re-pin
+
+Symptoms (all at once, per setting): *Module X setting S is not set*, *… mapped to missing
+setting*, and *Module Y setting conflict on S: value is 'S' expected to be ''*. Cause: the new
+version of X added module setting S, and auto-mapping a new setting onto an existing app setting
+only works when **exactly one** app setting matches by type — so two same-typed settings (e.g.
+`DateFormat` / `TimeFormat`) are both left unmapped, while another reference happens to map them
+by name instead. Fix: map the new setting onto the existing app setting of the same name
+explicitly, rather than relying on the automatic by-type mapping. If no app setting of that name
+exists, the app genuinely needs a new setting — that is a value decision for the user, not
+something to fill in automatically.
+
+## Plan omits a direct reference that exists only on Main (unpublished)
+
+`cascade plan` builds its edges from **published** references, so a direct reference a package's
+Main has already gained (but not yet published) is invisible to the plan — and any catch-up logic
+that skips packages which are themselves plan nodes cannot move that pin either. The old origin
+version then stays in the tree through that unpublished dependency, and the consistency check
+fails on re-pin even though every dependency the plan actually listed has already been republished.
+
+Diagnose by comparing three things: the node's direct references on Main, the pins the plan intends
+to write (its `updates` list), and the reference keys on that dependency's latest **published**
+release. A direct pin on Main that is missing from both the plan's updates and the published
+release is the culprit — and if that pin is itself a plan node, it is not a catch-up either (catch-ups
+are reserved for packages outside the plan).
+
+Fix: re-pin using the **complete** plan-driven set (every `updates` entry resolved to its upstream
+node's just-published version) plus the missing package at its own latest release, all in the same
+re-pin — a partial fix will not do, because the simulated closure needs every pin at once to
+validate.
+
 ## Lock contention on `appConfig`
 Another branch/user holds the lock. Use `dxs source locks --repo <id>` to find the holder; resolve,
 then re-run the affected node via `--select`.
 
 ## `branch commit` returns a non-null `newBranchId`
 Not all changed configs on that feature branch were committed, so the API split the remainder off
-into a new feature branch (`newBranchId`). Report that branch id to the user so they can inspect
-or finish it separately. This is unusual for the cascade specifically, since each node's commit
-only touches `appConfig` (the re-pin) — nothing else should be left uncommitted.
+into a new feature branch (`newBranchId`, with `transferredUncommittedChanges: true`). Report that
+branch id to the user so they can inspect or finish it separately. This is unusual for the cascade
+specifically, since each node's commit only touches `appConfig` (the re-pin) — nothing else should
+be left uncommitted.
+
+The case that bites hardest: a component body was edited directly on the node's own re-pin branch
+(rather than on a separate branch off Main) to fix something the re-pin surfaced. Because the
+commit only targets `appConfig`, that component edit is **not** committed to Main — it is silently
+split off into the leftover branch, and the node's publish then fails against the still-invalid
+Main (`Cannot publish an invalid application`) even though the feature branch itself validates
+clean. That combination — publish fails, but the branch validates 0 errors — always means the fix
+is sitting on a leftover branch and Main never got it.
+
+Correct order when a node needs a component fix: fix it on a fresh branch off **Main** (not the
+node's re-pin branch), validate and commit that branch to Main as its own change, confirm Main
+validates clean, then abandon the node's now-stale re-pin branch and let a fresh one be created off
+the repaired Main. Porting the fix onto the existing re-pin branch instead of recreating it tends to
+compound the problem: relative to that branch's older baseline the ported body still reads as a
+change, so the next commit transfers it to yet another leftover branch.
+
+## A repository has more than one `Main`-status branch (post Service-Pack cut)
+
+A repository that has had a Service Pack cut carries more than one application group, each with
+its **own** `Main`-status branch (one mainline, one or more Service Pack lines). The "newest
+`Main`-status branch in the repo" is not necessarily the mainline — if a node's resolved main
+application id picks up the Service Pack group's Main instead, the branch-create step still
+branches off the mainline correctly, but the publish step targets the wrong group: the mainline
+ends up holding the new pin but never gets published, while the Service Pack line gets a release
+it should not have.
+
+The branch's own base (which Main it actually branched from) is the authority on which Main is in
+play — not whichever branch currently reports as newest-`Main`-status for the repo. When the two
+disagree, publish against the actual base, or hold the node and confirm the intended group with the
+user before proceeding. A repo listing a package's pending updates **twice** in the same plan is
+the plan-time tell that more than one group is in play. Branch listings for a repository are not
+guaranteed exhaustive, either — confirm the base from the branch's own change history if a Main you
+expected to see is missing from the list.
 
 ## Resume after a partial run
 Completed nodes are already committed + published (their versions are final). Re-run with

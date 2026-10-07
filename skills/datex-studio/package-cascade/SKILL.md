@@ -46,6 +46,8 @@ CLI runs exactly what you select and errors mid-run otherwise), drive execution,
 about the transitive closure in prose** — delegate to `dxs`. If you reach for `jq` on an
 appConfig, stop: that work belongs in `dxs source reference set`.
 
+This skill's remit is **references** between packages (the cascade graph and its rebuild). Edits to an appConfig's own `settings[]` (not references) belong to [`app-config-editor`](../app-config-editor/SKILL.md), not here.
+
 ## Workflow
 
 ```
