@@ -1,0 +1,61 @@
+{
+  "skill_name": "shell-editor",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt. The branch's own shell singleton is edited in place; teardown discards it with the branch.",
+    "command": "dxs source branch create --repo 213 --title \"shell-editor-eval-{timestamp}\" --description \"Temporary branch for shell-editor skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "submenu-with-two-wired-views",
+      "prompt": "On connection 9, branch {branch_id}: add a 'Tools' group to the app's left navigation with two entries — one opening a hub and one opening a grid. Use components that already exist on this branch or in one of its referenced packages (at least one from a referenced package), and make sure both open with every parameter they expect.",
+      "expected_output": "The own shell row's menubar gains one submenu item (hasSubmenu true) whose menubar holds two view items with viewType hub and grid; each viewConfig.moduleId is the target component's own package (a referenced package where applicable), configParameters carries an entry for every target inParam with string values; validate runs before the write.",
+      "files": [],
+      "expectations": [
+        "The own shell row is located by applicationId == branch id and isExternal == false (or via 'get shell shell' / 'source branch shell' with the returned id checked); no dependency package's row is edited and no shell is created",
+        "menubar gains one item with hasSubmenu true, a snake_case id, and a label, containing exactly two child items",
+        "Both child items are view items (viewType + viewConfig), not flow items, and neither child is itself a submenu",
+        "One child has viewType \"hub\" and the other viewType \"grid\", each matching the actual type of the referenced component",
+        "Each child's viewConfig.moduleId equals the package that owns the referenced component, and at least one is a referenced package rather than the shell's own package",
+        "For each target, viewConfig.configParameters has one entry per target inParam (optional ones included), and every entry's value is a string",
+        "All item ids are snake_case and unique among their siblings",
+        "The shell description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate shell' run before 'dxs configuration upsert shell' (or before the documented fallback write)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "toolbar-flow-item",
+      "prompt": "On connection 9, branch {branch_id}: add a toolbar button with a help icon that, when clicked, writes 'help requested' to the browser console and shows an info toaster. Also tell me whether I could put the same button in the left navigation instead.",
+      "expected_output": "A flow item {id, icon, label, flowConfig{flowId}} is added to toolbar, a matching embedded cti-9 flow is added to flows[] with that referenceName, and the response explains that flow items are toolbar-only (in menubar validate fails 'Menu item should have a view type defined').",
+      "files": [],
+      "expectations": [
+        "toolbar gains an item with a snake_case id, an icon, and flowConfig.flowId set (no viewType/viewConfig on that item)",
+        "flows[] contains an embedded flow with configurationTypeId 9 whose referenceName equals the toolbar item's flowConfig.flowId",
+        "Existing flows[] entries, menubar items, and onInitFlowConfig are preserved unchanged",
+        "The response states that a flow item is not allowed in menubar (navigation entries must be view items) and cites or paraphrases the 'Menu item should have a view type defined' validation error",
+        "The response notes that validate does not catch a flowId that does not match any flows[] entry, and the agent checks the match itself",
+        "The shell description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate shell' run before 'dxs configuration upsert shell' (or before the documented fallback write)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "harden-on-init",
+      "prompt": "On connection 9, branch {branch_id}: make the app set the browser title to '<app name> <environment name>' when it loads, and log the signed-in user's username through a backend function for usage tracking. Users must never be locked out of the app if any of this fails.",
+      "expected_output": "onInitFlowConfig binds an on_init embedded flow in which every step (title assignment via $workspace.title from $context.app.name / $context.env.name, the backend logging call) is wrapped in its own try/catch; the username is derived inside a backend function via GetCurrentUserInfo rather than from a UI-tier global; validate runs before the write.",
+      "files": [],
+      "expectations": [
+        "onInitFlowConfig.flowId names an embedded flow present in flows[]",
+        "The title is set through $workspace.title (the shell's own IShell surface), not through $shell",
+        "Every independent step in on_init is inside its own try/catch block (no top-level statement that can throw uncaught)",
+        "The username is obtained server-side in a backend function (e.g. $apis.<Pkg>.FootprintApi.GetCurrentUserInfo) — on_init does not read a user-identity global",
+        "The response states that on_init runs on every app mount including Preview builds, so an uncaught error could break app load",
+        "Existing on_init code (if any) is preserved, not replaced",
+        "The shell description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate shell' run before 'dxs configuration upsert shell' (or before the documented fallback write)"
+      ]
+    }
+  ]
+}
