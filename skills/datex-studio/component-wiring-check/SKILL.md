@@ -22,6 +22,7 @@ depends:
   - selector-creator
   - post-edit-verification
   - component-validator
+  - impact-analysis
 ---
 
 # Component Wiring Check
@@ -108,7 +109,7 @@ Clean run = no findings.
 2. **Identify the reference site.** A wiring audit is always about a specific pair (or chain) of components. Establish:
    - **Referencing component** (the caller): the hub that mounts a grid, the grid whose `datasourceConfig` points at a datasource, the selector whose datasource backs the dropdown, the action that opens a form via `$shell.<Package>.open<referenceName>Dialog(...)`.
    - **Target component** (the callee): the grid, selector, datasource, form, or editor on the receiving end of the reference.
-   - **Reference site**: hub filter (→ selector), hub tab `contentConfig` (→ grid or other component), grid `datasourceConfig` (→ datasource), selector `datasourceConfig` (→ datasource), action-tier dialog opener (→ form/editor).
+   - **Reference site**: hub filter (→ selector), hub tab `contentConfig` (→ grid or other component), grid `datasourceConfig` (→ datasource), selector `datasourceConfig` (→ datasource), list `itemConfig` (→ card), calendar `eventContentConfig` (→ card), wizard step (→ form/grid/editor), dashboard tab (→ grid), hub/editor `widgets[]` (→ widget), shell menu/toolbar `viewConfig` (→ any view), action-tier dialog opener (→ form/editor). Which of these the host's validate already checks: [references/component-wiring.md → Validate coverage by host](references/component-wiring.md#validate-coverage-by-host).
 3. **Fetch both components** with `dxs configuration get <type> <configId> -b <branchId> -O envelope.json` and extract `body.json` via `jq .json` for each. The audit reads the bodies; no edits flow from this skill.
 
 ### Phase 2: Audit reference contracts
@@ -157,7 +158,8 @@ When a user reports a symptom rather than a known broken contract, this table ma
 | Dialog won't open | `$shell.<Package>.open<referenceName>Dialog` uses the wrong package (not the target form's package) |
 | Component resolves but behaves oddly | `moduleId` on the reference is wrong |
 | Var is undefined in flow code | Missing declaration in top-level `vars[]` (or `rowVars[]` for grid row flows) |
-| "Outdated contract" at import | Tailored overlay shadow has drifted from its base — hand off to `tailoring-overlay` |
+| `Outdated contract. Missing input parameter <id>` at validate | A list / wizard / shell / calendar / hub-widget mirror is missing a callee inParam (optional ones included) — add the entry ([coverage table](references/component-wiring.md#validate-coverage-by-host)). On a **tailored overlay**, the same symptom is shadow drift — hand off to `tailoring-overlay` |
+| Card button or hosted event does nothing | Host `configEvents` names an event or flow that doesn't exist — unvalidated, silent ([details](references/component-wiring.md#hosted-component-events-are-not-validated)) |
 
 ## Pre-Flight Checklist
 
@@ -182,6 +184,6 @@ Walk this when auditing a cross-component reference. The full checklist lives in
 | Writing `$row.vars.<id>` in a grid row flow without declaring `<id>` in `rowVars[]` | Same trap, row-scoped variant. Declare in `rowVars[]` (same descriptor shape as `vars[]`). |
 | Dialog opener uses the caller's package instead of the target form's | `$shell.<Package>.open<referenceName>Dialog(...)` — `<Package>` is the form's package, `<referenceName>` is snake_case. |
 | Applying a fix from inside this audit skill instead of the matching creator skill | This skill is read-only — it audits, it doesn't mutate. Route fixes to `hub-creator` / `grid-creator` / `form-creator` / `editor-creator` / `selector-creator`. Those skills own the round-trip rule for safe push. |
-| Confusing "outdated contract at import" with a wiring drift | That symptom is a tailored-overlay shadow-marker drift, not a runtime wiring trap. Hand off to `tailoring-overlay`. |
+| Reading every "outdated contract" as overlay drift | On lists, wizard steps, the shell, calendars and hub widgets it is plain mirror drift reported by validate — fix the mirror. Only on a tailored overlay is it shadow-marker drift (hand off to `tailoring-overlay`). |
 
 **After your audit produces findings, route each finding to the matching creator skill (`grid-creator`, `hub-creator`, etc.) to apply the fix. Re-invoke this skill after fixes land for a clean-run verification.**
