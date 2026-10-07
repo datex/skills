@@ -18,6 +18,7 @@ if (!startDate) { /* fails for valid 0 or "" */ }
 ```
 
 For multiple values, `$utils.isAllDefined(a, b, c)` returns `true` only when every argument is defined.
+`$utils.isDefined` is **not a TypeScript type predicate** — its signature is `isDefined(value: any): boolean`, not `value is NonNullable<T>`. Calling it does not narrow the checked variable's type for the compiler; a strictly-typed call immediately after the guard (e.g. a `$db` `.equals(value)` predicate expecting a non-nullish type) can still fail to compile, or compile against the wrong inferred type, because TypeScript doesn't know the guard proved anything. Use a plain `!value` check or an explicit type assertion when the *compiler*, not just the runtime, needs to know the value is non-null.
 
 This rule applies in **all** flow code: function bodies, flow datasource `get`/`getList` methods, hub click flows, and `--param-filter`/`--dynamic-filter` conditions (the CLI emits `$utils.isDefined()` guards automatically for those).
 
@@ -138,6 +139,10 @@ while (true) {
 | Used `$skip` literally in the query without `${...}` template | Same as above — `skip` is not a real parameter | Use the template-literal syntax that `--detect-params` requires |
 | Looped on `page.length > 0` instead of `< PAGE_SIZE` | One extra round-trip per query (returns empty 5001st page) | Break when `page.length < PAGE_SIZE` |
 | Hardcoded a "reasonable" cap like `$top=10000` | Server still caps at 5k; you get 5k records and think you got 10k | Always paginate; never assume server limits can be raised |
+
+## Module-Scope State for Hoisted Helpers — Declare Before First Execution Use
+
+A `function`-declared helper is **hoisted** — callable before its own source position — but a module-scope `let`/`const` it closes over is not initialized until execution reaches that declaration. Calling a hoisted helper before the `let`/`const` it reads has executed throws a `ReferenceError` in the **temporal dead zone**, and because flow code ships minified, the thrown name is a single letter, not the original identifier — making the error look unrelated to the actual cause. Declare module-scope state used by hoisted helpers at the **top** of the file, before any code that might invoke those helpers, rather than relying on hoisting to paper over the ordering.
 
 ## Escaping-Safe Content Writer — JSON Stored in Entity String Fields
 

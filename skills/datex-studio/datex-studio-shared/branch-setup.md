@@ -9,6 +9,7 @@
 ```bash
 dxs auth status
 ```
+`dxs source branch settings` prints connection names and literal values (including API keys) unredacted — never paste its full output; see [singleton-config-lifecycle.md → Rule 4](singleton-config-lifecycle.md#rule-4--the-envelope-hazard-secrets).
 
 Note the `organization` and `organization_id` from the active identity.
 
@@ -67,7 +68,7 @@ Each item is an AppConfig setting record. A Footprint API connection setting loo
   valueType: null
   value: null                     # null for connection settings
   apiConnectionType: 1            # 1 = FootPrintApi (8 = MongoDb, etc.)
-  apiConnectionName: DSV          # ← the connection's NAME; match this to your -c connection
+  apiConnectionName: <connection-name>  # ← the connection's NAME; match this to your -c connection
 ```
 
 Key facts:
@@ -75,7 +76,7 @@ Key facts:
 - **`settingType` and `apiConnectionType` are enums whose serialization is not guaranteed.** Live branches return integers today (`1`/`1` for a Footprint API connection), but the CLI's own resolver also accepts the string forms (`"ApiConnection"`, `"FootPrintApi"`) because the platform may serialize them either way. Accept both; never key a comparison on one form alone.
 - **Do not look for `apiConnectionId`.** Application settings and references were collapsed into a single source-controlled `AppConfig` configuration (datex-application-api PR 3754), which identifies the connection by *name*, in `apiConnectionName`. A legacy `apiConnectionId` / `settingTypeId` may survive in some environments -- treat either as a bonus, never as a field you can require.
 - `value` is `null` for connection settings.
-- The value you pass to `--api-setting-name` is the setting's `name` (e.g. `FootprintApi`) -- **not** `apiConnectionName` (the connection name like `DSV`).
+- The value you pass to `--api-setting-name` is the setting's `name` (e.g. `FootprintApi`) -- **not** `apiConnectionName` (the connection's own name).
 
 Present API connections using **AskUserQuestion** (skip if only one -- just inform the user). Store:
 - The `name` (used for `--api-setting-name`, or rely on auto-resolve -- see below)
@@ -85,11 +86,27 @@ Present API connections using **AskUserQuestion** (skip if only one -- just info
 
 `dxs datasource generate` will auto-resolve the API setting name from the branch's AppConfig if you omit `--api-setting-name`. It finds the branch's settings where `settingType == ApiConnection (1)` **and** `apiConnectionType == FootPrintApi (1)`, resolves your `-c` connection's name, and returns the `name` of the setting whose `apiConnectionName` matches. If the connection's name can't be fetched at all, it falls back to the lone Footprint API-connection setting when there is exactly one, and to nothing when there are several. This works on host *and* ComponentModule branches, so omit-and-auto-resolve is the most portable choice. Pass `--api-setting-name` explicitly only to disambiguate when multiple API-connection settings exist -- pick the setting whose `apiConnectionName` matches your connection and use its `name`.
 
-The resolver refuses to guess: if your `-c` connection isn't wired into the branch's AppConfig, `generate` fails with **`DXS-DS-021`** rather than inventing a default. If you hit that, pass `--api-setting-name` explicitly (find it with `dxs source branch settings <branch>`), or wire the Footprint API connection into the branch's AppConfig in Datex Studio and retry.
+The resolver refuses to guess: if your `-c` connection isn't wired into the branch's AppConfig, `generate` fails with **`DXS-DS-021`** rather than inventing a default. If you hit that, pass `--api-setting-name` explicitly (find it with `dxs source branch settings <branch>`), or wire the Footprint API connection into the branch's AppConfig via [`app-config-editor`](../app-config-editor/SKILL.md) (or Studio) and retry.
 
 ### Finding a Customer's Connection
 
 Use `dxs organization connection list --search <term>` to search connection names and URLs (case-insensitive).
+## Pull Latest (Main → Feature Branch)
+
+There is no `dxs` verb for pulling Main's newer content into an existing feature branch — only the raw API:
+
+```bash
+# 1. See what Main has that this branch's base has not picked up
+dxs api GET /applications/<branchId>/upstreamChanges
+
+# 2. Selectively pull specific configs (the request body is required — an empty
+#    body pulls nothing)
+dxs api POST /applications/<branchId>/pull -d '{"configs": [<configId>, ...]}'
+```
+
+Pull is selective — list the configs you actually want updated, not everything `upstreamChanges` reports. A convenient way to force a visible bump when testing the mechanism: edit `appConfig` on a disposable branch and pull just that config.
+
+The published version name for a package shows up in the **published branch's `description`** field, not a dedicated "version" field — read it from there. Trust `isLatest` on `dxs source branch list` to identify the current published Main rather than inferring it from branch id ordering alone.
 
 ## Lock Pre-Flight — Check Group Locks Before Editing an Inherited Component
 
@@ -113,3 +130,5 @@ Run this **before** editing any inherited component, and match on `referenceName
 On dxs ≥ 0.4.19 the CLI enriches that bare platform 400 (`"Cannot update configuration that is not locked or marked for deletion."`) into **`DXS-LOCK-002`**, which names the lock holder, the holding branch, and the date — resolved from the branch's application group locks. Read the holder off the error; no separate lookup is needed. Other 400s pass through untouched. On an older CLI you get the bare message instead and must confirm with `dxs source locks --repo <repo_id>`, where the `applicationId` on the lock record is the branch to chase.
 
 **Never unlock another branch's config to unblock yourself** — including your own older branches. Unlocking reverts that branch's pending copy of the component. Surface the lock holder (branch id, title, and whether that branch has a pending change to the same component via `dxs source status --branch <that branch>`) and let the user decide: commit/publish the holding branch, do the edit there, or defer.
+
+This pre-flight also covers **creating** a reference name, not just editing one: a brand-new component pending on another branch locks that `referenceName` group-wide before it has ever been committed, and creating the same name here fails with `DXS-LOCK-001` until that branch commits.

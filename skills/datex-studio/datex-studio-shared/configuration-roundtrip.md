@@ -7,13 +7,27 @@
 When modifying an existing configuration on a branch:
 
 ```bash
+The six auto-provisioned singletons (shell, securityPolicy, appConfig, replacements,
+authorization, userConfig) carry the same fixed `referenceName` on every package; resolve the
+branch's own row as described in [singleton-config-lifecycle.md](singleton-config-lifecycle.md).
+
+**Same-named components exist across packages.** `referenceName` is unique only
+*within* a package — two different packages may each define a component with
+the identical reference name. When resolving a reference seen inside another
+component's wiring (a grid's datasource reference, a hub's tab reference), take
+the package from the **embedder's own `moduleId`** field rather than guessing,
+then address the fetch as `Module/ref` per above. After fetching, verify the
+shape matches what you expected (fields present, types) as a sanity check that
+you resolved the right package's component.
 # 1. Fetch the existing configuration (writes the full server envelope to file)
-#    NOTE: the body (`json`/`jsonString`) is returned ONLY when fetching by NUMERIC id.
-#    Fetching by reference name returns a metadata-only envelope — resolve the id from
-#    that first (its `id` field), then re-fetch by id (confirmed 2026-08-06, cli 0.4.12).
+#    NOTE: on cli 0.4.12 the body (`json`/`jsonString`) came back ONLY when fetching by
+#    NUMERIC id (a reference name returned a metadata-only envelope). On dxs 0.5.8 a
+#    reference-name fetch returns the full body too (verified live). Fetch by id when unsure.
 dxs configuration get <type> <id> -b <branch> -O envelope.json
 
 # 2. CRITICAL: extract the inner body. Never pipe the envelope directly to upsert.
+#    Two envelope shapes (verified live, dxs 0.5.8): `-O <file>` writes the envelope with the
+#    body at `.json`; `dxs -O json configuration get …` on stdout wraps it as `.configuration.json`.
 jq .json envelope.json > body.json
 
 # 3. Edit body.json per the rules in the relevant creator skill's references/<type>.md
@@ -52,6 +66,9 @@ to `upsert`.
 > the CLI source, 0.4.18). A success exit from it means *the command ran*, not *the function is
 > valid*. Never gate on its exit code; read the payload and check for `status: "valid"`. This is the
 > mirror image of the trap above, and the more expensive one: it pushes a broken function.
+**`dxs source branch validate` can run longer than two minutes** on a fresh or large branch. Give
+the command a generous tool timeout (or run it in the background) rather than reading a killed
+call as a failure.
 
 ### Report shape
 
@@ -161,6 +178,10 @@ branch, so it never trips this guard even though its base lives in a package.
 
 The corrected docstring on `dxs configuration get -O` (committed `c4aea9c` in `datex-studio-cli`) tells users to extract `.json` before passing to `upsert -D`. The `jq .json envelope.json > body.json` step in the pattern above is the recommended extraction; `python -c "import json,sys;json.dump(json.load(open(sys.argv[1]))['json'],open(sys.argv[2],'w'))" envelope.json body.json` works equivalently on systems without `jq`.
 
+## Fetched Bodies Omit Null Keys — Absence Is Not Schema Evidence
+
+The `json` body returned by `dxs configuration get` (and the raw API) **omits keys whose value is `null`** rather than including them with an explicit `null`. A field absent from one fetched body is not proof the schema doesn't have it — it may simply be unset on *that* instance. Concluding "this component type doesn't carry field X" from a single fetched body that lacks it is a common wrong inference; inspect `jsonString` (if captured) or fetch a second instance of the same type that has the field populated before concluding the schema itself lacks it.
+
 ## `description` is capped at 256 characters
 
 **Any** configuration type whose `description` exceeds 256 characters fails to save with:
@@ -170,7 +191,7 @@ DXS-API-500  "An error occurred while saving the entity changes. See the inner e
              code: Microsoft.EntityFrameworkCore.DbUpdateException
 ```
 
-Bisected live on 2026-08-13 (cli 0.4.12, customType on branch 92572): 255 and 256 save, 257/258/259/260 fail, reproducibly. The error names neither the field nor the limit, and **`dxs configuration validate` passes a body that the save then rejects** — validation does not check it.
+Bisected live (cli 0.4.12, on a customType): 255 and 256 save, 257/258/259/260 fail, reproducibly. The error names neither the field nor the limit, and **`dxs configuration validate` passes a body that the save then rejects** — validation does not check it.
 
 Two consequences worth knowing before you hit them:
 
@@ -212,8 +233,11 @@ this file went stale once already.
 > Allocations / Cartonization / Invoices / Totes / Waves each define), `upsert` resolves it as
 > pre-existing and 404s trying to lock a config the branch does not own —
 > `.../config/<referenceName>/lock` → `DomainObjectNotFoundException`. Use `dxs configuration create`
-> for the first push and explicit `dxs configuration update <id>` thereafter. Confirmed 2026-08-12,
+> for the first push and explicit `dxs configuration update <id>` thereafter. Confirmed live,
 > cli 0.4.12, creating `SalesOrders.i_awi_configuration`.
+>
+> Singletons share one fixed `referenceName` across every referenced package — see
+> [singleton-config-lifecycle.md → Rule 5](singleton-config-lifecycle.md#rule-5--the-write-path-under-readonly-true).
 
 ## Validation resolves references from the branch, not your payload
 
@@ -227,8 +251,9 @@ branch** — never against other files you are about to push. Consequences (each
   absence) even though your local files are mutually consistent.
 - **Cross-package references bind the *published* dependency version.** New type members, flows, or
   actions on an unpublished sibling branch are invisible to a consuming package until the sibling
-  is committed **and published** and the consumer's package reference is bumped — and the reference
-  bump is a **Studio UI step** (`dxs` has no reference-update command). A change to a cross-package
+  is committed **and published** and the consumer's package reference is bumped — via
+  `dxs source reference set -b <branch> -p <package> -v <version>` (dxs 0.5.8) or the Studio UI; for
+  a multi-package re-pin see [package-cascade](../package-cascade/SKILL.md). A change to a cross-package
   contract is therefore never a single-branch edit; plan the publish + bump into the sequence.
   (Corollary: for loosely-typed columns, a string literal that matches a published enum's value can
   decouple you from the publish cycle — weigh that against type safety.)
@@ -236,7 +261,7 @@ branch** — never against other files you are about to push. Consequences (each
   baseline (e.g. a selector gained an input parameter and old consumer forms don't pass it). After
   a sync/bump, `dxs source branch validate` may report errors your change did not cause — and it
   now **exits 1** when it does. That non-zero exit is the expected outcome here, not a signal to
-  stop: triage by asking whether the implicated components are in your changeset before attempting
+  stop: triage by asking whether the implicated components are in your change on this branch before attempting
   to "fix" anything; such errors typically clear when the branch is updated from main.
 
 ## Branch & lock lifecycle failure modes
@@ -265,6 +290,13 @@ branch** — never against other files you are about to push. Consequences (each
   verify you leave no probe locks behind). The lock releases when the holding branch **commits**;
   then re-fetch the component (their committed body is the new baseline), re-apply your edit on
   top, and upsert.
+- **A brand-new `referenceName` locks repo-wide the moment it's pending, not just once it's
+  committed.** Creating a component on one branch locks that `referenceName` for every other
+  branch of the same package immediately, even though no committed version exists anywhere yet.
+  A second branch creating the identical `referenceName` fails with **`DXS-LOCK-001`** until the
+  first branch's pending change is committed. `dxs source locks --repo <repo_id>` lists it like any
+  other lock. There is no `dxs` unlock command — the only ways through are to wait for the
+  committing branch or pick a different `referenceName`.
 - **Pending changes are NOT a writability signal.** A committed branch keeps its change list, so
   `dxs source status --branch <id>` still returns the components it carries — reading that as "the
   branch is open" is wrong. Check `statusName` / `isCommit` from `dxs source branch list` instead:
@@ -274,7 +306,7 @@ branch** — never against other files you are about to push. Consequences (each
   `WorkspaceHistory` status and every write fails with `Application is not in Feature status`.
   Recovery: create a new branch off updated Main (which now carries the committed feature), verify
   the baseline body matches what you expect (id-only drift is normal), and land the edit there.
-  This can happen mid-changeset when the user commits the pinned branch — re-confirm the branch
+  This can happen mid-task when the user commits the pinned branch — re-confirm the branch
   rather than retrying the write.
 - **Verify upserts by round-trip fetch, not by scanning command output.** In a compound command a
   failed upsert's error can be masked by a later success line. After a batch of pushes, `get` the
