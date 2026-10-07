@@ -6,7 +6,9 @@ A **Custom Angular Component** (CAC, `configurationTypeId: 36`) is an **author-w
 
 ## Purpose & When to Use
 
-Reach for a CAC when the requirement is genuinely custom UI: a chart/visualization, a dashboard tile arrangement, a bespoke interaction, or a layout no declarative component produces. If the requirement is a tabular list use a **grid**; a single-entity view/edit use an **editor**; transient input a **form**; a dropdown a **selector**; a container a **hub**. A CAC is more powerful and more expensive to maintain than any of those — choose it only when the declarative components can't do the job.
+Reach for a CAC when the requirement is genuinely custom UI: a chart/visualization, a dashboard tile arrangement, a bespoke interaction, or a layout no declarative component produces. If the requirement is a tabular list use a **grid**; a single-entity view/edit use an **editor**; transient input a **form**; a dropdown a **selector**; a container a **hub**. For a fixed big-number or pie tile, prefer a [widget](../../widget-creator/references/widgets.md) — reach for a CAC when the chart is bespoke, not one of the widget's built-in types. A CAC is more powerful and more expensive to maintain than any of those — choose it only when the declarative components can't do the job.
+
+A shell menu item can also open a CAC directly as a full view (`viewType: "customAngularComponent"`, observed live) — see [`shell-editor/references/shell.md`](../../shell-editor/references/shell.md).
 
 ## Authoring model — why this is different
 
@@ -210,6 +212,8 @@ dxs ng stop <folder>                 # stop-only disposal: server + browser sess
 2. **Authenticated** (`dxs auth status`).
 3. **agent-browser** — the **unscoped** package: `npm install -g agent-browser` then `agent-browser install`. (Not `@anthropic-ai/agent-browser`.)
 
+4. **External scripts or API hosts.** A CAC that loads a third-party script or calls out to a host the app CSP doesn't already allow needs that source added via [`security-policy-editor`](../../security-policy-editor/SKILL.md) — the browser blocks the request silently (no console error on some directives) rather than failing the CAC's own build or push.
+
 ## Timings (local, indicative)
 
 | Phase | Cost |
@@ -220,7 +224,66 @@ dxs ng stop <folder>                 # stop-only disposal: server + browser sess
 
 Seconds-not-minutes after the one-time install — the light harness is what buys this.
 
+## Invocation Contract
+
+A custom angular component is opened exactly like any other component: through `$shell`. It needs
+no special opener and no module wiring beyond the usual package reference.
+
+| Form | Call | Use |
+|---|---|---|
+| Dialog / flyout | `await $shell.<Package>.open<referenceName>Dialog(payload, 'flyout' \| 'modal', EModalSize.<Size>)` | The component is a focused task opened over the current screen |
+| Full view | `await $shell.<Package>.open<referenceName>(payload)` | The component replaces the current view |
+
+Both forms follow the platform's usual `open<referenceName>` / `open<referenceName>Dialog` naming
+— the `referenceName` is spliced in verbatim (e.g. `inventory_status_configuration` becomes
+`openinventory_status_configurationDialog`).
+
+Two constraints that follow from this, worth knowing before you design the payload:
+
+- **The caller must reference the component's package.** `$shell.<Package>` only carries
+  components from packages the calling app references, and it resolves against the **published**
+  release of that package — a brand-new component does not appear to its consumers until the
+  owning package publishes. Validation fails with `Property 'open<referenceName>Dialog' does not
+  exist on type '{ … }'`, and the error usefully enumerates the sibling `open*` methods that *do*
+  exist, which is how you confirm the package reference itself is fine and only the component is
+  missing.
+- **Keep inParams primitive.** Custom angular components are UI components, so the
+  [UI-component enum FQN constraint](../../type-definition-creator/references/type-definitions.md#ui-components-cannot-reference-custom-enums-in-vars--inparams--outparams)
+  applies to their `inParams`. Objects and maps are best passed as JSON strings and parsed inside
+  the component, which also keeps the calling dispatch code type-stable.
+
+**A `null` inParam value arrives as the literal string `"null"`, not as `null`.** Passing `null`
+for a key in the `open<referenceName>Dialog` payload delivers the component's inParam as the
+string `"null"` — so a truthiness or `!== ''` test on that inParam silently takes the "a value was
+passed" branch and an intended empty state renders as if real data had arrived. **Hosts: omit the
+key** rather than pass `null` (declare every inParam `required: false`). **Components: normalize
+on read** — map `null`/`undefined` and the strings `'null'`/`'undefined'` to `''` (or your sentinel)
+before any blank test.
+
 ## Common Patterns
+### Self-closing a dialog-hosted component
+
+Nothing named `close` exists on the component instance (`close`, `closeDialog`, `$dialog`,
+`dialogRef`, `$shell.close` are all absent), and emitting an outParam / `outParamsChange` does not
+close anything by itself. The working recipe: set `this.outParams`, emit `this.outParamsChange`,
+then close the hosting `MatDialogRef` through `$shell.dialog.openDialogs` — Angular Material's
+`MatDialog` is what backs `$shell.dialog` (members `openDialogs`, `open`, `closeAll`,
+`getDialogById`, `afterAllClosed`, …). Prefer the ref whose `componentInstance` is (or wraps)
+`this`; fall back to the topmost ref (the only one the user can be interacting with). Never call
+`closeAll()` — the host that opened you may itself be a flyout over something else.
+
+```ts
+private closeWith(out: any) {
+  const self: any = this;
+  self.outParams = Object.assign({}, self.outParams || {}, out);
+  if (self.outParamsChange?.emit) { self.outParamsChange.emit(self.outParams); }
+  const dialogs: any[] = self.$shell?.dialog?.openDialogs ?? [];
+  const owns = (ref: any) => { const i = ref?.componentInstance; return !!i && (i === self || i.component === self || i.instance === self); };
+  const ref = dialogs.find(owns) ?? dialogs[dialogs.length - 1];
+  if (ref?.close) { ref.close(self.outParams); return; }
+  console.warn('no MatDialogRef found; leaving the dialog open.');
+}
+```
 
 ### Data-driven visual from a computed getter
 
@@ -286,3 +349,7 @@ The checklist lives in one place so it can't drift: run [../SKILL.md → Pre-Fli
 - [../../datex-studio-runtime/calling-conventions.md](../../datex-studio-runtime/calling-conventions.md) — UI-tier calling rules (flows/datasources, not raw HTTP).
 - [../../datasource-creator/references/datasources.md](../../datasource-creator/references/datasources.md) — authoring the datasources/flows a CAC reads.
 - [../../datex-studio-conventions/naming-conventions.md](../../datex-studio-conventions/naming-conventions.md) — reference-name / display-name rules.
+
+- [../../security-policy-editor/SKILL.md](../../security-policy-editor/SKILL.md) — add an external script/API host to the app CSP.
+- [../../widget-creator/references/widgets.md](../../widget-creator/references/widgets.md) — the fixed-tile alternative for a big-number/pie visual.
+- [../../shell-editor/references/shell.md](../../shell-editor/references/shell.md) — mounting a CAC as a full navigation view.
