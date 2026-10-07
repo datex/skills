@@ -1,0 +1,60 @@
+{
+  "skill_name": "card-creator",
+  "setup": {
+    "description": "Create a feature branch on the DataCopilot repo (213) for eval runs. Pass the branch ID to each eval prompt.",
+    "command": "dxs source branch create --repo 213 --title \"card-creator-eval-{timestamp}\" --description \"Temporary branch for card-creator skill evals\"",
+    "teardown": "dxs source branch delete {branch_id} --force"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "shared-logic-without-cross-flow-calls",
+      "prompt": "On connection 9, branch {branch_id}: create a card eval_note_card with inParams note_id (string) and note_text (string). It shows the note text, and has Edit, Save and Cancel buttons. Edit reveals a text box seeded with the note text and shows Save/Cancel; Cancel and Save both go back to read mode. The 'back to read mode' logic must be written once and reused by both Save and Cancel. Save must stay disabled while the text box is empty. Save only needs to update the card's display for now.",
+      "expected_output": "A validated and upserted card (cti 11) whose shared enter/exit-edit logic lives in a helper assigned to window in on_init and called from each flow with $card as an argument; no $card.<flow>() calls; Save gating recomputed from the text box's value-change flow.",
+      "files": [],
+      "expectations": [
+        "A card body is created with configurationTypeId 11 and referenceName eval_note_card (snake_case, ending in _card)",
+        "No flow code calls another card flow as $card.<flowName>() — shared logic is defined once (e.g. as helpers on window in on_init) and invoked from the Save and Cancel flows",
+        "Any helper function parameters are explicitly typed (e.g. (c: any)) rather than implicit any",
+        "Save's readOnly/disabled state is recomputed from a flow wired to the text box's uiValueChangeFlowConfig — not only assigned once in on_init",
+        "Every flowId referenced (onInitFlowConfig, each clickFlowConfig, each uiValueChangeFlowConfig) names a flow present in flows[]",
+        "Every $card.vars / $card.events member used in code is declared in the body",
+        "The card's description and every embedded flow description are non-empty and at most 100 characters",
+        "The transcript contains a 'dxs configuration validate card' command run before 'dxs configuration upsert card'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "mutate-emit-refresh-with-host-list",
+      "prompt": "On connection 9, branch {branch_id}: build a list of cards over a flow datasource eval_task_rows_ds that returns rows {id: number, title: string, done: boolean} from a hard-coded array. Each card (eval_task_row_card) shows the title and has a Complete button that calls a function eval_complete_task_flow (create it; it can just return) and then must make the list reload. Name the list eval_task_rows_list.",
+      "expected_output": "Datasource, function and card upserted before the list; the card declares an event and emits it once after calling the function; the list maps that event in itemConfig.contentConfig.configEvents to a list flow that calls $list.refresh(); both configParameters mirrors are exact.",
+      "files": [],
+      "expectations": [
+        "The card declares an event in its top-level events[] and its Complete flow calls $flows.<Package>.eval_complete_task_flow(...) before calling $card.events.<event>.emit() exactly once",
+        "The card does not call $card.refresh() or $list.refresh() — the reload happens in a list flow",
+        "The list's itemConfig.contentType is 'card', contentConfig.configId is eval_task_row_card, and configEvents maps the card's event id to a list flow that calls $list.refresh()",
+        "itemConfig.contentConfig.configParameters has exactly one entry per card inParam, bound with $item.entity.<col>",
+        "datasourceConfig.configParameters has exactly one entry per datasource inParam (or is empty when the datasource has none) and configId is eval_task_rows_ds",
+        "The card is upserted before the list (the transcript's 'upsert card' precedes 'upsert list')",
+        "The list does not call $list.refresh() inside on_init",
+        "Card and list descriptions are non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate card' before 'dxs configuration upsert card' and 'dxs configuration validate list' before 'dxs configuration upsert list'"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "card-vs-form-and-styles",
+      "prompt": "On connection 9, branch {branch_id}: I need two things. (a) A card eval_alert_card with inParams message (string) and severity (string) that shows the message and turns its border to the attention style when severity is 'high', otherwise the creation style. (b) A popup the user opens from a toolbar to type an acknowledgement comment and confirm. Create whatever components are appropriate for each.",
+      "expected_output": "A card for (a) using $card.styles.setAttentionClass()/setCreationClass() in on_init, and a form (not a card) for (b) because a card has no shell opener or close().",
+      "files": [],
+      "expectations": [
+        "eval_alert_card is created with configurationTypeId 11 and its on_init calls $card.styles.setAttentionClass() or $card.styles.setCreationClass() based on $card.inParams.severity",
+        "The card code uses no ICardStyles method other than setAttentionClass, setCreationClass and the IStyles base methods (no setImportantClass or similar)",
+        "Requirement (b) is delivered as a form (configurationTypeId 5), not a card — the response states that a card cannot be opened as a dialog (no shell opener / no close())",
+        "Declarative string literals in the card (labels, tooltips) are TS-quoted",
+        "Every created component's description is non-empty and at most 100 characters",
+        "The transcript contains 'dxs configuration validate card' run before 'dxs configuration upsert card'"
+      ]
+    }
+  ]
+}
