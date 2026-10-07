@@ -17,6 +17,9 @@ Don't use a hub for:
 - **Detail/edit flows on a single record** — that's an editor ([`editors.md`](../../editor-creator/references/editors.md)) opened as a dialog, usually from a grid row click inside a hub tab.
 - **Transient input collection that returns a payload** — that's a form ([`forms.md`](../../form-creator/references/forms.md)), also typically opened as a dialog.
 - **Embedded views inside another screen** — hubs are top-level by convention; nested usage is rare.
+- **Side-by-side coordinated panels or a selection dialog** — that's a dashboard ([`dashboards.md`](../../dashboard-creator/references/dashboards.md)). Dashboards have no `filters[]`; filter context lives in fieldset fields.
+
+To add a hub to the app navigation or toolbar, edit the package shell with [`shell-editor`](../../shell-editor/SKILL.md); changing the hub's `inParams` makes the shell's `configParameters` mirror stale.
 
 ## File Location & Naming
 
@@ -72,13 +75,13 @@ Hubs are large in practice — the skeleton below shows the top-level shape only
 | `inParams` | Inbound filter/context values | Typically defaults for the hub's filters (e.g. a projectId passed in from a parent navigation) |
 | `outParams` | Outbound values | Usually empty — hubs are terminal UI |
 | `filters` | Filter controls | Each control binds to a state variable that tabs read; empty `[]` for hubs with no filters |
-| `tabs` | Tab definitions | At least one tab; each references a grid or other component with a full `configParameters` contract |
+| `tabs` | Tab definitions | At least one tab; each references a grid or other component with a full `configParameters` contract. `contentType` values include `"grid"` and `"calendar"` — a calendar tab carries `contentConfig{configParameters, configOutParameters?, configEvents?, outParamsChangeFlowConfig?, configId, moduleId}` ([calendars.md → Invocation Contract](../../calendar-creator/references/calendars.md#invocation-contract)). Dead-handler trap: `outParamsChangeFlowConfig: null` while a handler flow for it exists in `flows[]` — the flow never runs. |
 | `onInitFlowConfig` | Load hook | Runs when the hub opens — typical home for initial-filter defaulting, context loading |
 
 Optional but common:
 
 - `toolbar` — action buttons at the hub level (refresh, export, manage-templates, debug, etc.).
-- `widgets` — dashboard-style widget references (`WidgetDesignerReferenceConfig`) rendered in the hub's widget area, distinct from `tabs`. Used for at-a-glance summary cards above or alongside the tab content.
+- `widgets` — at-a-glance tiles (large number, pie, image) rendered in the hub's widget area, distinct from `tabs`: `widgets: [{id, widgetConfig: {configId, moduleId, configParameters?, configOutParameters?, outParamsChangeFlowConfig?}}]`. The only runtime handle is `$hub.widgets.<id>.hidden`; to reload a widget, flip a host var bound to its `refresh` inParam. Full host contract: [widgets.md → Invocation Contract](../../widget-creator/references/widgets.md#invocation-contract).
 - `groupByOptions` — toggles that change how tab content groups/filters its rows.
 - `flows` — local flows invoked by filter changes, button clicks, tab events.
 
@@ -92,7 +95,7 @@ Hub-owned code strings (flows, button handlers, filter-change hooks) have access
 | `$hub.filters.<id>.control` | The filter's rendered control. `.value` is read/write; writing updates the UI and propagates to tabs. Follow-up `.readOnly`, `.disabled`, `.hidden`, `.label`, `.styles.setStyle(...)` / `.styles.resetClasses()` mirror the common control surface. |
 | `$hub.filtersets.<id>.hidden` | Hide / show a whole filter group (`filters[]` entry, not an individual field). Used for banner-style filter sets that toggle on warnings. |
 | `$hub.toolbar.<id>.control` | Programmatic access to a toolbar button. `.readOnly`, `.hidden`, `.label`, `.icon` are the common handles during a click flow (e.g. `$hub.toolbar.save.control.readOnly = true` while work is in flight). |
-| `$hub.tabs.<id>.hidden` | Hide a tab — useful for role-gated tabs. |
+| `$hub.tabs.<id>.hidden` | Hide a tab — useful for role-gated tabs (declare the operation with [`authorization-editor`](../../authorization-editor/SKILL.md)). |
 | `$hub.vars.<id>` | Hub-scoped mutable state. **Every var written in flow code must be declared in the hub's top-level `vars` array** — see [`component-wiring.md` → Component Variables Must Be Declared](../../component-wiring-check/references/component-wiring.md#component-variables-must-be-declared). |
 | `$hub.refresh()` | Re-runs the hub's filter binding, causing every mounted tab to re-query. Call after state changes that should propagate into tab content. |
 | `$hub.close()` | Closes the hub (used during the `on_init` access-gate pattern). |
@@ -129,7 +132,7 @@ See `$shell` under [`runtime-globals.md`](../../datex-studio-runtime/runtime-glo
 
 **"Configure options" dialog opener.** Per-hub configuration forms are opened with a toolbar button whose click flow calls the generated `$shell.<Package>.open<form_referenceName>Dialog(...)`. Have the form set an `is_confirmed`-style outParam on save; the hub then `$hub.refresh()`-es only when the flag comes back truthy, so a cancelled dialog doesn't needlessly re-query.
 
-**Access-gated `on_init`.** When a hub should be invisible to unauthorized users, run the permission check at the top of `on_init`, then call `$hub.close()` on deny. Role/capability-specific toolbar buttons get their `.hidden` flipped on the same code path before the hub renders.
+**Access-gated `on_init`.** When a hub should be invisible to unauthorized users, run the permission check (`$operations.<Package>.<Op>`; declare the operation with [`authorization-editor`](../../authorization-editor/SKILL.md)) at the top of `on_init`, then call `$hub.close()` on deny. Role/capability-specific toolbar buttons get their `.hidden` flipped on the same code path before the hub renders.
 
 **Reusing shared filter values across handlers.** When multiple click handlers need to read/write the same transient hub state (a schedule-state snapshot, derived labels), declare a local flow inside the hub (`refresh_engine_state`, `check_for_messages`, etc.) and invoke it via `$hub.<flow_name>()` from both `on_init` and the relevant handlers — keeps the logic single-sourced.
 
@@ -154,5 +157,6 @@ See `$shell` under [`runtime-globals.md`](../../datex-studio-runtime/runtime-glo
 - [`grids.md`](../../grid-creator/references/grids.md) — the component most commonly mounted inside hub tabs.
 - [`forms.md`](../../form-creator/references/forms.md) / [`editors.md`](../../editor-creator/references/editors.md) — dialog components hubs open via row actions or toolbar buttons.
 - [`selectors.md`](../../selector-creator/references/selectors.md) — the component backing hub filter dropdowns.
+- [`widgets.md`](../../widget-creator/references/widgets.md) / [`calendars.md`](../../calendar-creator/references/calendars.md) — widgets and calendar tabs hosted by a hub.
 
 _The Minimal Valid Skeleton above is intentionally terse — a real hub's `toolbar` / `filters` / `tabs` / `flows` arrays grow substantially. Expand specific sections above (Runtime Globals, Invocation Contract, Common Patterns, Pre-Flight Checklist) for the patterns that fill those bodies out._

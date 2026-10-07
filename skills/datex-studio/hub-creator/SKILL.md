@@ -18,6 +18,7 @@ depends:
   - selector-creator
   - form-creator
   - editor-creator
+  - widget-creator
   - requirements-gathering
   - post-edit-verification
   - component-validator
@@ -44,6 +45,7 @@ Author a NEW Datex Studio hub configuration (configurationTypeId=2) on a branch 
 - **`requirements-gathering`** skill — invoked to produce a requirements brief if one doesn't already exist in the conversation context
 - **`grid-creator`** / **`selector-creator`** / **`form-creator`** / **`editor-creator`** skills — invoked when a tab grid, filter-backing selector, or dialog form/editor referenced by the hub doesn't exist yet on the branch
 - **`component-wiring-check`** skill — invoked to audit `configParameters` ↔ target `inParams` contracts before push (the dead-wiring trap)
+- **`widget-creator`** skill — invoked when adding a widget to the hub (the widget and its standalone datasource must exist first)
 
 ## CLI Lifecycle
 
