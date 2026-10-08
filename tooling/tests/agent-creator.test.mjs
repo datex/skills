@@ -36,11 +36,15 @@ test('Review Focus 4: admin prerequisites are shortened — no manual pre-author
   assert.match(md, /pre-authorizes[\s\S]{0,80}automatically/i);
 });
 
+// The app-identity admin steps (access_as_daemon, consent, Manager service principal) are no
+// longer restated here — they live only in the installed fpx skill (final-review-report.md I3),
+// so this points there by name instead of repeating them.
 test('hand-off: install fpx, fpx use, then fpx skills install, then the app-identity paragraph', () => {
   assert.match(md, /fpx skills install/);
   assert.match(md, /fpx use /);
   assert.match(md, /app identity/i);
-  assert.match(md, /access_as_daemon/);
+  assert.match(md, /installed `fpx` skill/);
+  assert.doesNotMatch(md, /access_as_daemon/, 'the app-identity admin steps should live only in the fpx skill, not be restated here');
 });
 
 test('links the worked example', () => {

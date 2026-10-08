@@ -193,8 +193,8 @@ manual step is gone:
 
 1. **Admin consent for the app's backend registration** — the Manager's **Consent (admin
    only)** on the deployed application, run by an admin of that tenant.
-2. **An app role assignment for every caller.** A `403` from `GET /api/$agent/manifest` means
-   this one is missing, not a bug in the agent or `fpx`.
+2. **A role in the Agent app, assigned in Manager, for every caller.** A `403` from
+   `GET /api/$agent/manifest` means this one is missing, not a bug in the agent or `fpx`.
 
 **Model key (only for the app's own agent loop).** `fpx` needs none of this — it is only for
 the agent loop the deployed app runs itself. In the Manager, create an AI API connection
@@ -207,10 +207,12 @@ OpenAI `gpt-6-astra`); there is no per-app model setting to configure.
 
 ### 7. Hand the app to fpx and try one turn
 
-Install fpx once — not yet published, so a local link until then:
+Install fpx once — not yet published, so a local install from a clone until then:
 
 ```bash
-npm i -g @datex/fpx   # once published; for now: npm link from an fpx checkout
+npm i -g @datex/fpx   # once published
+# until then, from a clone of the fpx repo:
+npm ci && npm run build && npm link
 ```
 
 ```bash
@@ -232,11 +234,8 @@ into the folders Claude Code and Codex read (`--project`, `--dir`, `--agent clau
 That skill covers everything from here: calls, exports, scripts and errors.
 
 **Unattended agents** (a script, not a human at a keyboard) sign in with an **app identity** —
-a client secret, not a browser. The fpx skill's own app-identity section covers the env vars
-(`FPX_CLIENT_ID`/`FPX_TENANT_ID`/`FPX_CLIENT_SECRET`, tenant = the Agent app's own tenant that
-`dxs agent url` prints) and the prerequisite: grant the customer's app registration the
-backend's `access_as_daemon` **application** permission in their tenant, admin-consent it, and
-register it in Manager as a service principal with a role.
+a client secret, not a browser. The installed `fpx` skill's *App identity* section has the env
+vars, the tenant rule and the admin steps.
 
 To smoke-test the app's own agent loop:
 
