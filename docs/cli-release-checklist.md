@@ -84,15 +84,23 @@ done | sort -u
 
 ## 5. fpx releases
 
-`fpx` ships from its own repository on its own schedule. At each fpx release:
+`fpx` 0.2.0 ships its own CLI skill from its own repository, bundled in the npm package and
+installed with `fpx skills install` — this repo no longer carries a copy (`skills/datex-studio/fpx`
+was removed; its error-codes reference and surface tests now live with `fpx`). At each fpx release:
 
-1. Regenerate [`fpx/references/error-codes.md`](../skills/datex-studio/fpx/references/error-codes.md) with the command at its top.
-2. Run `npm test` in this repo with the new fpx installed: the surface tests fail on any command or option a skill names that the new fpx dropped.
-3. Bump the "Verified against" line in the `fpx` skill and in `agent-creator`.
+1. Re-verify `agent-creator`'s hand-off section (install → `fpx use` → `fpx skills install`,
+   and the admin/app-identity prerequisites it summarizes) still matches the released `fpx`'s
+   flags and error codes.
+2. Bump the "Verified against" line in `agent-creator`.
+3. Run `npm test` in this repo with the new fpx installed — `agent-creator`'s own checks are
+   `dxs`-only now, so this mainly guards against the hand-off text drifting from real flags
+   (checked by hand per step 1, not by an automated surface test here).
 
-`npm test` does the same for dxs when `DXS_CLI_CHECKOUT` points at the CLI checkout (default `../datex-studio-cli`). Run it at every dxs release too.
+`npm test` checks dxs surface when `DXS_CLI_CHECKOUT` points at the CLI checkout (default
+`../datex-studio-cli`). Run it at every dxs release too.
 
-The compat table (`compat.yaml`) needs a new row only when a CLI release breaks skills that are already on main. dxs 0.6.0 needed none: `agent-creator` and `fpx` first reach main with it.
+The compat table (`compat.yaml`) needs a new row only when a CLI release breaks skills that are
+already on main. dxs 0.6.0 needed none: `agent-creator` first reached main with it.
 
 ## Done means
 

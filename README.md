@@ -36,7 +36,7 @@ Cross-skill content used to live in a plain `shared/` directory. `npx skills` on
 
 ## Skill catalog
 
-**42 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities, workflow orchestration). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
+**41 Datex Studio skills + 3 Footprint skills.** Organized below per spec group (creators, editors, tailoring, validators, shared/library, utilities, workflow orchestration). The per-skill inventory is the catalog below; most of these skills were introduced by the Mitch merge.
 
 ### Datex Studio — Component creators (17)
 
@@ -97,7 +97,7 @@ Reference-only library skills. **Not invoked directly.** Other skills link into 
 | [`datex-studio-conventions`](skills/datex-studio/datex-studio-conventions/SKILL.md) | File format invariants, naming conventions, defaults |
 | [`datex-studio-runtime`](skills/datex-studio/datex-studio-runtime/SKILL.md) | Runtime globals, three-tier execution model, control-type catalog |
 
-### Datex Studio — Utilities (15)
+### Datex Studio — Utilities (14)
 
 Workflow helpers consumed by creator skills or invoked standalone.
 
@@ -110,7 +110,6 @@ Workflow helpers consumed by creator skills or invoked standalone.
 | [`component-wiring-check`](skills/datex-studio/component-wiring-check/SKILL.md) | Audit the three silent-failure traps (moduleId, configParameters mirror, vars declaration) |
 | [`db-query`](skills/datex-studio/db-query/SKILL.md) | `$db` predicate DSL + flow-db-datasource patterns |
 | [`devops-requirements`](skills/datex-studio/devops-requirements/SKILL.md) | Extract requirements from Azure DevOps work items |
-| [`fpx`](skills/datex-studio/fpx/SKILL.md) | Run a deployed Agent application's commands with `fpx`: sign-in, `--all --out` exports, scripts, 401/403 diagnosis |
 | [`impact-analysis`](skills/datex-studio/impact-analysis/SKILL.md) | Reverse-trace caller analysis before contract changes (write-side / read-side split) |
 | [`odata-execution`](skills/datex-studio/odata-execution/SKILL.md) | Incremental OData query development with `dxs odata execute` |
 | [`post-edit-verification`](skills/datex-studio/post-edit-verification/SKILL.md) | Cheapest-first verification ladder after every component edit |

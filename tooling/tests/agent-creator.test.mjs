@@ -6,11 +6,12 @@ import { helpFor, hasFlag } from './lib/run-cli.mjs';
 
 const md = readFileSync('skills/datex-studio/agent-creator/SKILL.md', 'utf8');
 
-test('frontmatter depends on fpx and the shared library', () => {
+test('frontmatter depends on the shared library, not fpx (fpx ships its own skill now)', () => {
   const fm = frontmatter(md);
   assert.equal(fm.name, 'agent-creator');
   assert.match(fm.description, /^Use when/);
-  for (const d of ['fpx', 'datex-studio-shared']) assert.ok(fm.depends.includes(d), d);
+  for (const d of ['datex-studio-shared', 'package-cascade']) assert.ok(fm.depends.includes(d), d);
+  assert.ok(!fm.depends.includes('fpx'), 'fpx is not a skill in this repo anymore');
 });
 
 test('teaches the Agent application loop in order', () => {
@@ -24,14 +25,26 @@ test('drops the sections that described pre-Agent-application hosting', () => {
   for (const gone of [/Two manifests/, /A bare ref is not always/, /agentconfigurations\/referenceName/, /in-process host/i, /\bfp\b(?!x)/]) assert.doesNotMatch(md, gone, `${gone}`);
 });
 
-test('Review Focus 4: tenant prerequisites link to the fpx skill, not restated here', () => {
-  assert.match(md, /\]\(\.\.\/fpx\/SKILL\.md#the-three-tenant-prerequisites\)/);
+// fpx now ships its own CLI skill from the fpx repo (bundled in the npm package, installed via
+// `fpx skills install`) — there is no `skills/datex-studio/fpx` in this repo to link to anymore,
+// so these checks no longer assert a relative markdown link into it. Retargeted to the admin
+// prerequisites this skill now states directly: the manual pre-authorize step is gone (the
+// platform does it automatically), and the content names "fpx skills install" and the
+// app-identity hand-off by name instead of by path.
+test('Review Focus 4: admin prerequisites are shortened — no manual pre-authorize step', () => {
   assert.doesNotMatch(md, /Pre-authorize/);
+  assert.match(md, /pre-authorizes[\s\S]{0,80}automatically/i);
 });
 
-test('links the worked example and the fpx skill', () => {
+test('hand-off: install fpx, fpx use, then fpx skills install, then the app-identity paragraph', () => {
+  assert.match(md, /fpx skills install/);
+  assert.match(md, /fpx use /);
+  assert.match(md, /app identity/i);
+  assert.match(md, /access_as_daemon/);
+});
+
+test('links the worked example', () => {
   assert.match(md, /\]\(references\/examples\/abc-slotting\/README\.md\)/);
-  assert.match(md, /\]\(\.\.\/fpx\/SKILL\.md\)/);
 });
 
 test('every dxs command and flag named exists in dxs 0.6.0', t => {

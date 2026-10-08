@@ -8,14 +8,15 @@ description: |
   "add a command to the agent", "write the agent's skill", "agent check fails",
   "resolved: false", "agent manifest". For RUNNING a deployed agent's commands, use `fpx`.
 depends:
-  - fpx
   - datex-studio-shared
   - package-cascade
 ---
 
 # Agent creator
 
-Verified against **dxs 0.6.0** and **fpx 0.1.0**. Requires dxs 0.6.0 or later — Agent
+Verified against **dxs 0.6.0** and **fpx 0.2.0**. `fpx` ships its own CLI skill (installed with
+`fpx skills install`, not from this repo), so it is no longer a `depends:` entry here. Requires
+dxs 0.6.0 or later — Agent
 applications and their whole `dxs agent` command group are new in that release.
 
 An **Agent application** is its own application type in Datex Studio. One Agent application
@@ -182,11 +183,18 @@ Every command must be `ok`. The other verdicts:
 the branch is not an Agent application or has no manifest. `dxs agent manifest -b <branch>`
 prints the whole manifest.
 
-### 6. Deploy, then the tenant prerequisites
+### 6. Deploy, then the admin prerequisites
 
 Deploy through the Manager as for any application. A freshly deployed Agent application
-answers `401`/`403` until an admin has done three one-time steps — see
-[the fpx skill](../fpx/SKILL.md#the-three-tenant-prerequisites).
+answers `401`/`403` until an admin has done two one-time steps in the organization's own
+tenant — the platform now pre-authorizes the CLI client on the app's backend registration
+automatically (new apps; existing apps via the Manager's **Provision on Azure**), so that
+manual step is gone:
+
+1. **Admin consent for the app's backend registration** — the Manager's **Consent (admin
+   only)** on the deployed application, run by an admin of that tenant.
+2. **An app role assignment for every caller.** A `403` from `GET /api/$agent/manifest` means
+   this one is missing, not a bug in the agent or `fpx`.
 
 **Model key (only for the app's own agent loop).** `fpx` needs none of this — it is only for
 the agent loop the deployed app runs itself. In the Manager, create an AI API connection
@@ -199,6 +207,12 @@ OpenAI `gpt-6-astra`); there is no per-app model setting to configure.
 
 ### 7. Hand the app to fpx and try one turn
 
+Install fpx once — not yet published, so a local link until then:
+
+```bash
+npm i -g @datex/fpx   # once published; for now: npm link from an fpx checkout
+```
+
 ```bash
 dxs agent url -b <branch> --env <environment>
 ```
@@ -209,11 +223,22 @@ found). Paste the `fpx_use` line, adding `--account you@customer.com` for custom
 
 ```bash
 fpx use <app_url> --app-scope <app_scope> --tenant-id <tenant_id>
+fpx skills install
 fpx commands
 ```
 
-The [`fpx`](../fpx/SKILL.md) skill covers everything from here: calls, exports, scripts and
-errors. To smoke-test the app's own agent loop:
+`fpx skills install` installs fpx's own bundled skill alongside the Agent app's own skills,
+into the folders Claude Code and Codex read (`--project`, `--dir`, `--agent claude|codex|all`).
+That skill covers everything from here: calls, exports, scripts and errors.
+
+**Unattended agents** (a script, not a human at a keyboard) sign in with an **app identity** —
+a client secret, not a browser. The fpx skill's own app-identity section covers the env vars
+(`FPX_CLIENT_ID`/`FPX_TENANT_ID`/`FPX_CLIENT_SECRET`, tenant = the Agent app's own tenant that
+`dxs agent url` prints) and the prerequisite: grant the customer's app registration the
+backend's `access_as_daemon` **application** permission in their tenant, admin-consent it, and
+register it in Manager as a service principal with a role.
+
+To smoke-test the app's own agent loop:
 
 ```bash
 dxs agent chat --app-url <app_url> --app-scope <app_scope> -m "Which materials are class A in warehouse 12?"
@@ -249,4 +274,4 @@ its command `unresolved`.
 - [ ] every skill is owned, self-contained, and names aliases, not Studio internals
 - [ ] multi-page work is an `fpx` export plus a script that prints only the summary
 - [ ] the systemPrompt names the skill and the final report
-- [ ] after deploy: the three tenant prerequisites are done, and `fpx commands` lists the aliases
+- [ ] after deploy: the admin prerequisites are done, and `fpx commands` lists the aliases
