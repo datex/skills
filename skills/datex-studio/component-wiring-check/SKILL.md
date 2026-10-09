@@ -160,7 +160,7 @@ When a user reports a symptom rather than a known broken contract, this table ma
 | Component resolves but behaves oddly | `moduleId` on the reference is wrong |
 | Var is undefined in flow code | Missing declaration in top-level `vars[]` (or `rowVars[]` for grid row flows) |
 | "Outdated contract" at import | Tailored overlay shadow has drifted from its base — hand off to `tailoring-overlay` |
-| A CAC's embedded component tag "is not a known element" (`NG8001`), or `dxs ng push` fails with `DXS-NG-056` | A `componentReferences` entry has the wrong `kind`, a `moduleId` that is not the target's owning module, or names a component that does not exist on the branch — see [component-wiring.md → Custom Angular Component `componentReferences`](references/component-wiring.md#custom-angular-component-componentreferences) |
+| A CAC fails to compile with `TS2307: Cannot find module './<P>.<ref>.component'`, or an embedded tag "is not a known element" (`NG8001`), or `dxs ng push` fails with `DXS-NG-056` | A `componentReferences` entry has the wrong `kind`, a `moduleId` that is not the target's owning module, or names a component that does not exist on the branch — see [component-wiring.md → Custom Angular Component `componentReferences`](references/component-wiring.md#custom-angular-component-componentreferences) |
 
 ## Pre-Flight Checklist
 
